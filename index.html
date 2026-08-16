@@ -479,6 +479,31 @@
   .av-pick button:hover{background:var(--butter-soft)}
   .av-pick button.on{background:var(--accent);box-shadow:0 2px 0 var(--outline)}
 
+  /* ---------- AI 分身 ---------- */
+  .twin-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r);
+    padding:18px;box-shadow:var(--sh);margin-bottom:22px}
+  .twin-top{display:flex;align-items:center;gap:13px}
+  .twin-ava{width:52px;height:52px;border-radius:50%;border:var(--bw) solid var(--outline);
+    display:flex;align-items:center;justify-content:center;font-size:26px;background:var(--butter-soft);flex-shrink:0}
+  .twin-name{font-family:var(--cute);font-size:17px;color:var(--ink)}
+  .twin-sub{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.6}
+  .twin-type{font-family:var(--mono);font-size:15px;letter-spacing:.1em;color:var(--ink);
+    background:var(--accent);border:1.5px solid var(--outline);border-radius:var(--pill);
+    padding:3px 12px;display:inline-block;margin-top:2px}
+  .twin-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .twin-tags span{font-size:11.5px;background:var(--surface-2);border:1.5px solid var(--outline);
+    border-radius:var(--pill);padding:3px 10px;color:var(--ink)}
+  .quiz-bar{height:7px;background:var(--surface-2);border:1.5px solid var(--outline);
+    border-radius:var(--pill);overflow:hidden;margin-bottom:16px}
+  .quiz-fill{height:100%;background:var(--accent)}
+  .quiz-q{font-family:var(--cute);font-size:18px;line-height:1.6;color:var(--ink);margin-bottom:16px}
+  .quiz-opts{display:flex;flex-direction:column;gap:9px}
+  .quiz-opts button{border:var(--bw) solid var(--outline);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-sm);padding:13px 15px;font-size:14.5px;font-family:var(--cute);
+    cursor:pointer;text-align:left;box-shadow:var(--sh)}
+  .quiz-opts button:hover{background:var(--butter-soft)}
+  .quiz-step{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-bottom:8px}
+
   /* ---------- 匹配报告 ---------- */
   .modal.wide{max-width:400px;text-align:left;padding:26px 24px 22px}
   .mr-head{display:flex;align-items:center;gap:13px;margin-bottom:6px}
@@ -735,6 +760,7 @@
     <div id="page-matches" class="hidden">
       <div class="form-title">我的匹配</div>
       <div class="form-sub">互相心动的人,邮箱已互相可见,主动一点 :)</div>
+      <div class="twin-card" id="twinCard"></div>
       <div id="matchList"></div>
       <div class="form-title" style="font-size:17px;margin-top:26px">我发出的心动</div>
       <div id="likeList"></div>
@@ -1108,7 +1134,7 @@ async function saveProfile(host,isNew){
     ]);
     myProfile = data;
     toast(isNew ? "注册成功,欢迎加入!" : "已保存");
-    if(isNew) enterApp();
+    if(isNew){ enterApp(); if(!hasTwin()) setTimeout(openTwinQuiz, 700); }
   }catch(e){ toast("保存失败: "+fbError(e)); console.error(e); }
   btn.disabled = false; btn.textContent = isNew?"完成注册,进入广场":"保存修改";
 }
@@ -1122,6 +1148,7 @@ async function enterApp(){
   renderAiCard();
   syncMatchBtn();
   syncAutoWatchers();
+  renderTwinCard();
   $("#uidText").textContent = me.uid;
   startListeners();
   subscribeBoard();
@@ -1525,6 +1552,150 @@ function openAvatarPicker(host){
 /* ---------- 匹配报告 ----------
    点卡片上的分数就摊开看:每个维度拿了多少分、为什么。
    打分本身不花钱、立刻可见;想要更细的分析再单独点一次 AI(每人缓存一天)。 */
+/* ================= AI 分身 =================
+   让 AI 演的是「你」,不是一个通用助手。人格来自一份小测验:
+   前 5 题走 MBTI 那四个维度,后 5 题是交友软件常问的相处偏好。
+   结果既给用户看(类型 + 标签),也拼进系统提示词当作角色设定。      */
+const TWIN_KEY = "cl_ai_twin";
+
+const PERSONA_Q = [
+  { q:"周末没安排的时候,你更想…",
+    a:[{t:"约人出去,热闹一点", d:{E:2}}, {t:"待在家里自己充电", d:{I:2}}] },
+  { q:"刚认识一个人,你通常…",
+    a:[{t:"我先开口找话题", d:{E:2}}, {t:"等对方先说,我再接", d:{I:2}}] },
+  { q:"聊天时你更容易被什么吸引?",
+    a:[{t:"具体的事:去过哪、做过什么", d:{S:2}}, {t:"发散的想法:如果…会怎样", d:{N:2}}] },
+  { q:"做决定的时候你更信…",
+    a:[{t:"把利弊列清楚", d:{T:2}}, {t:"当下的感觉对不对", d:{F:2}}] },
+  { q:"出去玩你习惯…",
+    a:[{t:"提前把行程排好", d:{J:2}}, {t:"到了再看,随机应变", d:{P:2}}] },
+  { q:"对方半天不回消息,你会…",
+    a:[{t:"无所谓,各忙各的", d:{}, tag:"不催回复"},
+       {t:"有点在意,但不会说", d:{}, tag:"在意回复节奏"},
+       {t:"直接问一句怎么了", d:{E:1}, tag:"有话直说"}] },
+  { q:"你心里理想的第一次见面是…",
+    a:[{t:"找家咖啡馆慢慢聊", d:{I:1}, tag:"偏好安静场合"},
+       {t:"一起做点什么(爬山、展览、桌游)", d:{E:1}, tag:"偏好一起做事"},
+       {t:"先吃个饭,自然点", d:{}, tag:"随意自然"}] },
+  { q:"意见不合的时候,你倾向…",
+    a:[{t:"当场说清楚", d:{T:1}, tag:"有分歧当场讲"},
+       {t:"先冷静一下再谈", d:{F:1}, tag:"先冷静再沟通"}] },
+  { q:"你更希望对方是…",
+    a:[{t:"有自己的世界,各自独立", d:{I:1}, tag:"看重各自空间"},
+       {t:"黏一点,常常分享日常", d:{E:1}, tag:"喜欢常联系"}] },
+  { q:"聊得下去最重要的是…",
+    a:[{t:"有趣,能互相接梗", d:{}, tag:"看重有趣"},
+       {t:"真诚,不用绕弯子", d:{F:1}, tag:"看重真诚"},
+       {t:"有共同话题", d:{}, tag:"看重共同话题"}] }
+];
+
+const TYPE_DESC = { E:"外向主动", I:"慢热内敛", S:"务实具体", N:"发散跳跃",
+                    T:"理性权衡", F:"感受优先", J:"计划性强", P:"随性灵活" };
+
+function twinData(){ return readJson(TWIN_KEY, null); }
+function hasTwin(){ const t = twinData(); return !!(t && t.type); }
+
+function scoreTwin(answers){
+  const d = {E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0}, tags = [];
+  answers.forEach((ai, qi)=>{
+    const opt = PERSONA_Q[qi] && PERSONA_Q[qi].a[ai];
+    if(!opt) return;
+    Object.entries(opt.d || {}).forEach(([k,v])=> d[k] += v);
+    if(opt.tag) tags.push(opt.tag);
+  });
+  // 打平时取前者,保证同一份答案永远得到同一个类型
+  const pick = (a,b)=> d[a] >= d[b] ? a : b;
+  const type = pick("E","I") + pick("S","N") + pick("T","F") + pick("J","P");
+  return { type, tags, traits: type.split("").map(c=>TYPE_DESC[c]), at: Date.now(), answers };
+}
+
+// 拼进系统提示词那一段 —— AI 演的是这个人
+function twinPrompt(){
+  const t = twinData();
+  if(!t || !t.type) return "";
+  return [
+    `你的人格设定(来自本人做的性格测验,类型 ${t.type}):${(t.traits||[]).join("、")}。`,
+    (t.tags||[]).length ? `相处偏好:${t.tags.join("、")}。` : "",
+    `按这个性格说话,但不要把测验结果说出来,也不要提「我是 ${t.type}」这类话。`
+  ].filter(Boolean).join("");
+}
+
+function openTwinQuiz(){
+  let step = 0; const answers = [];
+  const host = $("#modalHost");
+  const draw = ()=>{
+    if(step >= PERSONA_Q.length){
+      const res = scoreTwin(answers);
+      localStorage.setItem(TWIN_KEY, JSON.stringify(res));
+      renderTwinCard();
+      host.innerHTML = `
+      <div class="modal-mask" onclick="this.remove()">
+        <div class="modal wide" onclick="event.stopPropagation()">
+          <div style="text-align:center">
+            <div class="twin-ava" style="margin:0 auto 12px;width:64px;height:64px;font-size:32px">🪞</div>
+            <div class="twin-type">${esc(res.type)}</div>
+            <div class="twin-sub" style="margin-top:10px">${esc(res.traits.join(" · "))}</div>
+          </div>
+          <div class="twin-tags" style="justify-content:center">${
+            res.tags.map(t=>`<span>${esc(t)}</span>`).join("")}</div>
+          <div class="hint" style="margin-top:16px;line-height:1.8">
+            AI 分身会按这个性格替你说话。随时可以在「匹配」页重新测。</div>
+          <div class="modal-actions" style="margin-top:16px">
+            <button class="btn btn-ghost" id="twinRedo">重测</button>
+            <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">好了</button>
+          </div>
+        </div>
+      </div>`;
+      $("#twinRedo").addEventListener("click", ()=>{ step=0; answers.length=0; draw(); });
+      return;
+    }
+    const q = PERSONA_Q[step];
+    host.innerHTML = `
+    <div class="modal-mask" onclick="this.remove()">
+      <div class="modal wide" onclick="event.stopPropagation()">
+        <div class="quiz-bar"><div class="quiz-fill" style="width:${step/PERSONA_Q.length*100}%"></div></div>
+        <div class="quiz-step">${step+1} / ${PERSONA_Q.length}</div>
+        <div class="quiz-q">${esc(q.q)}</div>
+        <div class="quiz-opts">${q.a.map((o,i)=>
+          `<button type="button" data-i="${i}">${esc(o.t)}</button>`).join("")}</div>
+        ${step>0?`<button class="btn btn-ghost" style="width:100%;margin-top:14px" id="twinBack">← 上一题</button>`:""}
+      </div>
+    </div>`;
+    host.querySelectorAll(".quiz-opts button").forEach(b=>
+      b.addEventListener("click", ()=>{ answers[step] = +b.dataset.i; step++; draw(); }));
+    const back = $("#twinBack");
+    if(back) back.addEventListener("click", ()=>{ step--; draw(); });
+  };
+  draw();
+}
+
+function renderTwinCard(){
+  const host = $("#twinCard"); if(!host) return;
+  const t = twinData();
+  host.innerHTML = (t && t.type) ? `
+    <div class="twin-top">
+      <div class="twin-ava">🪞</div>
+      <div style="flex:1;min-width:0">
+        <div class="twin-name">我的 AI 分身</div>
+        <div class="twin-type" style="font-size:13px">${esc(t.type)}</div>
+        <div class="twin-sub">${esc((t.traits||[]).join(" · "))}</div>
+      </div>
+    </div>
+    <div class="twin-tags">${(t.tags||[]).map(x=>`<span>${esc(x)}</span>`).join("")}</div>
+    <button class="btn btn-ghost btn-pill" style="width:100%;margin-top:14px" id="twinEdit">查看 / 重新测试</button>`
+  : `
+    <div class="twin-top">
+      <div class="twin-ava">🪞</div>
+      <div style="flex:1;min-width:0">
+        <div class="twin-name">创建我的 AI 分身</div>
+        <div class="twin-sub">10 道题,一分钟。之后 AI 会按你的性格替你说话,而不是像个客服</div>
+      </div>
+    </div>
+    <button class="btn btn-coral btn-pill" style="width:100%;margin-top:14px" id="twinStart">开始测试</button>`;
+  const b = host.querySelector("#twinEdit") || host.querySelector("#twinStart");
+  if(b) b.addEventListener("click", openTwinQuiz);
+}
+
 const AI_DEEP_KEY = "cl_ai_deep";
 const DEEP_TTL = 24*3600*1000;
 
@@ -1893,6 +2064,7 @@ function aiSystemPrompt(){
     "不要写成剧本或对话形式,不要出现任何「对方:」「我:」这样的前缀。",
     p.age||p.city||p.role ? `TA 的资料:${[p.age&&p.age+"岁", p.city, p.role].filter(Boolean).join(" · ")}。` : "",
     p.bio ? `自我介绍:${p.bio}` : "",
+    twinPrompt(),
     "",
     "写作要求:",
     "· 用第一人称、口语化中文,就像本人在手机上打字。",
