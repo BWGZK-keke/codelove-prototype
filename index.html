@@ -94,7 +94,9 @@
   .b-green{background:var(--mint-soft)}
   .b-indigo{background:var(--sky-soft)}
   .b-amber{background:var(--butter-soft)}
-  .tok{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--surface-2);
+  /* 标签里常有中文(攀岩、咖啡),等宽字体没有中文字形会掉到很难看的 fallback,
+     所以跟全站统一用 --cute */
+  .tok{font-family:var(--cute);font-size:11.5px;color:var(--ink);background:var(--surface-2);
     border:1.5px solid var(--outline);border-radius:var(--pill);padding:3px 10px}
 
   /* ---------- 顶栏 ---------- */
@@ -455,6 +457,16 @@
     .lp-logo{font-size:20px;margin-right:2px}
     .lp-hero{padding:48px 0 40px}
   }
+
+  /* ---------- 换头像 ---------- */
+  .av-row{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .av-row .ava,.av-row .ava-emoji{width:64px;height:64px;font-size:31px}
+  .av-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:8px;margin:4px 0 6px}
+  .av-pick button{border:1.5px solid var(--outline);background:var(--surface);border-radius:50%;
+    aspect-ratio:1;font-size:23px;cursor:pointer;font-family:var(--cute);padding:0;
+    display:flex;align-items:center;justify-content:center}
+  .av-pick button:hover{background:var(--butter-soft)}
+  .av-pick button.on{background:var(--accent);box-shadow:0 2px 0 var(--outline)}
 
   /* ---------- 匹配报告 ---------- */
   .modal.wide{max-width:400px;text-align:left;padding:26px 24px 22px}
@@ -1010,7 +1022,16 @@ const EDU = ["本科","硕士","博士","海外硕士","海外博士"];
 const GENDERS = ["男","女"];
 function renderProfileForm(host, data, isNew){
   const d = data || {};
+  const curPhoto = d.photo !== undefined ? d.photo : (me.photoURL || "");
   host.innerHTML = `
+    <div class="av-row">
+      <div id="avatarPreview">${avatarHtml({photo:curPhoto, gender:d.gender})}</div>
+      <div>
+        <button type="button" class="btn btn-ghost" id="f-avatar">换头像</button>
+        <div class="hint" style="margin-top:6px">可以选 emoji,或贴自己的图片链接</div>
+      </div>
+    </div>
+    <input type="hidden" id="f-photo" value="${esc(curPhoto)}">
     <div class="field"><label>昵称 *</label>
       <input id="f-name" maxlength="16" value="${esc(d.name||me.displayName||"")}" placeholder="怎么称呼你?"></div>
     <div class="row2">
@@ -1029,11 +1050,12 @@ function renderProfileForm(host, data, isNew){
       <input id="f-role" maxlength="20" value="${esc(d.role||"")}" placeholder="如:后端工程师 / 算法研究员"></div>
     <div class="field"><label>技术栈 & 兴趣标签</label>
       <input id="f-stack" maxlength="60" value="${esc((d.stack||[]).join(" "))}" placeholder="用空格分隔,如:Python 攀岩 咖啡 INTJ">
-      <div class="hint">最多 8 个,会以代码 token 样式展示</div></div>
+      <div class="hint">最多 8 个</div></div>
     <div class="field"><label>自我介绍</label>
       <textarea id="f-bio" maxlength="140" placeholder="一句话让别人认识你(140字内)">${esc(d.bio||"")}</textarea></div>
     <button class="btn btn-coral" style="width:100%" id="f-save">${isNew?"完成注册,进入广场":"保存修改"}</button>`;
   host.querySelector("#f-save").addEventListener("click", ()=>saveProfile(host,isNew));
+  host.querySelector("#f-avatar").addEventListener("click", ()=>openAvatarPicker(host));
 }
 async function saveProfile(host,isNew){
   const v = id => host.querySelector("#"+id).value.trim();
@@ -1047,7 +1069,7 @@ async function saveProfile(host,isNew){
     gender: v("f-gender"), edu: v("f-edu"),
     stack: v("f-stack").split(/\s+/).filter(Boolean).slice(0,8),
     bio: v("f-bio"),
-    photo: me.photoURL||"",
+    photo: v("f-photo"),
     uid: me.uid, updatedAt: serverTimestamp()
   };
   try{
@@ -1384,6 +1406,66 @@ function syncMatchBtn(){
     : "当前是本地规则分,点左边让 AI 逐个分析";
 }
 
+/* ---------- 换头像 ----------
+   firestore.rules 把 photo 限制在 500 字符以内,所以放不下 base64 图片。
+   在这个前提下能做的三件事:Google 头像、一组内置 emoji、自己贴一个图片链接。
+   emoji 存成 "emoji:🐱",avatarHtml 按前缀分流。                            */
+const AVATARS = ["🧑‍💻","👩‍💻","🧑‍🔬","👩‍🔬","🐱","🐶","🦊","🐼","🐨","🦉","🐧","🦁",
+                 "🦄","🐳","🌵","🍀","🌙","⭐","🔥","🎧","☕","🍜","🚀","🎮","📚","🏔️"];
+
+function openAvatarPicker(host){
+  const q = s => host.querySelector(s);
+  const cur = q("#f-photo").value || "";
+  const isEmoji = cur.startsWith("emoji:");
+  const gender = () => { const g = q("#f-gender"); return g ? g.value : ""; };
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="av-row">
+        <div id="avPreview">${avatarHtml({photo:cur, gender:gender()})}</div>
+        <div><div class="mr-nm">换个头像</div>
+          <div class="mr-meta">会展示在广场和私信里</div></div>
+      </div>
+      ${me.photoURL?`<div class="field"><label>Google 头像</label>
+        <button class="btn btn-ghost" style="width:100%" id="avGoogle">用我的 Google 头像</button></div>`:""}
+      <div class="field"><label>选一个</label>
+        <div class="av-pick" id="avGrid">${AVATARS.map(e=>
+          `<button type="button" data-e="${e}"${isEmoji&&cur.slice(6)===e?' class="on"':""}>${e}</button>`).join("")}</div></div>
+      <div class="field"><label>或者贴一个图片链接</label>
+        <input id="avUrl" placeholder="https://…" maxlength="480"
+          value="${esc(cur.startsWith("http")?cur:"")}">
+        <div class="hint">要是能直接打开的图片地址</div></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">取消</button>
+        <button class="btn btn-coral" id="avSave">用这个</button>
+      </div>
+    </div>
+  </div>`;
+
+  let picked = cur;
+  const preview = v => {
+    picked = v;
+    $("#avPreview").innerHTML = avatarHtml({photo:v, gender:gender()});
+  };
+  const clearGrid = () => $("#avGrid").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+  $("#avGrid").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    clearGrid(); b.classList.add("on"); $("#avUrl").value = "";
+    preview("emoji:"+b.dataset.e);
+  }));
+  $("#avUrl").addEventListener("input", e=>{ clearGrid(); preview(e.target.value.trim()); });
+  const g = $("#avGoogle");
+  if(g) g.addEventListener("click", ()=>{ clearGrid(); $("#avUrl").value=""; preview(me.photoURL); });
+  $("#avSave").addEventListener("click", ()=>{
+    const v = (picked||"").trim();
+    if(v && !v.startsWith("emoji:") && !/^https:\/\//.test(v)){ toast("图片链接要以 https:// 开头"); return; }
+    if(v.length > 480){ toast("这个链接太长了"); return; }
+    q("#f-photo").value = v;
+    q("#avatarPreview").innerHTML = avatarHtml({photo:v, gender:gender()});
+    $("#modalHost").innerHTML = "";
+    toast("头像已选好,记得点下面的「保存资料」");
+  });
+}
+
 /* ---------- 匹配报告 ----------
    点卡片上的分数就摊开看:每个维度拿了多少分、为什么。
    打分本身不花钱、立刻可见;想要更细的分析再单独点一次 AI(每人缓存一天)。 */
@@ -1467,9 +1549,11 @@ function openMatchReport(u){
 
 /* ---------- feed ---------- */
 function avatarHtml(u){
-  return u.photo
-    ? `<img class="ava" src="${esc(u.photo)}" alt="" referrerpolicy="no-referrer">`
-    : `<div class="ava-emoji">${u.gender==="女"?"👩‍💻":"🧑‍💻"}</div>`;
+  const p = (u && u.photo) || "";
+  if(p.startsWith("emoji:")) return `<div class="ava-emoji">${esc(p.slice(6))}</div>`;
+  return p
+    ? `<img class="ava" src="${esc(p)}" alt="" referrerpolicy="no-referrer">`
+    : `<div class="ava-emoji">${u && u.gender==="女"?"👩‍💻":"🧑‍💻"}</div>`;
 }
 // 自己的卡片:广场按设计不展示自己,这里单独置顶做预览,
 // 让你确认资料已写入、并看到别人眼里你长什么样。
@@ -1571,7 +1655,7 @@ function openChat(uid, name, photo, gender, sub){
   $("#chatInput").value = "";
   toggleEmoji(false);
   curChatMsgs = [];
-  aiPrimed = false;        // 第一批快照只用来「认门」,不对历史消息代回复
+  aiSeenId = null;
   syncAiStrip();
   toggleAiPanel(false);
   show("view-chat");
@@ -1650,7 +1734,7 @@ function closeChat(){
   if(unsubChat){ try{ unsubChat(); }catch(e){} unsubChat = null; }
   curChatPeer = null;
   curChatMsgs = [];
-  aiPrimed = false;
+  aiSeenId = null;
   show("view-app");
   renderMatches();
 }
@@ -1672,7 +1756,7 @@ const AI_CFG_KEY = "cl_ai_cfg", AI_AUTO_KEY = "cl_ai_auto";
    部署方法见 worker/README.md,部署完把地址填到这里。
    留空也能跑 —— 只是所有人都得自己填 Key。                                    */
 const AI_PROXY_URL = "https://codelove-ai.codelove-bwgzk.workers.dev/chat";
-let curChatMsgs = [], aiBusy = false, aiSeenId = null, aiPrimed = false;
+let curChatMsgs = [], aiBusy = false, aiSeenId = null;
 
 const AI_PROVIDERS = {
   deepseek: {
@@ -1734,7 +1818,9 @@ function setAuto(uid, on){
 function aiSystemPrompt(){
   const p = myProfile || {}, extra = (aiCfg().persona||"").trim();
   return [
-    `你在帮「${p.name||"我"}」回复一个交友 App 上的私信。你们已经互相心动了。`,
+    `你现在就是「${p.name||"我"}」本人,在一个交友 App 上跟已经互相心动的对象聊天。`,
+    "你只写「我」要发出去的那一句话。绝对不要替对方说话,不要续写对方的消息,",
+    "不要写成剧本或对话形式,不要出现任何「对方:」「我:」这样的前缀。",
     p.age||p.city||p.role ? `TA 的资料:${[p.age&&p.age+"岁", p.city, p.role].filter(Boolean).join(" · ")}。` : "",
     p.bio ? `自我介绍:${p.bio}` : "",
     "",
@@ -1753,10 +1839,18 @@ function aiSystemPrompt(){
 function buildPrompt(msgs){
   const peer = curChatPeer?.name || "对方";
   const recent = msgs.slice(-20)
-    .map(m=>`${m.from===me.uid ? "我" : peer}:${m.text}`).join("\n");
-  return recent
-    ? `以下是我和${peer}的聊天记录,从旧到新:\n\n${recent}\n\n请写出我接下来要发的那一条消息。`
-    : `我和${peer}刚匹配上,还没聊过。请写出我要发的第一条消息,自然地开个话题。`;
+    .map(m=>`${m.from===me.uid ? "【我】" : "【"+peer+"】"}:${m.text}`).join("\n");
+  if(!recent)
+    return `我和${peer}刚匹配上,还没聊过。请写出我要发的第一条消息,自然地开个话题。`;
+
+  // 最后一条是谁发的,决定了这次该写什么 ——
+  // 不区分的话,模型很容易顺着往下续写对方的台词,变成自己跟自己聊。
+  const mine = msgs[msgs.length-1].from === me.uid;
+  const ask = mine
+    ? `上面最后一条是【我】刚发出去的,${peer}还没回。请再写一条我可以补充的话:` +
+      `换个角度或补充点信息,不要重复我已经说过的,更不要替${peer}回答。`
+    : `上面最后一条是【${peer}】发来的。请写出【我】要回复的那一条消息。`;
+  return `以下是我和${peer}的聊天记录,从旧到新:\n\n${recent}\n\n${ask}`;
 }
 
 function aiError(status, raw, p){
@@ -1863,14 +1957,18 @@ async function aiSuggest(){
 }
 
 // 自动代回复:只在对方发来新消息、且这个会话开了开关时触发
+// 判定标准很简单:最后一条是对方发的 = 还没回;是自己发的 = 已经回过了。
+//
+// 之前这里有一段「首批快照只认门」的逻辑,会把打开会话时对方那条未读消息
+// 直接标记成已处理 —— 于是最常见的场景(挂着页面,对方发消息过来,你回头
+// 一看没有自动回)恰好就是不生效的那个。开关本来就是逐个会话手动开的,不需要再防一层。
 async function maybeAutoReply(msgs){
-  if(!curChatPeer) return;
+  if(!curChatPeer || aiBusy) return;
+  if(!autoOn(curChatPeer.uid) || !aiReady()) return;
   const last = msgs[msgs.length-1];
-  if(!last) return;
-  if(!aiPrimed){ aiPrimed = true; aiSeenId = last.id; return; }  // 首批快照只认门
-  if(last.id === aiSeenId || last.from === me.uid) return;
+  if(!last || last.from === me.uid) return;     // 已经回过了
+  if(last.id === aiSeenId) return;              // 这条处理过了
   aiSeenId = last.id;
-  if(aiBusy || !autoOn(curChatPeer.uid) || !aiReady()) return;
 
   const peer = curChatPeer.uid;
   setAiBusy(true);
@@ -1883,7 +1981,18 @@ async function maybeAutoReply(msgs){
 }
 
 $("#aiSuggest").addEventListener("click", aiSuggest);
-$("#aiChip").addEventListener("click", ()=>toggleAiPanel());
+$("#aiChip").addEventListener("click", e=>{ e.stopPropagation(); toggleAiPanel(); });
+
+// 面板本来只能靠再点一次那个 chip 关掉,很容易以为是卡住了。
+// 现在点聊天区域、消息列表、输入框 —— 任何面板以外的地方 —— 都收起来,Esc 也行。
+$("#view-chat").addEventListener("click", e=>{
+  if($("#aiPanel").classList.contains("hidden")) return;
+  if(e.target.closest("#aiPanel") || e.target.closest("#aiChip")) return;
+  toggleAiPanel(false);
+}, true);
+document.addEventListener("keydown", e=>{
+  if(e.key === "Escape" && !$("#aiPanel").classList.contains("hidden")) toggleAiPanel(false);
+});
 $("#aiChipMode").addEventListener("click", ()=>{
   if(!curChatPeer) return;
   if(!aiReady()){ toggleAiPanel(true); toast("先配置一个 AI"); return; }
@@ -1892,6 +2001,7 @@ $("#aiChipMode").addEventListener("click", ()=>{
   syncAiStrip();
   toast(on ? "代回复已开启:你挂着这个页面时 AI 会替你回复,并标注「AI 代回复」"
            : "已切回建议模式:AI 只出草稿,发不发你决定");
+  if(on) maybeAutoReply(curChatMsgs);   // 刚开开关,先把手头这条未读的回掉
 });
 
 /* 本站免费额度只对 DeepSeek 开放,且要先登录 */
