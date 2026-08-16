@@ -2013,8 +2013,17 @@ async function autoReplyFor(uid, msgs){
     const prof = await fetchProfile(uid);
     const text = await aiComplete(buildPrompt(msgs, prof && prof.name));
     if(autoOn(uid)) await postMsgTo(uid, text, true);   // 生成期间可能被关掉了
-  }catch(e){ toast("AI 代回复失败:"+e.message); console.error(e); }
+  }catch(e){ toast(autoReplyError(e)); console.error(e); }
   setAiBusy(false);
+}
+
+// 代回复的消息带 ai:true 标记,而这个字段是后加进 firestore.rules 白名单的。
+// 规则没发布的话,写入会被数据库拒掉 —— 表现就是「建议能用、代回复不能用」,
+// 很容易被当成 AI 出了问题,所以这里单独把这种情况点出来。
+function autoReplyError(e){
+  if(String((e && e.code) || "").includes("permission-denied"))
+    return "代回复被数据库拒绝:firestore.rules 还没发布。到 Firebase 控制台 → Firestore → 规则,发布最新规则即可";
+  return "AI 代回复失败:" + ((e && e.message) || e);
 }
 
 // 打开着的那个会话走这条(快照本来就有);其余会话靠下面的后台监听
