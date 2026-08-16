@@ -480,6 +480,9 @@
   .av-pick button.on{background:var(--accent);box-shadow:0 2px 0 var(--outline)}
 
   /* ---------- AI 分身 ---------- */
+  .ava-tap{cursor:pointer;display:inline-flex;border-radius:50%}
+  .ava-tap:active{transform:scale(.94)}
+
   .twin-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r);
     padding:18px;box-shadow:var(--sh);margin-bottom:22px}
   .twin-top{display:flex;align-items:center;gap:13px}
@@ -1124,6 +1127,7 @@ async function saveProfile(host,isNew){
     stack: v("f-stack").split(/\s+/).filter(Boolean).slice(0,8),
     bio: v("f-bio"),
     photo: v("f-photo"),
+    twin: twinString(),
     uid: me.uid, updatedAt: serverTimestamp()
   };
   try{
@@ -1552,6 +1556,63 @@ function openAvatarPicker(host){
 /* ---------- 匹配报告 ----------
    点卡片上的分数就摊开看:每个维度拿了多少分、为什么。
    打分本身不花钱、立刻可见;想要更细的分析再单独点一次 AI(每人缓存一天)。 */
+// 分身在公开资料里存成一个短字符串:"INFP|标签1,标签2"
+function twinString(){
+  const t = twinData();
+  if(!t || !t.type) return "";
+  return (t.type + "|" + (t.tags||[]).join(",")).slice(0, 200);
+}
+function parseTwin(s){
+  if(!s || typeof s !== "string" || !s.includes("|")) return null;
+  const [type, tags] = s.split("|");
+  if(!/^[EI][SN][TF][JP]$/.test(type)) return null;
+  return { type, tags: tags ? tags.split(",").filter(Boolean) : [],
+           traits: type.split("").map(c=>TYPE_DESC[c]) };
+}
+async function publishTwin(){
+  if(!me || !myProfile) return;
+  const s = twinString(); if(!s) return;
+  try{
+    await setDoc(doc(db,"users",me.uid), {...myProfile, twin:s, updatedAt:serverTimestamp()}, {merge:true});
+    myProfile.twin = s;
+  }catch(e){
+    // 规则里还没放行 twin 字段时会被拒 —— 本地照样能用,只是别人看不到
+    toast("分身没能同步到资料:" + fbError(e)); console.error(e);
+  }
+}
+
+// 点头像看对方的分身
+function openTwinPortrait(u){
+  const t = parseTwin(u.twin);
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()">
+      <div class="twin-top">
+        ${avatarHtml(u)}
+        <div style="flex:1;min-width:0">
+          <div class="twin-name">${esc(u.name||"TA")} 的 AI 分身</div>
+          <div class="mr-meta">${esc([u.age&&u.age+"岁",u.role,u.city].filter(Boolean).join(" · "))}</div>
+        </div>
+      </div>
+      ${t ? `
+        <div style="text-align:center;margin:18px 0 4px">
+          <div class="twin-type">${esc(t.type)}</div>
+          <div class="twin-sub" style="margin-top:9px">${esc(t.traits.join(" · "))}</div>
+        </div>
+        <div class="twin-tags" style="justify-content:center">${
+          t.tags.map(x=>`<span>${esc(x)}</span>`).join("")}</div>
+        <div class="hint" style="margin-top:16px;line-height:1.8">
+          这是 TA 自己做的性格测验结果,TA 的 AI 分身会按这个性格说话。</div>`
+      : `<div class="empty" style="padding:30px 10px">
+           <div class="big">🪞</div>TA 还没有创建 AI 分身</div>`}
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn btn-coral" style="width:100%"
+          onclick="this.closest('.modal-mask').remove()">知道了</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ================= AI 分身 =================
    让 AI 演的是「你」,不是一个通用助手。人格来自一份小测验:
    前 5 题走 MBTI 那四个维度,后 5 题是交友软件常问的相处偏好。
@@ -1628,6 +1689,7 @@ function openTwinQuiz(){
       const res = scoreTwin(answers);
       localStorage.setItem(TWIN_KEY, JSON.stringify(res));
       renderTwinCard();
+      publishTwin();      // 发到公开资料,别人点你的头像才看得到
       host.innerHTML = `
       <div class="modal-mask" onclick="this.remove()">
         <div class="modal wide" onclick="event.stopPropagation()">
@@ -1825,7 +1887,7 @@ function renderFeed(){
     return `
     <div class="ucard">
       <div class="ucard-top">
-        ${avatar}
+        <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatar}</span>
         <div style="flex:1">
           <div class="uname">${esc(u.name)} · ${esc(u.age)}
             <span class="badge b-green">${esc(u.edu)}</span>
@@ -1851,6 +1913,11 @@ function renderFeed(){
     </div>`;
   }).join("");
   syncMatchBtn();
+  $("#feedList").querySelectorAll("[data-twin]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = allUsers.find(x=>x.uid===b.dataset.twin);
+      if(u) openTwinPortrait(u);
+    }));
   $("#feedList").querySelectorAll("[data-report]").forEach(b=>
     b.addEventListener("click",()=>{
       const u = allUsers.find(x=>x.uid===b.dataset.report);
@@ -3055,7 +3122,7 @@ async function renderMatches(){
 
   $("#matchList").innerHTML = matches.length ? matches.map(u=>`
     <div class="match-card">
-      ${avatarHtml(u)}
+      <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatarHtml(u)}</span>
       <div class="info">
         <div class="uname">${esc(u.name)} <span class="badge b-amber">💘 双向心动</span></div>
         <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
@@ -3066,12 +3133,17 @@ async function renderMatches(){
     </div>`).join("")
     : `<div class="empty"><div class="big">✨</div>还没有匹配<br>去广场多发几个心动吧</div>`;
 
+  $("#page-matches").querySelectorAll("[data-twin]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = allUsers.find(x=>x.uid===b.dataset.twin);
+      if(u) openTwinPortrait(u);
+    }));
   $("#matchList").querySelectorAll("[data-chat]").forEach(b=>
     b.addEventListener("click", ()=>openChat(b.dataset.chat, b.dataset.nm, b.dataset.ph, b.dataset.gd)));
 
   $("#likeList").innerHTML = pending.length ? pending.map(u=>`
     <div class="match-card">
-      ${avatarHtml(u)}
+      <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatarHtml(u)}</span>
       <div class="info">
         <div class="uname">${esc(u.name)}</div>
         <div class="umeta">${esc(u.role)} · ${esc(u.city)} · 等待对方回应中…</div>
