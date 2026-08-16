@@ -367,6 +367,13 @@
   .mm-row{display:flex;align-items:center;gap:13px}
   .mm-row .mm-ava{margin:0}
 
+  /* ---------- AI 匹配 ---------- */
+  .match-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-8px 0 16px}
+  .match-note{font-size:11.5px;color:var(--ink-soft)}
+  .compat.by-ai{background:var(--butter-soft);border-radius:var(--r-xs)}
+  .ai-why{font-size:12.5px;line-height:1.7;color:var(--ink);background:var(--butter-soft);
+    border:1.5px solid var(--outline);border-radius:var(--r-xs);padding:7px 11px;margin:10px 0 0}
+
   /* ---------- AI 助手 ---------- */
   .ai-tag{display:inline-block;background:var(--butter-soft);border:1.5px solid var(--outline);
     border-radius:var(--pill);padding:0 7px;font-size:10px;margin-left:5px;color:var(--ink)}
@@ -448,6 +455,10 @@
     <div id="page-feed">
       <div class="form-title">广场</div>
       <div class="form-sub">真实注册用户 · 互相心动即匹配成功</div>
+      <div class="match-bar">
+        <button class="ai-chip" id="aiMatchBtn">✨ 用 AI 重新匹配</button>
+        <span class="match-note" id="aiMatchNote"></span>
+      </div>
       <div id="feedList"><div class="loading"><div class="spinner"></div>加载中…</div></div>
     </div>
     <!-- 匹配 -->
@@ -710,6 +721,7 @@ async function enterApp(){
   $("#topName").textContent = myProfile.name;
   renderProfileForm($("#profileFormCard"), myProfile, false);
   renderAiCard();
+  syncMatchBtn();
   $("#uidText").textContent = me.uid;
   startListeners();
   subscribeBoard();
@@ -850,14 +862,153 @@ function showMatchModal(name){
   </div>`;
 }
 
-/* ---------- compatibility (简易版:标签重合度) ---------- */
+/* ================= 契合度 =================
+   两层,各管各的:
+
+   1) 本地规则分 —— 立刻算完,不花钱,离线也有。五个维度加权到 100,
+      没有底分,所以分数是真的会拉开的(老版本是 60 + 重合数×8,
+      标签不重合又不同城的人全部恰好卡在 60%,看着就像坏了)。
+
+   2) AI 分 —— 一次请求给广场上所有人一起打分,附一句理由。
+      为什么不是每张卡片调一次:免费额度每人每天 40 次,广场随便
+      二三十个人,那样刷一次就没了。一次批量打完,再缓存起来。
+
+   学历刻意不参与打分 —— 按文凭排序和「程序员严肃交友」的定位不符。
+   ========================================== */
+
+// 中文没空格,用「拉丁词 + 汉字二元组」当特征,够粗但够用
+function bioTokens(s){
+  s = (s||"").toLowerCase();
+  const lat = s.match(/[a-z]{2,}/g) || [];
+  const han = (s.match(/[一-龥]+/g) || []).join("");
+  const bi = [];
+  for(let i=0;i<han.length-1;i++) bi.push(han.slice(i,i+2));
+  return new Set([...lat, ...bi]);
+}
+function bioOverlap(a, b){
+  const A = bioTokens(a), B = bioTokens(b);
+  if(!A.size || !B.size) return 0;
+  let n = 0; B.forEach(t=>{ if(A.has(t)) n++; });
+  return n / Math.min(A.size, B.size);   // 按较短的一边归一,简介写得短不吃亏
+}
+
+function ruleScore(u){
+  if(!myProfile) return 50;
+  let pts = 0;
+
+  // 标签重合(34):用 Jaccard,不然标签堆得多的人天然占便宜
+  const mine = new Set((myProfile.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
+  const th   = new Set((u.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
+  const uni  = new Set([...mine, ...th]).size;
+  const inter= [...th].filter(t=>mine.has(t)).length;
+  pts += 34 * (uni ? inter/uni : 0);
+
+  // 同城(20):异地不是零分,只是明显更难
+  pts += (u.city && u.city === myProfile.city) ? 20 : (u.city ? 4 : 0);
+
+  // 年龄接近(16):差 12 岁以上归零
+  const ad = Math.abs((+u.age||0) - (+myProfile.age||0));
+  pts += 16 * Math.max(0, 1 - ad/12);
+
+  // 自我介绍用词重合(16)
+  pts += 16 * bioOverlap(myProfile.bio, u.bio);
+
+  // 职业(14):同行有共同语言,不同行也有互补,给一半
+  pts += (u.role && myProfile.role) ? (u.role === myProfile.role ? 14 : 7) : 0;
+
+  return Math.max(25, Math.min(97, Math.round(pts)));
+}
+
+/* ---------- AI 批量打分 ---------- */
+const AI_MATCH_KEY = "cl_ai_match";
+const MATCH_TTL = 6*3600*1000;
+
+function hash32(s){
+  let h = 5381;
+  for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+// 我的资料或候选人集合变了,缓存就该失效
+function matchFingerprint(){
+  const meSig = [myProfile.city, myProfile.age, myProfile.role,
+                 (myProfile.stack||[]).join(","), myProfile.bio].join("|");
+  const cand = allUsers.map(u=>u.uid).sort().join(",");
+  return hash32(meSig + "#" + cand);
+}
+function aiScores(){
+  const c = readJson(AI_MATCH_KEY, null);
+  if(!c || c.fp !== matchFingerprint() || Date.now()-c.at > MATCH_TTL) return null;
+  return c.scores || null;
+}
+// 卡片上最终显示的分:有 AI 分用 AI 分,否则用规则分
 function compat(u){
-  const mine = new Set((myProfile.stack||[]).map(s=>s.toLowerCase()));
-  const theirs = (u.stack||[]).map(s=>s.toLowerCase());
-  const overlap = theirs.filter(t=>mine.has(t)).length;
-  let score = 60 + overlap*8;
-  if(u.city===myProfile.city) score += 10;
-  return Math.min(score, 99);
+  const s = aiScores();
+  return (s && s[u.uid] && typeof s[u.uid].score === "number") ? s[u.uid].score : ruleScore(u);
+}
+function compatReason(u){
+  const s = aiScores();
+  return (s && s[u.uid] && s[u.uid].reason) || "";
+}
+
+const MATCH_SYS = [
+  "你是一个交友匹配分析师,服务的是一个面向程序员的严肃交友社区。",
+  "我会给你「我」的资料和一批候选人资料,请逐个评估我和每个人的契合度。",
+  "评分 0-100,并且必须拉开差距:同一批人里既要有 80 以上的,也要有 40 以下的,",
+  "不要所有人都挤在 60 分附近。判断依据是共同话题、生活方式、地域现实性、",
+  "年龄阶段和性格互补,不要因为学历高就加分。",
+  "每人再给一句不超过 20 字的中文理由,说人话,具体到资料里的内容,不要套话。",
+  '只输出 JSON,格式:{"scores":[{"uid":"...","score":73,"reason":"都在北京,都玩攀岩"}]}'
+].join("");
+
+function profileLine(u){
+  return [`uid=${u.uid}`, u.name, u.age?u.age+"岁":"", u.gender, u.city, u.role,
+          (u.stack||[]).join("/"), u.bio ? "简介:"+u.bio : ""]
+         .filter(Boolean).join(" | ");
+}
+
+async function runAiMatch(){
+  if(!allUsers.length){ toast("广场还没有人"); return; }
+  if(!aiReady()){ toast("先在私信里点「🤖」配置一下 AI"); return; }
+  const btn = $("#aiMatchBtn");
+  btn.disabled = true; btn.textContent = "AI 分析中…";
+  try{
+    // 一次最多送 40 个人,再多提示词就太长了
+    const batch = allUsers.slice(0, 40);
+    const prompt = "我的资料:\n" + profileLine({...myProfile, uid:"me"}) +
+      "\n\n候选人:\n" + batch.map(profileLine).join("\n") +
+      `\n\n请对上面 ${batch.length} 个候选人逐一打分。`;
+    const raw = await aiCall(MATCH_SYS, prompt, "match");
+
+    // 模型偶尔会裹一层 ```json,取第一个 { 到最后一个 } 最稳
+    const j = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}")+1));
+    const scores = {};
+    (j.scores||[]).forEach(r=>{
+      if(!r || !r.uid) return;
+      const n = Math.round(Number(r.score));
+      if(Number.isFinite(n)) scores[r.uid] = { score: Math.max(0,Math.min(100,n)),
+                                               reason: String(r.reason||"").slice(0,40) };
+    });
+    if(!Object.keys(scores).length) throw new Error("模型没返回有效评分");
+    localStorage.setItem(AI_MATCH_KEY, JSON.stringify({
+      fp: matchFingerprint(), at: Date.now(), scores }));
+    toast(`AI 已为 ${Object.keys(scores).length} 个人重新打分`);
+    renderFeed();
+  }catch(e){
+    toast("AI 匹配失败:" + e.message); console.error(e);
+  }
+  btn.disabled = false; syncMatchBtn();
+}
+
+$("#aiMatchBtn").addEventListener("click", runAiMatch);
+
+function syncMatchBtn(){
+  const btn = $("#aiMatchBtn"), note = $("#aiMatchNote");
+  if(!btn || !note) return;
+  const s = aiScores();
+  btn.textContent = s ? "✨ 重新匹配" : "✨ 用 AI 匹配";
+  note.textContent = s
+    ? `AI 已给 ${Object.keys(s).length} 人打分,6 小时内有效`
+    : "当前是本地规则分,点左边让 AI 逐个分析";
 }
 
 /* ---------- feed ---------- */
@@ -916,9 +1067,10 @@ function renderFeed(){
             ${isNew(u)?`<span class="badge b-amber">🌱 新加入</span>`:""}</div>
           <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
         </div>
-        <div class="compat"><b>${compat(u)}%</b><span>契合</span></div>
+        <div class="compat${compatReason(u)?" by-ai":""}"><b>${compat(u)}%</b><span>${compatReason(u)?"✨ AI":"契合"}</span></div>
       </div>
       <div class="ucard-body">
+        ${compatReason(u)?`<div class="ai-why">✨ ${esc(compatReason(u))}</div>`:""}
         ${u.bio?`<div class="ubio">"${esc(u.bio)}"</div>`:""}
         ${u.stack&&u.stack.length?`<div class="stack">${u.stack.map(t=>`<span class="tok">${esc(t)}</span>`).join("")}</div>`:""}
         <div class="ucard-actions">
@@ -933,6 +1085,7 @@ function renderFeed(){
       </div>
     </div>`;
   }).join("");
+  syncMatchBtn();
   $("#feedList").querySelectorAll("[data-like]").forEach(b=>
     b.addEventListener("click",()=>likeUser(b.dataset.like,b.dataset.name)));
   $("#feedList").querySelectorAll("[data-unlike]").forEach(b=>
@@ -1068,7 +1221,7 @@ const AI_PROVIDERS = {
     models:["deepseek-chat","deepseek-reasoner"],
     url:"https://api.deepseek.com/chat/completions",
     headers:k=>({ "content-type":"application/json", "authorization":`Bearer ${k}` }),
-    body:(model,sys,user)=>({ model, max_tokens:400,
+    body:(model,sys,user,mt)=>({ model, max_tokens:mt,
       messages:[{role:"system",content:sys},{role:"user",content:user}] }),
     read:j=>j?.choices?.[0]?.message?.content || ""
   },
@@ -1083,7 +1236,7 @@ const AI_PROVIDERS = {
     // 刻意只发 model / max_tokens / system / messages 这几个最通用的字段:
     // 模型名是用户自己填的,thinking、output_config 这类新参数在老模型上会直接 400。
     // 新模型默认开思考,而 max_tokens 是「思考 + 正文」的总上限,所以留到 2048。
-    body:(model,sys,user)=>({ model, max_tokens:2048, system:sys,
+    body:(model,sys,user,mt)=>({ model, max_tokens:Math.max(mt,2048), system:sys,
       messages:[{role:"user",content:user}] }),
     read:j=>(j?.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")
   },
@@ -1093,7 +1246,7 @@ const AI_PROVIDERS = {
     url:"https://api.openai.com/v1/chat/completions",
     headers:k=>({ "content-type":"application/json", "authorization":`Bearer ${k}` }),
     // 新模型只认 max_completion_tokens,旧的 max_tokens 会被拒
-    body:(model,sys,user)=>({ model, max_completion_tokens:600,
+    body:(model,sys,user,mt)=>({ model, max_completion_tokens:mt,
       messages:[{role:"system",content:sys},{role:"user",content:user}] }),
     read:j=>j?.choices?.[0]?.message?.content || ""
   }
@@ -1164,40 +1317,48 @@ function cleanReply(raw){
 }
 
 // 走本站免费额度:带上 Firebase 的登录凭证,Worker 那边验完才肯代发
-async function viaProxy(sys, userText){
+async function viaProxy(sys, userText, task){
   let res;
   try{
     res = await fetch(AI_PROXY_URL, {
       method:"POST",
       headers:{ "content-type":"application/json", authorization:`Bearer ${await me.getIdToken()}` },
-      body: JSON.stringify({ messages:[{role:"system",content:sys},{role:"user",content:userText}] })
+      body: JSON.stringify({ task, messages:[{role:"system",content:sys},{role:"user",content:userText}] })
     });
   }catch(e){ throw new Error("连不上本站的 AI 服务,检查一下网络"); }
 
   const j = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(j.error || `本站 AI 服务返回 ${res.status}`);
-  return cleanReply(j?.choices?.[0]?.message?.content);
+  return j?.choices?.[0]?.message?.content || "";
 }
 
-async function aiComplete(userText){
+// 拿模型原文。task 决定这次给多大的输出上限:
+// reply = 私信一句话,match = 一次给全场打分的 JSON。
+async function aiCall(sys, userText, task){
+  task = task || "reply";
   const c = aiCfg(), p = AI_PROVIDERS[c.provider];
   if(!p) throw new Error("还没选服务商");
-  const sys = aiSystemPrompt();
 
-  if(usingFreeQuota(c)) return viaProxy(sys, userText);
+  if(usingFreeQuota(c)) return viaProxy(sys, userText, task);
   if(!c.key) throw new Error("还没填 API Key");
 
   const model = (c.model||"").trim() || p.model;
   let res;
   try{
     res = await fetch(p.url, { method:"POST", headers:p.headers(c.key),
-                               body:JSON.stringify(p.body(model, sys, userText)) });
+      body:JSON.stringify(p.body(model, sys, userText, task==="match" ? 2500 : 400)) });
   }catch(e){
     // fetch 抛异常基本只有两种:断网,或者服务商没放行浏览器跨域请求
     throw new Error(`连不上 ${p.label}:可能是网络不通,也可能是该服务商不允许网页直连`);
   }
   if(!res.ok) throw new Error(aiError(res.status, await res.text().catch(()=> ""), p));
-  return cleanReply(p.read(await res.json()));
+  const out = p.read(await res.json());
+  if(!out) throw new Error("模型没返回内容,换个模型再试试");
+  return out;
+}
+
+async function aiComplete(userText){
+  return cleanReply(await aiCall(aiSystemPrompt(), userText, "reply"));
 }
 
 /* ---------- 聊天页交互 ---------- */
