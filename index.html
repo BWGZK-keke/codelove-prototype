@@ -538,7 +538,7 @@
   .ai-panel-inner{max-width:560px;margin:0 auto}
   .ai-panel .field{margin-bottom:13px}
   .ai-seg{display:flex;gap:7px}
-  .ai-seg button{flex:1;border:1.5px solid var(--outline);background:var(--bg);color:var(--ink-soft);
+  .ai-seg button{flex:1 1 auto;min-width:60px;border:1.5px solid var(--outline);background:var(--bg);color:var(--ink-soft);
     border-radius:var(--pill);padding:8px 0;font-size:13px;cursor:pointer;font-family:var(--cute)}
   .ai-seg button.on{background:var(--accent);color:var(--ink);box-shadow:0 2px 0 var(--outline)}
   .ai-note{font-size:11.5px;color:var(--ink-soft);line-height:1.7;margin-top:9px}
@@ -1870,8 +1870,23 @@ function setAuto(uid, on){
 }
 
 /* ---------- 提示词 ---------- */
+const AI_TONES = {
+  natural: { label:"自然", hint:"" },
+  humor:   { label:"幽默", hint:"语气轻松爱开玩笑,可以自嘲,别用力过猛。" },
+  warm:    { label:"热情", hint:"语气热情主动,愿意多问一句、多接一句。" },
+  calm:    { label:"高冷", hint:"话少、克制、不主动追问,但不冷淡失礼。" },
+  geek:    { label:"技术宅", hint:"聊技术时可以展开细节,爱用工程师的比喻。" }
+};
+const AI_LENGTHS = {
+  short:  { label:"一句话", hint:"只写一句话,不超过 25 字。" },
+  medium: { label:"适中",   hint:"一到两句话。" },
+  long:   { label:"能聊",   hint:"两到三句话,可以多给一点信息量,但别写成小作文。" }
+};
+
 function aiSystemPrompt(){
-  const p = myProfile || {}, extra = (aiCfg().persona||"").trim();
+  const c = aiCfg(), p = myProfile || {}, extra = (c.persona||"").trim();
+  const tone = AI_TONES[c.tone] || AI_TONES.natural;
+  const len  = AI_LENGTHS[c.length] || AI_LENGTHS.medium;
   return [
     `你现在就是「${p.name||"我"}」本人,在一个交友 App 上跟已经互相心动的对象聊天。`,
     "你只写「我」要发出去的那一句话。绝对不要替对方说话,不要续写对方的消息,",
@@ -1880,7 +1895,9 @@ function aiSystemPrompt(){
     p.bio ? `自我介绍:${p.bio}` : "",
     "",
     "写作要求:",
-    "· 用第一人称、口语化中文,就像本人在手机上打字。一到两句话,别写成小作文。",
+    "· 用第一人称、口语化中文,就像本人在手机上打字。",
+    "· " + len.hint,
+    tone.hint ? "· " + tone.hint : "",
     "· 不要称呼语、不要署名、不要 Markdown、不要加引号,直接给正文。",
     "· 不要编造资料里没有的经历,不要替本人承诺见面时间,不要给出电话、微信等联系方式。",
     "· 只输出这一条消息本身,不要任何解释。",
@@ -2155,8 +2172,15 @@ function renderAiForm(box, inChat){
       <input class="f-model" autocomplete="off" list="ai-models-${ns}" placeholder="${esc(p.model)}" value="${esc(c.model||"")}">
       <datalist id="ai-models-${ns}" class="f-models">${p.models.map(m=>`<option value="${esc(m)}">`).join("")}</datalist>
       <div class="hint">留空就用 <code class="f-modelhint">${esc(p.model)}</code></div></div>
-    <div class="field"><label>人设 / 语气(可选)</label>
-      <textarea class="f-persona" maxlength="500" placeholder="例如:说话简短一点,爱开玩笑,别太热情">${esc(c.persona||"")}</textarea></div>
+    <div class="field"><label>语气</label>
+      <div class="ai-seg f-toneseg" style="flex-wrap:wrap">${Object.entries(AI_TONES).map(([k,v])=>
+        `<button type="button" data-t="${k}"${(c.tone||"natural")===k?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div></div>
+    <div class="field"><label>回复长度</label>
+      <div class="ai-seg f-lenseg">${Object.entries(AI_LENGTHS).map(([k,v])=>
+        `<button type="button" data-l="${k}"${(c.length||"medium")===k?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div></div>
+    <div class="field"><label>补充设定(可选)</label>
+      <textarea class="f-persona" maxlength="500" placeholder="例如:别问对方工作,聊到爬山可以多说两句">${esc(c.persona||"")}</textarea>
+      <div class="hint">这条优先级最高,会盖过上面的语气建议</div></div>
     <div class="ai-acts">
       <button class="btn btn-ghost f-test">测试连接</button>
       <button class="btn btn-ghost f-clear">清除</button>
@@ -2169,6 +2193,8 @@ function renderAiForm(box, inChat){
       provider: q(".f-provseg .on").dataset.p,
       key:      q(".f-key").value.trim(),
       model:    q(".f-model").value.trim(),
+      tone:     (q(".f-toneseg .on")||{dataset:{}}).dataset.t || "natural",
+      length:   (q(".f-lenseg .on")||{dataset:{}}).dataset.l || "medium",
       persona:  q(".f-persona").value.trim()
     }));
     syncAiStrip();
@@ -2187,6 +2213,13 @@ function renderAiForm(box, inChat){
     q(".f-models").innerHTML = np.models.map(m=>`<option value="${esc(m)}">`).join("");
     save();
   }));
+
+  [[".f-toneseg","t"],[".f-lenseg","l"]].forEach(([sel])=>{
+    box.querySelectorAll(sel+" button").forEach(b=>b.addEventListener("click", ()=>{
+      box.querySelectorAll(sel+" button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on"); save();
+    }));
+  });
 
   const modeSeg = q(".f-modeseg");
   if(modeSeg) modeSeg.querySelectorAll("button").forEach(b=>b.addEventListener("click", ()=>{
