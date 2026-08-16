@@ -479,6 +479,27 @@
   .av-pick button:hover{background:var(--butter-soft)}
   .av-pick button.on{background:var(--accent);box-shadow:0 2px 0 var(--outline)}
 
+  /* ---------- 牵线流程 ---------- */
+  .flow{display:flex;gap:4px;margin:14px 0 6px}
+  .flow-s{flex:1;text-align:center;font-size:10.5px;color:var(--ink-faint);line-height:1.5}
+  .flow-dot{height:7px;border-radius:var(--pill);background:var(--surface-2);
+    border:1.5px solid var(--outline);margin-bottom:6px}
+  .flow-s.on .flow-dot{background:var(--accent)}
+  .flow-s.on{color:var(--ink)}
+  .rec{display:flex;align-items:center;gap:11px;border:var(--bw) solid var(--outline);
+    border-radius:var(--r-sm);padding:11px 12px;margin-bottom:9px;background:var(--surface)}
+  .rec .ava,.rec .ava-emoji{width:42px;height:42px;font-size:21px;flex-shrink:0}
+  .rec-info{flex:1;min-width:0}
+  .rec-nm{font-family:var(--cute);font-size:15px;color:var(--ink)}
+  .rec-mt{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+  .rec.picked{background:var(--butter-soft)}
+  .pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;
+    max-height:240px;overflow-y:auto;margin:10px 0}
+  .pick-grid button{border:1.5px solid var(--outline);background:var(--surface);border-radius:var(--r-sm);
+    padding:9px 6px;font-family:var(--cute);font-size:12px;cursor:pointer;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pick-grid button.on{background:var(--accent);box-shadow:0 2px 0 var(--outline)}
+
   /* ---------- AI 分身 ---------- */
   .ava-tap{cursor:pointer;display:inline-flex;border-radius:50%}
   .ava-tap:active{transform:scale(.94)}
@@ -1611,6 +1632,127 @@ function openTwinPortrait(u){
       </div>
     </div>
   </div>`;
+}
+
+/* ================= 牵线流程 =================
+   pending 待受理 → accepted 已受理 → recommended 已推荐 → matched 配对成功
+   申请人选了人之后可以报「成」或「没成」;没成时红娘再推一轮(round+1)。
+   谁能改哪些字段由 firestore.rules 管死,前端只是界面。            */
+const FLOW = [
+  {k:"pending",     t:"已提交"},
+  {k:"accepted",    t:"已受理"},
+  {k:"recommended", t:"已推荐"},
+  {k:"matched",     t:"配对成功"}
+];
+function flowIndex(st){
+  if(st === "matched") return 3;
+  if(st === "recommended" || st === "retry") return 2;
+  if(st === "accepted") return 1;
+  return 0;
+}
+function flowHtml(st){
+  const at = flowIndex(st);
+  return `<div class="flow">${FLOW.map((s,i)=>
+    `<div class="flow-s${i<=at?" on":""}"><div class="flow-dot"></div>${esc(s.t)}</div>`).join("")}</div>`;
+}
+
+// 申请人这边:进度 + 候选人 + 选择/反馈
+function flowClientHtml(c){
+  if(!c) return "";
+  const st = c.status || "pending";
+  const recs = (c.recs||[]).map(uid=>allUsers.find(u=>u.uid===uid)).filter(Boolean);
+  let body = "";
+  if(st === "matched"){
+    body = `<div class="hint" style="line-height:1.9">🎉 已标记为配对成功。祝顺利!<br>
+      想再来一轮的话,点下面「重新开始」。</div>
+      <button class="btn btn-ghost btn-pill" style="width:100%;margin-top:12px" data-flow="restart">重新开始</button>`;
+  }else if(recs.length){
+    body = recs.map(u=>`
+      <div class="rec${c.picked===u.uid?" picked":""}">
+        ${avatarHtml(u)}
+        <div class="rec-info"><div class="rec-nm">${esc(u.name)}</div>
+          <div class="rec-mt">${esc([u.age&&u.age+"岁",u.role,u.city].filter(Boolean).join(" · "))}</div></div>
+        ${c.picked===u.uid
+          ? `<span class="badge b-amber">已选</span>`
+          : `<button class="reply-btn" data-pick="${esc(u.uid)}">选 TA</button>`}
+      </div>`).join("");
+    if(c.picked) body += `<div class="ai-acts" style="margin-top:10px">
+        <button class="btn btn-ghost" data-flow="retry">没成,换一批</button>
+        <button class="btn btn-coral" data-flow="matched">配对成功</button></div>`;
+    else body += `<div class="hint">红娘推荐了 ${recs.length} 位,选一位开始接触</div>`;
+  }else if(st === "accepted"){
+    body = `<div class="hint">红娘已经受理,正在帮你物色人选</div>`;
+  }else if(st === "retry"){
+    body = `<div class="hint">已告诉红娘这轮没成,等待下一轮推荐</div>`;
+  }else{
+    body = `<div class="hint">申请已提交,等红娘受理</div>`;
+  }
+  return flowHtml(st) + body;
+}
+
+function bindFlowClient(host){
+  host.querySelectorAll("[data-pick]").forEach(b=>b.addEventListener("click", async ()=>{
+    try{ await setDoc(doc(db,"concierge",me.uid),
+           {picked:b.dataset.pick, status:"recommended"}, {merge:true});
+         toast("已选好,可以去广场给 TA 发心动了"); }
+    catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
+  }));
+  host.querySelectorAll("[data-flow]").forEach(b=>b.addEventListener("click", async ()=>{
+    const to = b.dataset.flow;
+    try{
+      if(to === "restart"){
+        await setDoc(doc(db,"concierge",me.uid),
+          {uid:me.uid, matchmaker:(myConcierge&&myConcierge.matchmaker)||"kiki",
+           note:(myConcierge&&myConcierge.note)||"", status:"pending",
+           createdAt:serverTimestamp()});
+        toast("已重新提交");
+      }else{
+        await setDoc(doc(db,"concierge",me.uid),
+          {status: to==="matched"?"matched":"retry", picked:(myConcierge&&myConcierge.picked)||""},
+          {merge:true});
+        toast(to==="matched" ? "已标记配对成功 🎉" : "已告诉红娘,等下一轮");
+      }
+    }catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
+  }));
+}
+
+// 红娘这边:挑 1-3 个人推给申请人
+function openRecPicker(req){
+  const chosen = new Set(req.recs||[]);
+  const pool = allUsers.filter(u=>u.uid !== req.uid);
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()">
+      <div class="mr-nm">推荐给这位申请人</div>
+      <div class="mr-meta">最多选 3 位,选完点确认</div>
+      <div class="pick-grid" id="recGrid">${pool.map(u=>
+        `<button type="button" data-u="${esc(u.uid)}"${chosen.has(u.uid)?' class="on"':""}>${esc(u.name)}</button>`).join("")
+        || `<div class="hint">广场还没有别的用户</div>`}</div>
+      <div class="hint" id="recCount"></div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">取消</button>
+        <button class="btn btn-coral" id="recSave">确认推荐</button>
+      </div>
+    </div>
+  </div>`;
+  const count = ()=> $("#recCount").textContent = `已选 ${chosen.size} / 3`;
+  count();
+  $("#recGrid").querySelectorAll("button").forEach(b=>b.addEventListener("click", ()=>{
+    const u = b.dataset.u;
+    if(chosen.has(u)){ chosen.delete(u); b.classList.remove("on"); }
+    else if(chosen.size >= 3){ toast("最多 3 位"); return; }
+    else { chosen.add(u); b.classList.add("on"); }
+    count();
+  }));
+  $("#recSave").addEventListener("click", async ()=>{
+    if(!chosen.size){ toast("至少选一位"); return; }
+    try{
+      await setDoc(doc(db,"concierge",req.uid),
+        {status:"recommended", recs:[...chosen], round:(req.round||0)+1}, {merge:true});
+      toast("已推荐给申请人");
+      $("#modalHost").innerHTML = "";
+    }catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
+  });
 }
 
 /* ================= AI 分身 =================
@@ -2921,15 +3063,18 @@ function renderConcierge(){
       <div class="mm-row">
         <div class="mm-ava" style="background:${m.tint}">${m.emo}</div>
         <div style="flex:1">
-          <div class="note-name">${esc(m.name)} <span class="badge b-amber">已受理</span></div>
-          <div class="note-meta">${esc(m.sub)} · 红娘会尽快通过邮箱联系你</div>
+          <div class="note-name">${esc(m.name)} <span class="badge ${
+            myConcierge.status==="matched"?"b-green":"b-amber"}">${esc(FLOW[flowIndex(myConcierge.status)].t)}</span></div>
+          <div class="note-meta">${esc(m.sub)}${myConcierge.round?` · 第 ${myConcierge.round} 轮推荐`:""}</div>
         </div>
       </div>
       ${myConcierge.note?`<div class="ubio" style="margin:14px 0 0">${esc(myConcierge.note)}</div>`:""}
+      ${flowClientHtml(myConcierge)}
       ${m.uid?`<button class="btn btn-coral" style="width:100%;margin-top:14px" id="mmChat">💬 和 ${esc(m.name)} 对话</button>`
              :`<div class="hint" style="margin-top:12px">这位红娘的账号还没配置,暂时只能等她通过邮箱联系你</div>`}
       <button class="btn btn-ghost" style="width:100%;margin-top:10px" id="mmCancel">取消申请</button>`;
     host.querySelector("#mmCancel").addEventListener("click", cancelConcierge);
+    bindFlowClient(host);
     const cb = host.querySelector("#mmChat");
     if(cb) cb.addEventListener("click", ()=>openChat(m.uid, m.name, "", "女", "✦ 红娘服务"));
     return;
@@ -3001,17 +3146,19 @@ function subscribeMatchmakerDesk(){
       await Promise.all(list.map(async r=>{
         profs[r.uid] = await fetchProfile(r.uid);
         mails[r.uid] = await fetchContact(r.uid);
+        if(r.picked) profs[r.picked] = await fetchProfile(r.picked);
       }));
       $("#mmDesk").innerHTML = list.length ? list.map(r=>{
         const u = profs[r.uid] || {name:"未知用户",gender:"",photo:""};
-        const done = r.status==="done";
+        const done = r.status==="matched";
         return `
         <div class="note" style="${done?"opacity:.6":""}">
           <div class="note-top">
             ${avatarHtml(u)}
             <div class="note-who">
               <div class="note-name">${esc(u.name||"未知用户")}
-                <span class="badge ${done?"b-green":"b-amber"}">${done?"已处理":"待处理"}</span></div>
+                <span class="badge ${done?"b-green":"b-amber"}">${esc(FLOW[flowIndex(r.status)].t)}</span>${
+                  r.round?`<span class="badge">第 ${r.round} 轮</span>`:""}</div>
               <div class="note-meta">${esc(u.role||"")}${u.city?" · "+esc(u.city):""}${u.edu?" · "+esc(u.edu):""}</div>
             </div>
             <div class="note-time">${timeAgo(r.createdAt)}</div>
@@ -3021,8 +3168,10 @@ function subscribeMatchmakerDesk(){
           <div class="note-foot">
             <button class="reply-btn" data-mmchat="${esc(r.uid)}" data-nm="${esc(u.name||"申请人")}"
               data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 直接对话</button>
-            <button class="reply-btn" data-done="${esc(r.id)}" data-to="${done?"pending":"done"}">
-              ${done?"↩ 标记为待处理":"✓ 标记已处理"}</button>
+            ${r.status==="pending"?`<button class="reply-btn" data-acc="${esc(r.id)}">✓ 受理</button>`:""}
+            <button class="reply-btn" data-rec="${esc(r.id)}">${
+              (r.status==="recommended"||r.status==="retry") ? "🔄 换一批推荐" : "✦ 推荐候选人"}</button>
+            ${r.picked?`<span class="badge b-green">已选 ${esc((profs[r.picked]||{}).name||"某位")}</span>`:""}
           </div>
         </div>`;
       }).join("") : `<div class="empty" style="padding:26px">${known
@@ -3032,11 +3181,16 @@ function subscribeMatchmakerDesk(){
       $("#mmDesk").querySelectorAll("[data-mmchat]").forEach(b=>
         b.addEventListener("click", ()=>openChat(b.dataset.mmchat, b.dataset.nm,
           b.dataset.ph, b.dataset.gd, "✦ 红娘服务")));
-      $("#mmDesk").querySelectorAll("[data-done]").forEach(b=>
+      $("#mmDesk").querySelectorAll("[data-acc]").forEach(b=>
         b.addEventListener("click", async ()=>{
-          try{ await setDoc(doc(db,"concierge",b.dataset.done), {status:b.dataset.to}, {merge:true});
-               toast(b.dataset.to==="done"?"已标记处理":"已恢复待处理"); }
+          try{ await setDoc(doc(db,"concierge",b.dataset.acc), {status:"accepted"}, {merge:true});
+               toast("已受理,接下来给 TA 推荐人选"); }
           catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
+        }));
+      $("#mmDesk").querySelectorAll("[data-rec]").forEach(b=>
+        b.addEventListener("click", ()=>{
+          const req = list.find(x=>x.id===b.dataset.rec);
+          if(req) openRecPicker(req);
         }));
     },
     err=>{ $("#mmDeskWrap").classList.add("hidden"); }   // 不是红娘,静默隐藏
