@@ -2004,6 +2004,19 @@ async function autoReplyFor(uid, msgs){
   if(!autoOn(uid) || !aiReady()) return;
   const last = msgs[msgs.length-1];
   if(!last || last.from === me.uid) return;      // 已经回过了
+
+  // 对方要是也开了代回复,两个 AI 会一直对拍下去 —— 额度和消息都会炸。
+  // 熔断规则:对方这条是 AI 发的时,只有「我上一条不是 AI 代回复」才回。
+  // 也就是 AI↔AI 最多来回一轮,之后必须等真人插一句才会重新开始。
+  if(last.ai){
+    const mine = [...msgs].reverse().find(m => m.from === me.uid);
+    if(mine && mine.ai){
+      if(curChatPeer && curChatPeer.uid === uid)
+        toast("对方也是 AI 代回复,已停下 —— 等真人说句话再继续");
+      return;
+    }
+  }
+
   if(autoSeen.get(uid) === last.id) return;      // 这条处理过了
   autoSeen.set(uid, last.id);
   if(aiBusy) return;                             // 同一时间只回一条,免得几个会话一起打
