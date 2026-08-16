@@ -106,7 +106,11 @@
     display:flex;justify-content:space-between;align-items:center}
   .logo{font-family:var(--cute);font-size:22px;letter-spacing:.01em}
   .logo em{color:var(--rose);font-style:normal}
-  .topbar .me-chip{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink-soft)}
+  .topbar .me-chip{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink-soft);
+    background:none;border:none;font-family:var(--cute);cursor:pointer;padding:0}
+  .topbar .me-chip:hover{color:var(--ink)}
+  #topAva img{width:32px;height:32px;border-radius:50%;border:var(--bw) solid var(--outline);object-fit:cover;display:block}
+  #topAva .ava-emoji{width:32px;height:32px;font-size:17px}
   .topbar img{width:32px;height:32px;border-radius:50%;border:var(--bw) solid var(--outline);object-fit:cover}
 
   /* ---------- 登录 ---------- */
@@ -138,7 +142,7 @@
   .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
     border-top:var(--bw) solid var(--outline);display:flex;
     padding:9px 0 max(11px,env(safe-area-inset-bottom));z-index:30}
-  .tabbar-inner{max-width:560px;margin:0 auto;display:flex;width:100%;padding:0 8px;gap:6px}
+  .tabbar-inner{max-width:560px;margin:0 auto;display:flex;width:100%;padding:0 6px;gap:3px}
   .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;
     color:var(--ink-soft);cursor:pointer;border:1.5px solid transparent;background:none;
     font-family:var(--cute);padding:5px 0;border-radius:var(--pill);transition:.14s}
@@ -704,7 +708,7 @@
 <div id="view-app" class="hidden">
   <div class="topbar">
     <div class="logo">Code<em>Love</em></div>
-    <div class="me-chip"><img id="topAva" alt="" referrerpolicy="no-referrer"><span id="topName"></span></div>
+    <button class="me-chip" id="topMe" title="我的资料"><span id="topAva"></span><span id="topName"></span></button>
   </div>
   <div class="wrap">
     <!-- 广场 -->
@@ -744,6 +748,21 @@
       <div class="form-sub">资料会展示在广场,请真实填写</div>
       <div class="card" id="profileFormCard"></div>
 
+      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我拉黑的人</div></div>
+      <div class="form-sub">拉黑后:对方不会出现在你的广场,也无法给你留言或私信</div>
+      <div id="blockList"></div>
+
+      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我的 ID</div></div>
+      <div class="form-sub">配置红娘权限时要用,点一下复制</div>
+      <div class="uid-box" id="uidBox" title="点击复制"><code id="uidText"></code><span class="uid-copy">复制</span></div>
+
+      <button class="btn btn-ghost" style="width:100%;margin-top:22px" id="btnLogout">退出登录</button>
+    </div>
+  </div>
+    <!-- 红娘 -->
+    <div id="page-mm" class="hidden">
+      <div class="form-title">红娘</div>
+      <div class="form-sub">真人红娘一对一牵线,也可以申请成为红娘</div>
       <!-- 红娘工作台:不在名单里的人根本不会看到(读被规则拒绝就保持隐藏) -->
       <div id="mmDeskWrap" class="hidden">
         <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">红娘工作台</div></div>
@@ -759,21 +778,15 @@
       <div class="form-sub">配一个自己的 AI,帮你想私信怎么回。用你自己的 API Key,按量计费</div>
       <div class="card" id="aiCard"></div>
 
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我拉黑的人</div></div>
-      <div class="form-sub">拉黑后:对方不会出现在你的广场,也无法给你留言或私信</div>
-      <div id="blockList"></div>
-
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我的 ID</div></div>
-      <div class="form-sub">配置红娘权限时要用,点一下复制</div>
-      <div class="uid-box" id="uidBox" title="点击复制"><code id="uidText"></code><span class="uid-copy">复制</span></div>
-
-      <button class="btn btn-ghost" style="width:100%;margin-top:22px" id="btnLogout">退出登录</button>
+      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我要成为红娘</div></div>
+      <div class="form-sub">帮别人牵线。提交后由管理员开通权限,通过后就能看到红娘工作台</div>
+      <div class="card" id="mmApplyCard"></div>
     </div>
-  </div>
   <div class="tabbar"><div class="tabbar-inner">
     <button class="tab on" data-p="feed"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.1 5-5 2.1 2.1-5z"/></svg></span>广场</button>
     <button class="tab" data-p="matches"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 20s-6.5-4.3-8.4-8A4.6 4.6 0 0 1 12 7.3 4.6 4.6 0 0 1 20.4 12c-1.9 3.7-8.4 8-8.4 8z"/></svg></span>匹配</button>
     <button class="tab" data-p="board"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 15.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg></span>留言</button>
+    <button class="tab" data-p="mm"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 20s-6.5-4.3-8.4-8A4.6 4.6 0 0 1 12 7.3 4.6 4.6 0 0 1 20.4 12c-1.9 3.7-8.4 8-8.4 8z"/><path d="M17.5 4.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg></span>红娘</button>
     <button class="tab" data-p="me"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.5a7.2 7.2 0 0 1 14.4 0"/></svg></span>我的</button>
   </div></div>
 </div>
@@ -1088,11 +1101,12 @@ async function saveProfile(host,isNew){
 /* ---------- main app ---------- */
 async function enterApp(){
   show("view-app");
-  $("#topAva").src = me.photoURL || "";
+  renderTopAva();
   $("#topName").textContent = myProfile.name;
   renderProfileForm($("#profileFormCard"), myProfile, false);
   renderAiCard();
   syncMatchBtn();
+  syncAutoWatchers();
   $("#uidText").textContent = me.uid;
   startListeners();
   subscribeBoard();
@@ -1105,6 +1119,7 @@ async function enterApp(){
    心动同样实时,所以对方回心动的那一刻,匹配立即出现。            */
 let unsubs = [];
 function stopListeners(){
+  stopAutoWatchers();
   unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs = [];
   if(unsubChat){ try{ unsubChat(); }catch(e){} unsubChat = null; }
   if(unsubBoard){ try{ unsubBoard(); }catch(e){} unsubBoard = null; }
@@ -1145,6 +1160,13 @@ function startListeners(){
             refreshViews(); renderBlockList(); },
     err=>console.error(err)
   ));
+
+  // --- 我要成为红娘 ---
+  if(unsubMmApply){ try{ unsubMmApply(); }catch(e){} }
+  unsubMmApply = onSnapshot(doc(db,"mm_apply",me.uid),
+    snap=>{ myMmApply = snap.exists() ? snap.data() : null; renderMmApply(); },
+    err=>{ myMmApply = null; renderMmApply(); });      // 规则没发布就当没申请过
+  unsubs.push(()=>{ if(unsubMmApply) unsubMmApply(); });
 
   // --- 专属红娘申请状态 ---
   unsubs.push(onSnapshot(doc(db,"concierge",me.uid),
@@ -1194,11 +1216,23 @@ function refreshViews(){
   if(!$("#page-matches").classList.contains("hidden")) renderMatches();
 }
 
-document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
-  ["feed","matches","board","me"].forEach(p=>$("#page-"+p).classList.toggle("hidden", p!==t.dataset.p));
-  if(t.dataset.p==="matches") renderMatches();
-}));
+function goTab(name){
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x.dataset.p===name));
+  ["feed","matches","board","mm","me"].forEach(p=>$("#page-"+p).classList.toggle("hidden", p!==name));
+  if(name==="matches") renderMatches();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>goTab(t.dataset.p)));
+// 点右上角头像进「我的」—— 大部分 App 都是这个习惯
+$("#topMe").addEventListener("click", ()=>goTab("me"));
+
+// 顶栏头像跟着资料里选的走,不再固定用 Google 头像
+function renderTopAva(){
+  $("#topAva").innerHTML = avatarHtml({
+    photo: (myProfile && myProfile.photo !== undefined) ? myProfile.photo : (me.photoURL||""),
+    gender: myProfile && myProfile.gender
+  });
+}
 
 /* ---------- likes ---------- */
 async function likeUser(uid, name){
@@ -1655,7 +1689,6 @@ function openChat(uid, name, photo, gender, sub){
   $("#chatInput").value = "";
   toggleEmoji(false);
   curChatMsgs = [];
-  aiSeenId = null;
   syncAiStrip();
   toggleAiPanel(false);
   show("view-chat");
@@ -1707,11 +1740,12 @@ function fmtTime(t){
 }
 
 // 真正写库的那一步。ai=true 时带上标记,收信方会看到「🤖 AI 代回复」角标。
-async function postMsg(text, ai){
+async function postMsgTo(uid, text, ai){
   const d = {from: me.uid, text, createdAt: serverTimestamp()};
   if(ai) d.ai = true;
-  await addDoc(collection(db,"chats",chatIdFor(curChatPeer.uid),"messages"), d);
+  await addDoc(collection(db,"chats",chatIdFor(uid),"messages"), d);
 }
+async function postMsg(text, ai){ return postMsgTo(curChatPeer.uid, text, ai); }
 
 async function sendMsg(){
   const inp = $("#chatInput"), text = inp.value.trim();
@@ -1734,7 +1768,6 @@ function closeChat(){
   if(unsubChat){ try{ unsubChat(); }catch(e){} unsubChat = null; }
   curChatPeer = null;
   curChatMsgs = [];
-  aiSeenId = null;
   show("view-app");
   renderMatches();
 }
@@ -1756,7 +1789,7 @@ const AI_CFG_KEY = "cl_ai_cfg", AI_AUTO_KEY = "cl_ai_auto";
    部署方法见 worker/README.md,部署完把地址填到这里。
    留空也能跑 —— 只是所有人都得自己填 Key。                                    */
 const AI_PROXY_URL = "https://codelove-ai.codelove-bwgzk.workers.dev/chat";
-let curChatMsgs = [], aiBusy = false, aiSeenId = null;
+let curChatMsgs = [], aiBusy = false;
 
 const AI_PROVIDERS = {
   deepseek: {
@@ -1836,8 +1869,8 @@ function aiSystemPrompt(){
 // 把聊天记录拍平成一段文本塞进单个 user 消息,而不是映射成 user/assistant 轮次。
 // 三家的轮次规则不一样(Anthropic 要求首条是 user、末条不能是 assistant,
 // 否则会被当成 prefill 而报 400),拍平成一段反而各家都能跑。
-function buildPrompt(msgs){
-  const peer = curChatPeer?.name || "对方";
+function buildPrompt(msgs, peerName){
+  const peer = peerName || curChatPeer?.name || "对方";
   const recent = msgs.slice(-20)
     .map(m=>`${m.from===me.uid ? "【我】" : "【"+peer+"】"}:${m.text}`).join("\n");
   if(!recent)
@@ -1957,27 +1990,62 @@ async function aiSuggest(){
 }
 
 // 自动代回复:只在对方发来新消息、且这个会话开了开关时触发
-// 判定标准很简单:最后一条是对方发的 = 还没回;是自己发的 = 已经回过了。
-//
-// 之前这里有一段「首批快照只认门」的逻辑,会把打开会话时对方那条未读消息
-// 直接标记成已处理 —— 于是最常见的场景(挂着页面,对方发消息过来,你回头
-// 一看没有自动回)恰好就是不生效的那个。开关本来就是逐个会话手动开的,不需要再防一层。
-async function maybeAutoReply(msgs){
-  if(!curChatPeer || aiBusy) return;
-  if(!autoOn(curChatPeer.uid) || !aiReady()) return;
-  const last = msgs[msgs.length-1];
-  if(!last || last.from === me.uid) return;     // 已经回过了
-  if(last.id === aiSeenId) return;              // 这条处理过了
-  aiSeenId = last.id;
+/* 判定标准很简单:最后一条是对方发的 = 还没回;是自己发的 = 已经回过了。
+   之前这里出过两个问题,一并说明:
+   1) 首批快照被当成「认门」,把打开会话时那条未读消息直接标记成已处理 ——
+      恰恰是最该回的那一条被跳过了。
+   2) 更要命的:它只在 openChat 建立的那个订阅里被调用,退回广场订阅就没了。
+      功能说的是「挂着页面就会回」,实际却是「正开着这个会话才会回」。
+      现在改成后台为每个开了开关的会话各挂一个监听,跟你在看哪一页无关。 */
+const autoSeen = new Map();     // uid -> 已经处理过的最后一条消息 id
+const autoWatch = new Map();    // uid -> 退订函数
 
-  const peer = curChatPeer.uid;
+async function autoReplyFor(uid, msgs){
+  if(!autoOn(uid) || !aiReady()) return;
+  const last = msgs[msgs.length-1];
+  if(!last || last.from === me.uid) return;      // 已经回过了
+  if(autoSeen.get(uid) === last.id) return;      // 这条处理过了
+  autoSeen.set(uid, last.id);
+  if(aiBusy) return;                             // 同一时间只回一条,免得几个会话一起打
+
   setAiBusy(true);
   try{
-    const text = await aiComplete(buildPrompt(msgs));
-    // 生成要几秒,期间用户可能已经切走或关掉了开关,别把消息发错地方
-    if(curChatPeer && curChatPeer.uid === peer && autoOn(peer)) await postMsg(text, true);
+    const prof = await fetchProfile(uid);
+    const text = await aiComplete(buildPrompt(msgs, prof && prof.name));
+    if(autoOn(uid)) await postMsgTo(uid, text, true);   // 生成期间可能被关掉了
   }catch(e){ toast("AI 代回复失败:"+e.message); console.error(e); }
   setAiBusy(false);
+}
+
+// 打开着的那个会话走这条(快照本来就有);其余会话靠下面的后台监听
+function maybeAutoReply(msgs){
+  if(!curChatPeer) return;
+  return autoReplyFor(curChatPeer.uid, msgs);
+}
+
+// 开了开关的会话,不管你在看哪一页都挂着监听
+function syncAutoWatchers(){
+  const want = new Set(Object.keys(readJson(AI_AUTO_KEY, {})));
+  for(const [uid, un] of autoWatch){
+    if(!want.has(uid)){ try{ un(); }catch(e){} autoWatch.delete(uid); }
+  }
+  if(!me || !aiReady()) return;
+  for(const uid of want){
+    if(autoWatch.has(uid)) continue;
+    autoWatch.set(uid, onSnapshot(
+      query(collection(db,"chats",chatIdFor(uid),"messages"), orderBy("createdAt","desc"), limit(20)),
+      snap=>{
+        const arr = [];
+        snap.forEach(d=>arr.push({id:d.id, ...d.data()}));
+        arr.sort((a,b)=>tms(a.createdAt)-tms(b.createdAt));
+        autoReplyFor(uid, arr);
+      },
+      err=>console.error("代回复监听失败", uid, err)));
+  }
+}
+function stopAutoWatchers(){
+  for(const [,un] of autoWatch){ try{ un(); }catch(e){} }
+  autoWatch.clear(); autoSeen.clear();
 }
 
 $("#aiSuggest").addEventListener("click", aiSuggest);
@@ -2001,6 +2069,7 @@ $("#aiChipMode").addEventListener("click", ()=>{
   syncAiStrip();
   toast(on ? "代回复已开启:你挂着这个页面时 AI 会替你回复,并标注「AI 代回复」"
            : "已切回建议模式:AI 只出草稿,发不发你决定");
+  syncAutoWatchers();
   if(on) maybeAutoReply(curChatMsgs);   // 刚开开关,先把手头这条未读的回掉
 });
 
@@ -2082,7 +2151,8 @@ function renderAiForm(box, inChat){
     modeSeg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
     b.classList.add("on");
     setAuto(curChatPeer.uid, b.dataset.m==="auto");
-    syncAiStrip();
+    syncAiStrip(); syncAutoWatchers();
+    if(b.dataset.m==="auto") maybeAutoReply(curChatMsgs);
   }));
 
   q(".f-test").addEventListener("click", async e=>{
@@ -2447,6 +2517,60 @@ $("#uidBox").addEventListener("click", async ()=>{
 
 $("#wallBlock").addEventListener("click", ()=>{ if(curWallUid) blockUser(curWallUid, $("#wallName").textContent); });
 $("#chatBlock").addEventListener("click", ()=>{ if(curChatPeer) blockUser(curChatPeer.uid, curChatPeer.name); });
+
+/* ---------- 我要成为红娘 ----------
+   写进 mm_apply/{uid},只有本人和现有红娘读得到。
+   开通权限仍然要人工改 firestore.rules 里的白名单 —— 这一步不该让前端能自己完成。 */
+let myMmApply = null, unsubMmApply = null;
+
+function renderMmApply(){
+  const host = $("#mmApplyCard"); if(!host) return;
+  const st = myMmApply && myMmApply.status;
+  if(st === "pending" || st === "approved"){
+    host.innerHTML = `
+      <div class="mm-row" style="margin-bottom:12px">
+        <div class="mm-ava">${st==="approved"?"✅":"⏳"}</div>
+        <div><div class="mm-name">${st==="approved"?"已通过":"已提交,等待开通"}</div>
+          <div class="mm-sub">${st==="approved"?"你现在可以看到红娘工作台了":"管理员开通后,红娘工作台会自动出现"}</div></div>
+      </div>
+      ${myMmApply.note?`<div class="hint" style="margin-bottom:12px">你的留言:${esc(myMmApply.note)}</div>`:""}
+      <div class="uid-box" id="mmUidBox" title="点击复制"><code>${esc(me.uid)}</code><span class="uid-copy">复制</span></div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:12px" id="mmCancel">撤回申请</button>`;
+    host.querySelector("#mmCancel").addEventListener("click", async ()=>{
+      try{ await delDoc(doc(db,"mm_apply",me.uid)); toast("已撤回"); }
+      catch(e){ toast(mmApplyError(e)); console.error(e); }
+    });
+  }else{
+    host.innerHTML = `
+      <div class="field"><label>想说点什么(可选)</label>
+        <textarea id="mmNote" maxlength="300" placeholder="比如:平时就爱给朋友牵线,想帮更多人"></textarea></div>
+      <div class="hint" style="margin-bottom:10px">提交的同时会把下面这个 ID 一起发过去,管理员用它开通权限</div>
+      <div class="uid-box" id="mmUidBox" title="点击复制"><code>${esc(me.uid)}</code><span class="uid-copy">复制</span></div>
+      <button class="btn btn-coral btn-pill" style="width:100%;margin-top:14px" id="mmApplyBtn">发送申请</button>`;
+    host.querySelector("#mmApplyBtn").addEventListener("click", async e=>{
+      const btn = e.currentTarget; btn.disabled = true; btn.textContent = "提交中…";
+      try{
+        await setDoc(doc(db,"mm_apply",me.uid), {
+          uid: me.uid, note: host.querySelector("#mmNote").value.trim().slice(0,300),
+          status: "pending", createdAt: serverTimestamp()
+        });
+        toast("申请已发送,等管理员开通");
+      }catch(err){ toast(mmApplyError(err)); console.error(err); }
+      btn.disabled = false; btn.textContent = "发送申请";
+    });
+  }
+  const box = host.querySelector("#mmUidBox");
+  if(box) box.addEventListener("click", ()=>{
+    navigator.clipboard?.writeText(me.uid).then(()=>toast("ID 已复制")).catch(()=>{});
+  });
+}
+
+function mmApplyError(e){
+  // 这个集合是新加的,规则没发布的话这里一定是 permission-denied,直接说清楚
+  if(e && String(e.code||"").includes("permission-denied"))
+    return "还没开通:请到 Firebase 控制台 → Firestore → 规则,发布最新的 firestore.rules";
+  return "提交失败:" + fbError(e);
+}
 
 /* ================= 专属红娘 =================
    一对一牵线。文档 ID 就是申请人 uid —— 天然一人一单,不会刷屏。 */
