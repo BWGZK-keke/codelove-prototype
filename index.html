@@ -873,8 +873,22 @@ function showMatchModal(name){
       为什么不是每张卡片调一次:免费额度每人每天 40 次,广场随便
       二三十个人,那样刷一次就没了。一次批量打完,再缓存起来。
 
-   学历刻意不参与打分 —— 按文凭排序和「程序员严肃交友」的定位不符。
+   学历按「层级相近」算,不按「文凭高低」排 —— 和年龄那一维同理:
+   算的是两个人搭不搭,不是谁更值钱。所以本科×本科 和 博士×博士 一样高分,
+   本科×博士 才扣分。
    ========================================== */
+
+// 「海外硕士」和「硕士」是同一层,只是地点不同 ——
+// 直接拿 EDU 的数组下标排会让海外硕士盖过博士,那是错的。
+const EDU_LEVEL = { "本科":1, "硕士":2, "海外硕士":2, "博士":3, "海外博士":3 };
+function eduScore(a, b){
+  const la = EDU_LEVEL[a], lb = EDU_LEVEL[b];
+  if(!la || !lb) return 0;                       // 有人没填就不参与
+  const near = [1, .6, .2][Math.abs(la-lb)] ?? .2;
+  // 同层之内,再看有没有共同的海外经历 —— 生活轨迹像不像也是信号
+  const both = /海外/.test(a) === /海外/.test(b);
+  return 12 * near * (la === lb && !both ? .85 : 1);
+}
 
 // 中文没空格,用「拉丁词 + 汉字二元组」当特征,够粗但够用
 function bioTokens(s){
@@ -896,25 +910,28 @@ function ruleScore(u){
   if(!myProfile) return 50;
   let pts = 0;
 
-  // 标签重合(34):用 Jaccard,不然标签堆得多的人天然占便宜
+  // 标签重合(30):用 Jaccard,不然标签堆得多的人天然占便宜
   const mine = new Set((myProfile.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
   const th   = new Set((u.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
   const uni  = new Set([...mine, ...th]).size;
   const inter= [...th].filter(t=>mine.has(t)).length;
-  pts += 34 * (uni ? inter/uni : 0);
+  pts += 30 * (uni ? inter/uni : 0);
 
-  // 同城(20):异地不是零分,只是明显更难
-  pts += (u.city && u.city === myProfile.city) ? 20 : (u.city ? 4 : 0);
+  // 同城(18):异地不是零分,只是明显更难
+  pts += (u.city && u.city === myProfile.city) ? 18 : (u.city ? 4 : 0);
 
-  // 年龄接近(16):差 12 岁以上归零
+  // 年龄接近(14):差 12 岁以上归零
   const ad = Math.abs((+u.age||0) - (+myProfile.age||0));
-  pts += 16 * Math.max(0, 1 - ad/12);
+  pts += 14 * Math.max(0, 1 - ad/12);
 
-  // 自我介绍用词重合(16)
-  pts += 16 * bioOverlap(myProfile.bio, u.bio);
+  // 自我介绍用词重合(14)
+  pts += 14 * bioOverlap(myProfile.bio, u.bio);
 
-  // 职业(14):同行有共同语言,不同行也有互补,给一半
-  pts += (u.role && myProfile.role) ? (u.role === myProfile.role ? 14 : 7) : 0;
+  // 职业(12):同行有共同语言,不同行也有互补,给一半
+  pts += (u.role && myProfile.role) ? (u.role === myProfile.role ? 12 : 6) : 0;
+
+  // 学历(12):看层级相不相近,不看谁的文凭更高
+  pts += eduScore(myProfile.edu, u.edu);
 
   return Math.max(25, Math.min(97, Math.round(pts)));
 }
@@ -930,7 +947,7 @@ function hash32(s){
 }
 // 我的资料或候选人集合变了,缓存就该失效
 function matchFingerprint(){
-  const meSig = [myProfile.city, myProfile.age, myProfile.role,
+  const meSig = [myProfile.city, myProfile.age, myProfile.role, myProfile.edu,
                  (myProfile.stack||[]).join(","), myProfile.bio].join("|");
   const cand = allUsers.map(u=>u.uid).sort().join(",");
   return hash32(meSig + "#" + cand);
@@ -955,13 +972,15 @@ const MATCH_SYS = [
   "我会给你「我」的资料和一批候选人资料,请逐个评估我和每个人的契合度。",
   "评分 0-100,并且必须拉开差距:同一批人里既要有 80 以上的,也要有 40 以下的,",
   "不要所有人都挤在 60 分附近。判断依据是共同话题、生活方式、地域现实性、",
-  "年龄阶段和性格互补,不要因为学历高就加分。",
+  "年龄阶段、性格互补,以及教育背景是否相近。",
+  "学历看的是「两人层级是否接近」(本科配本科、博士配博士都算高分),",
+  "不是「谁的文凭更高」—— 不要因为对方学历高就单方面加分。",
   "每人再给一句不超过 20 字的中文理由,说人话,具体到资料里的内容,不要套话。",
   '只输出 JSON,格式:{"scores":[{"uid":"...","score":73,"reason":"都在北京,都玩攀岩"}]}'
 ].join("");
 
 function profileLine(u){
-  return [`uid=${u.uid}`, u.name, u.age?u.age+"岁":"", u.gender, u.city, u.role,
+  return [`uid=${u.uid}`, u.name, u.age?u.age+"岁":"", u.gender, u.city, u.role, u.edu,
           (u.stack||[]).join("/"), u.bio ? "简介:"+u.bio : ""]
          .filter(Boolean).join(" | ");
 }
