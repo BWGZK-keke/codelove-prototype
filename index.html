@@ -456,6 +456,35 @@
     .lp-hero{padding:48px 0 40px}
   }
 
+  /* ---------- 匹配报告 ---------- */
+  .modal.wide{max-width:400px;text-align:left;padding:26px 24px 22px}
+  .mr-head{display:flex;align-items:center;gap:13px;margin-bottom:6px}
+  .mr-head .ava,.mr-head .ava-emoji{width:48px;height:48px;font-size:24px}
+  .mr-nm{font-family:var(--cute);font-size:19px;color:var(--ink);line-height:1.3}
+  .mr-meta{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .mr-score{margin-left:auto;text-align:center;border:var(--bw) solid var(--outline);
+    border-radius:var(--r-sm);padding:6px 11px;background:var(--butter-soft)}
+  .mr-score b{font-family:var(--cute);font-size:21px;display:block;font-weight:400;color:var(--ink)}
+  .mr-score span{font-size:9.5px;color:var(--ink-soft)}
+  .mr-src{font-size:11.5px;color:var(--ink-soft);margin:10px 0 4px}
+  .mr-why{background:var(--butter-soft);border:1.5px solid var(--outline);border-radius:var(--r-xs);
+    padding:9px 12px;font-size:13px;line-height:1.8;color:var(--ink);margin:8px 0 16px}
+  .mr-row{margin-bottom:11px}
+  .mr-top{display:flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink)}
+  .mr-top b{font-weight:400}
+  .mr-pts{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+  .mr-bar{height:8px;border:1.5px solid var(--outline);border-radius:var(--pill);
+    background:var(--surface-2);overflow:hidden;margin:5px 0 3px}
+  .mr-fill{height:100%;background:var(--accent);border-radius:var(--pill)}
+  .mr-note{font-size:11px;color:var(--ink-soft);line-height:1.65}
+  .mr-deep h4{font-family:var(--cute);font-size:14px;margin:15px 0 7px;color:var(--ink);font-weight:400}
+  .mr-deep ul{margin:0;padding-left:19px}
+  .mr-deep li{font-size:12.5px;line-height:1.85;color:var(--ink-soft);margin-bottom:3px}
+  .mr-open{background:var(--mint-soft);border:1.5px solid var(--outline);border-radius:var(--r-xs);
+    padding:9px 12px;font-size:12.5px;line-height:1.8;color:var(--ink);margin-top:7px}
+  .compat{cursor:pointer}
+  .compat:hover{background:var(--butter-soft);border-radius:var(--r-xs)}
+
   /* ---------- AI 匹配 ---------- */
   .match-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-8px 0 16px}
   .match-note{font-size:11.5px;color:var(--ink-soft)}
@@ -1226,34 +1255,39 @@ function bioOverlap(a, b){
   return n / Math.min(A.size, B.size);   // 按较短的一边归一,简介写得短不吃亏
 }
 
-function ruleScore(u){
-  if(!myProfile) return 50;
-  let pts = 0;
-
-  // 标签重合(30):用 Jaccard,不然标签堆得多的人天然占便宜
+// 每个维度单独算,总分只是把它们加起来 ——
+// 报告直接读这份数据,所以「报告里写的」和「卡片上显示的」不可能对不上。
+function ruleParts(u){
+  if(!myProfile) return [];
   const mine = new Set((myProfile.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
   const th   = new Set((u.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
   const uni  = new Set([...mine, ...th]).size;
-  const inter= [...th].filter(t=>mine.has(t)).length;
-  pts += 30 * (uni ? inter/uni : 0);
+  const both = [...th].filter(t=>mine.has(t));
+  const ad   = Math.abs((+u.age||0) - (+myProfile.age||0));
+  const bo   = bioOverlap(myProfile.bio, u.bio);
+  const sameCity = !!(u.city && u.city === myProfile.city);
+  const sameRole = !!(u.role && myProfile.role && u.role === myProfile.role);
 
-  // 同城(18):异地不是零分,只是明显更难
-  pts += (u.city && u.city === myProfile.city) ? 18 : (u.city ? 4 : 0);
+  return [
+    { label:"共同标签", max:30, got: 30 * (uni ? both.length/uni : 0),
+      note: both.length ? both.join(" · ") : "没有重合的标签" },
+    { label:"城市",     max:18, got: sameCity ? 18 : (u.city ? 4 : 0),
+      note: sameCity ? `都在${u.city}` : (u.city ? `你在${myProfile.city||"—"},TA 在${u.city}` : "对方没填城市") },
+    { label:"年龄",     max:14, got: 14 * Math.max(0, 1 - ad/12),
+      note: u.age ? (ad===0 ? "同岁" : `相差 ${ad} 岁`) : "对方没填年龄" },
+    { label:"自我介绍", max:14, got: 14 * bo,
+      note: bo > .18 ? "描述里有不少共同的词" : (bo > 0 ? "描述里有一点点重合" : "两段介绍几乎没有交集") },
+    { label:"职业",     max:12, got: sameRole ? 12 : (u.role && myProfile.role ? 6 : 0),
+      note: sameRole ? "同一个岗位方向" : (u.role ? `${myProfile.role||"—"} × ${u.role}` : "对方没填职业") },
+    { label:"学历",     max:12, got: eduScore(myProfile.edu, u.edu),
+      note: (myProfile.edu && u.edu) ? `${myProfile.edu} × ${u.edu}` : "有一方没填学历" }
+  ];
+}
 
-  // 年龄接近(14):差 12 岁以上归零
-  const ad = Math.abs((+u.age||0) - (+myProfile.age||0));
-  pts += 14 * Math.max(0, 1 - ad/12);
-
-  // 自我介绍用词重合(14)
-  pts += 14 * bioOverlap(myProfile.bio, u.bio);
-
-  // 职业(12):同行有共同语言,不同行也有互补,给一半
-  pts += (u.role && myProfile.role) ? (u.role === myProfile.role ? 12 : 6) : 0;
-
-  // 学历(12):看层级相不相近,不看谁的文凭更高
-  pts += eduScore(myProfile.edu, u.edu);
-
-  return Math.max(25, Math.min(97, Math.round(pts)));
+function ruleScore(u){
+  const parts = ruleParts(u);
+  if(!parts.length) return 50;
+  return Math.max(25, Math.min(97, Math.round(parts.reduce((s,x)=>s+x.got, 0))));
 }
 
 /* ---------- AI 批量打分 ---------- */
@@ -1350,6 +1384,87 @@ function syncMatchBtn(){
     : "当前是本地规则分,点左边让 AI 逐个分析";
 }
 
+/* ---------- 匹配报告 ----------
+   点卡片上的分数就摊开看:每个维度拿了多少分、为什么。
+   打分本身不花钱、立刻可见;想要更细的分析再单独点一次 AI(每人缓存一天)。 */
+const AI_DEEP_KEY = "cl_ai_deep";
+const DEEP_TTL = 24*3600*1000;
+
+function deepCache(uid){
+  const all = readJson(AI_DEEP_KEY, {});
+  const c = all[uid];
+  return (c && Date.now()-c.at < DEEP_TTL) ? c.data : null;
+}
+function saveDeep(uid, data){
+  const all = readJson(AI_DEEP_KEY, {});
+  all[uid] = { at: Date.now(), data };
+  localStorage.setItem(AI_DEEP_KEY, JSON.stringify(all));
+}
+
+function deepHtml(d){
+  const list = a => (a||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join("");
+  return `<div class="mr-deep">
+    ${d.common&&d.common.length?`<h4>共同点</h4><ul>${list(d.common)}</ul>`:""}
+    ${d.friction&&d.friction.length?`<h4>可能的摩擦</h4><ul>${list(d.friction)}</ul>`:""}
+    ${d.opener?`<h4>可以这样开场</h4><div class="mr-open">${esc(d.opener)}</div>`:""}
+  </div>`;
+}
+
+function openMatchReport(u){
+  const parts = ruleParts(u), ai = compatReason(u), score = compat(u);
+  const rule = ruleScore(u);
+  const rows = parts.map(p=>{
+    const pct = p.max ? Math.round(p.got/p.max*100) : 0;
+    return `<div class="mr-row">
+      <div class="mr-top"><b>${esc(p.label)}</b><span class="mr-pts">${p.got.toFixed(1)} / ${p.max}</span></div>
+      <div class="mr-bar"><div class="mr-fill" style="width:${pct}%"></div></div>
+      <div class="mr-note">${esc(p.note)}</div></div>`;
+  }).join("");
+
+  const cached = deepCache(u.uid);
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="mr-head">
+        ${avatarHtml(u)}
+        <div><div class="mr-nm">${esc(u.name)}</div>
+          <div class="mr-meta">${esc([u.age&&u.age+"岁",u.role,u.city].filter(Boolean).join(" · "))}</div></div>
+        <div class="mr-score"><b>${score}%</b><span>${ai?"AI 契合":"契合"}</span></div>
+      </div>
+      ${ai?`<div class="mr-src">✨ AI 给出的理由</div><div class="mr-why">${esc(ai)}</div>`:""}
+      <div class="mr-src">按维度拆开(本地规则分合计 ${rule}%${ai?",AI 分是另外单独判断的":""})</div>
+      ${rows}
+      <div id="mrDeep">${cached?deepHtml(cached):""}</div>
+      <div class="modal-actions" style="margin-top:16px">
+        ${cached?"":`<button class="btn btn-ghost" id="mrGen">✨ 生成详细分析</button>`}
+        <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">知道了</button>
+      </div>
+    </div>
+  </div>`;
+
+  const gen = $("#mrGen");
+  if(gen) gen.addEventListener("click", async ()=>{
+    if(!aiReady()){ toast("先配置一下 AI"); return; }
+    gen.disabled = true; gen.textContent = "分析中…";
+    try{
+      const sys = "你是交友匹配分析师。根据双方资料,分析他们合不合适。" +
+        "说人话,具体到资料里的内容,不要套话,不要因为学历高就恭维。" +
+        '只输出 JSON:{"common":["共同点,最多3条,每条不超过25字"],' +
+        '"friction":["可能的摩擦点,最多2条,每条不超过25字"],"opener":"一句可以直接发出去的开场白,不超过30字"}';
+      const prompt = `我的资料:\n${profileLine({...myProfile, uid:"me"})}\n\n对方资料:\n${profileLine(u)}`;
+      const raw = await aiCall(sys, prompt, "match");
+      const d = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}")+1));
+      if(!d.common && !d.friction && !d.opener) throw new Error("模型没给出有效内容");
+      saveDeep(u.uid, d);
+      $("#mrDeep").innerHTML = deepHtml(d);
+      gen.remove();
+    }catch(e){
+      toast("分析失败:"+e.message); console.error(e);
+      gen.disabled = false; gen.textContent = "✨ 生成详细分析";
+    }
+  });
+}
+
 /* ---------- feed ---------- */
 function avatarHtml(u){
   return u.photo
@@ -1406,7 +1521,7 @@ function renderFeed(){
             ${isNew(u)?`<span class="badge b-amber">🌱 新加入</span>`:""}</div>
           <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
         </div>
-        <div class="compat${compatReason(u)?" by-ai":""}"><b>${compat(u)}%</b><span>${compatReason(u)?"✨ AI":"契合"}</span></div>
+        <div class="compat${compatReason(u)?" by-ai":""}" data-report="${esc(u.uid)}" title="点开看这个分数是怎么来的"><b>${compat(u)}%</b><span>${compatReason(u)?"✨ AI":"契合"}</span></div>
       </div>
       <div class="ucard-body">
         ${compatReason(u)?`<div class="ai-why">✨ ${esc(compatReason(u))}</div>`:""}
@@ -1425,6 +1540,11 @@ function renderFeed(){
     </div>`;
   }).join("");
   syncMatchBtn();
+  $("#feedList").querySelectorAll("[data-report]").forEach(b=>
+    b.addEventListener("click",()=>{
+      const u = allUsers.find(x=>x.uid===b.dataset.report);
+      if(u) openMatchReport(u);
+    }));
   $("#feedList").querySelectorAll("[data-like]").forEach(b=>
     b.addEventListener("click",()=>likeUser(b.dataset.like,b.dataset.name)));
   $("#feedList").querySelectorAll("[data-unlike]").forEach(b=>
