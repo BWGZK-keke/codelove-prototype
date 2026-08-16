@@ -2193,6 +2193,10 @@ async function viaProxy(sys, userText, task){
 
   const j = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(j.error || `本站 AI 服务返回 ${res.status}`);
+  // 服务端每次都会回报剩余次数,记下来给设置面板显示 ——
+  // 不然「还能用几次」全靠猜,出问题时也说不清是额度还是别的原因
+  if(typeof j.__quota_left === "number")
+    localStorage.setItem("cl_ai_quota", JSON.stringify({left:j.__quota_left, at:Date.now()}));
   return j?.choices?.[0]?.message?.content || "";
 }
 
@@ -2388,6 +2392,17 @@ function keyHint(pk){
    聊天页的面板和「我的」里的卡片长得一样、用的是同一份代码,
    所以两边永远不会说不一样的话。表单里一律用 class 选择器:
    两处可能同时存在于 DOM 里,用 id 会撞。                        */
+// 免费额度还剩多少 —— 只有用过一次之后服务端才会告诉我们
+function quotaNote(){
+  const c = aiCfg();
+  if(!usingFreeQuota(c)) return "";
+  const q = readJson("cl_ai_quota", null);
+  const sameDay = q && new Date(q.at).toDateString() === new Date().toDateString();
+  return sameDay
+    ? `📊 本站免费额度今天还剩 <b>${q.left}</b> 次。<br>`
+    : "📊 正在用本站免费额度,用过一次后这里会显示剩余次数。<br>";
+}
+
 function renderAiForm(box, inChat){
   if(!box) return;
   const c = aiCfg(), cur = AI_PROVIDERS[c.provider] ? c.provider : "deepseek";
@@ -2424,7 +2439,7 @@ function renderAiForm(box, inChat){
       <button class="btn btn-ghost f-test">测试连接</button>
       <button class="btn btn-ghost f-clear">清除</button>
     </div>
-    <div class="ai-note">🔐 改动即时生效,不用点保存。API Key 只存在这台设备上,不会上传服务器。</div>`;
+    <div class="ai-note">${quotaNote()}🔐 改动即时生效,不用点保存。API Key 只存在这台设备上,不会上传服务器。</div>`;
 
   const q = s => box.querySelector(s);
   const save = ()=>{
