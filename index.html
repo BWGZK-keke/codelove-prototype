@@ -758,7 +758,6 @@
 
       <button class="btn btn-ghost" style="width:100%;margin-top:22px" id="btnLogout">退出登录</button>
     </div>
-  </div>
     <!-- 红娘 -->
     <div id="page-mm" class="hidden">
       <div class="form-title">红娘</div>
@@ -768,6 +767,11 @@
         <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">红娘工作台</div></div>
         <div class="form-sub">指名你的申请会出现在这里,含申请人邮箱</div>
         <div id="mmDesk"></div>
+
+        <div class="sec-head" style="margin-top:24px"><span class="sec-ico">✦</span>
+          <div class="form-title">成为红娘的申请</div></div>
+        <div class="form-sub">通过的话,把申请人的 ID 加进 firestore.rules 的 matchmakerIdOf 白名单再发布</div>
+        <div id="mmApplyDesk"></div>
       </div>
 
       <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">专属红娘</div></div>
@@ -782,6 +786,7 @@
       <div class="form-sub">帮别人牵线。提交后由管理员开通权限,通过后就能看到红娘工作台</div>
       <div class="card" id="mmApplyCard"></div>
     </div>
+  </div>
   <div class="tabbar"><div class="tabbar-inner">
     <button class="tab on" data-p="feed"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.1 5-5 2.1 2.1-5z"/></svg></span>广场</button>
     <button class="tab" data-p="matches"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 20s-6.5-4.3-8.4-8A4.6 4.6 0 0 1 12 7.3 4.6 4.6 0 0 1 20.4 12c-1.9 3.7-8.4 8-8.4 8z"/></svg></span>匹配</button>
@@ -1124,6 +1129,7 @@ function stopListeners(){
   if(unsubChat){ try{ unsubChat(); }catch(e){} unsubChat = null; }
   if(unsubBoard){ try{ unsubBoard(); }catch(e){} unsubBoard = null; }
   if(unsubDesk){ try{ unsubDesk(); }catch(e){} unsubDesk = null; }
+  if(unsubApplyDesk){ try{ unsubApplyDesk(); }catch(e){} unsubApplyDesk = null; }
   $("#mmDeskWrap").classList.add("hidden");
   if(unsubWall){ try{ unsubWall(); }catch(e){} unsubWall = null; }
   if(unsubReplies){ try{ unsubReplies(); }catch(e){} unsubReplies = null; openReplyId = null; }
@@ -1240,8 +1246,14 @@ async function likeUser(uid, name){
   myLikes.add(uid); renderFeed();
   try{
     await setDoc(doc(db,"likes",`${me.uid}_${uid}`), {from:me.uid,to:uid,createdAt:serverTimestamp()});
-    const back = await getDoc(doc(db,"likes",`${uid}_${me.uid}`));
-    if(back.exists()){
+    // 对方有没有心动过我,直接看订阅维护的 likedMe。
+    //
+    // 这里以前是 getDoc 反向那条 likes 文档,但对方没心动过时那个文档根本不存在 ——
+    // 读规则写的是 resource.data.from == uid,文档不存在时 resource 是 null,
+    // 取 .data 会让规则判定失败,Firestore 返回的是 permission-denied 而不是「没找到」。
+    // 结果就是:心动任何还没回应你的人,都会报「权限不足,请确认规则已部署」,
+    // 而且外层 catch 还会把刚点上的心动回滚掉。
+    if(likedMe.has(uid)){
       likedMe.add(uid);
       renderFeed();
       if(!matchNotified.has(uid)){ matchNotified.add(uid); showMatchModal(name); }
@@ -2684,7 +2696,10 @@ function subscribeMatchmakerDesk(){
         const m = MATCHMAKERS.find(x=>x.id===r.matchmaker);
         return m && m.uid===me.uid;
       });
-      const list = mine.length ? mine : reqs;   // uid 还没配到前端时,先全都列出来
+      // 以前这里在识别不出身份时会把所有人的申请都列出来 —— 那等于让 A 红娘
+      // 看到 B 红娘的客户名单。现在宁可先空着,并提示去补 MATCHMAKERS 里的 uid。
+      const known = MATCHMAKERS.some(m=>m.uid===me.uid);
+      const list = known ? mine : [];
       const profs={}, mails={};
       await Promise.all(list.map(async r=>{
         profs[r.uid] = await fetchProfile(r.uid);
@@ -2713,7 +2728,9 @@ function subscribeMatchmakerDesk(){
               ${done?"↩ 标记为待处理":"✓ 标记已处理"}</button>
           </div>
         </div>`;
-      }).join("") : `<div class="empty" style="padding:26px">还没有人呼叫你</div>`;
+      }).join("") : `<div class="empty" style="padding:26px">${known
+          ? "还没有人呼叫你"
+          : "认不出你是哪位红娘 —— 请把你的 ID 填进前端 MATCHMAKERS 里对应那一项的 uid"}</div>`;
 
       $("#mmDesk").querySelectorAll("[data-mmchat]").forEach(b=>
         b.addEventListener("click", ()=>openChat(b.dataset.mmchat, b.dataset.nm,
@@ -2726,6 +2743,58 @@ function subscribeMatchmakerDesk(){
         }));
     },
     err=>{ $("#mmDeskWrap").classList.add("hidden"); }   // 不是红娘,静默隐藏
+  );
+  subscribeMmApplyDesk();
+}
+
+/* 谁申请了成为红娘 —— 同样只有红娘读得到(规则里 isMatchmaker() 才放行),
+   所以这块跟着工作台一起出现,不用额外判断身份。                          */
+let unsubApplyDesk = null;
+function subscribeMmApplyDesk(){
+  if(unsubApplyDesk) return;
+  unsubApplyDesk = onSnapshot(
+    query(collection(db,"mm_apply"), orderBy("createdAt","desc"), limit(50)),
+    async snap=>{
+      const rows=[]; snap.forEach(d=>rows.push({id:d.id, ...d.data()}));
+      const profs={};
+      await Promise.all(rows.map(async r=>{ profs[r.uid] = await fetchProfile(r.uid); }));
+      $("#mmApplyDesk").innerHTML = rows.length ? rows.map(r=>{
+        const u = profs[r.uid] || {name:"未知用户"};
+        const ok = r.status==="approved";
+        return `
+        <div class="note" style="${ok?"opacity:.6":""}">
+          <div class="note-top">
+            ${avatarHtml(u)}
+            <div class="note-who">
+              <div class="note-name">${esc(u.name||"未知用户")}
+                <span class="badge ${ok?"b-green":"b-amber"}">${ok?"已通过":"待处理"}</span></div>
+              <div class="note-meta">${esc(u.role||"")}${u.city?" · "+esc(u.city):""}</div>
+            </div>
+            <div class="note-time">${timeAgo(r.createdAt)}</div>
+          </div>
+          <div class="note-body">${r.note?esc(r.note):"<i style='color:var(--ink-faint)'>(没有留言)</i>"}</div>
+          <div class="uid-box" data-copy="${esc(r.uid)}" title="点击复制"><code>${esc(r.uid)}</code><span class="uid-copy">复制</span></div>
+          <div class="note-foot">
+            <button class="reply-btn" data-appr="${esc(r.uid)}" data-to="${ok?"pending":"approved"}">
+              ${ok?"↩ 标记未处理":"✓ 标记已通过"}</button>
+          </div>
+        </div>`;
+      }).join("") : `<div class="empty" style="padding:26px">还没有人申请</div>`;
+
+      $("#mmApplyDesk").querySelectorAll("[data-copy]").forEach(b=>
+        b.addEventListener("click", ()=>{
+          navigator.clipboard?.writeText(b.dataset.copy)
+            .then(()=>toast("ID 已复制,粘到 firestore.rules 的白名单里")).catch(()=>{});
+        }));
+      // 标记只是备忘,真正开通权限还是要改规则 —— 前端给不了自己权限
+      $("#mmApplyDesk").querySelectorAll("[data-appr]").forEach(b=>
+        b.addEventListener("click", async ()=>{
+          try{ await setDoc(doc(db,"mm_apply",b.dataset.appr), {status:b.dataset.to}, {merge:true});
+               toast(b.dataset.to==="approved"?"已标记通过(记得改规则白名单)":"已标记未处理"); }
+          catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
+        }));
+    },
+    err=>{ $("#mmApplyDesk").innerHTML = ""; }
   );
 }
 
