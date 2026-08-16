@@ -1521,6 +1521,34 @@ function syncMatchBtn(){
 const AVATARS = ["🧑‍💻","👩‍💻","🧑‍🔬","👩‍🔬","🐱","🐶","🦊","🐼","🐨","🦉","🐧","🦁",
                  "🦄","🐳","🌵","🍀","🌙","⭐","🔥","🎧","☕","🍜","🚀","🎮","📚","🏔️"];
 
+// 上传的照片压到 160×160 再逐档降质,直到落进规则的 12000 字符上限。
+// 不压的话手机随手一张就是几 MB,既写不进 Firestore,也会拖垮广场首屏。
+const AVA_PX = 160, AVA_MAX = 10000;
+async function fileToAvatar(file){
+  if(!/^image\//.test(file.type)) throw new Error("请选一张图片");
+  if(file.size > 12*1024*1024)    throw new Error("图片太大了,换一张小点的");
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((res, rej)=>{
+      const i = new Image();
+      i.onload = ()=>res(i);
+      i.onerror = ()=>rej(new Error("这张图读不出来,换一张试试"));
+      i.src = url;
+    });
+    const c = document.createElement("canvas");
+    c.width = c.height = AVA_PX;
+    const ctx = c.getContext("2d");
+    // 居中裁成正方形,避免非正方形照片被拉变形
+    const s = Math.min(img.naturalWidth, img.naturalHeight);
+    ctx.drawImage(img, (img.naturalWidth-s)/2, (img.naturalHeight-s)/2, s, s, 0, 0, AVA_PX, AVA_PX);
+    for(const q of [0.75, 0.62, 0.5, 0.4, 0.3, 0.22]){
+      const d = c.toDataURL("image/jpeg", q);
+      if(d.length <= AVA_MAX) return d;
+    }
+    throw new Error("这张图压不够小,换一张试试");
+  } finally { URL.revokeObjectURL(url); }
+}
+
 function openAvatarPicker(host){
   const q = s => host.querySelector(s);
   const cur = q("#f-photo").value || "";
@@ -1534,6 +1562,10 @@ function openAvatarPicker(host){
         <div><div class="mr-nm">换个头像</div>
           <div class="mr-meta">会展示在广场和私信里</div></div>
       </div>
+      <div class="field"><label>从相册上传</label>
+        <input id="avFile" type="file" accept="image/*" style="display:none">
+        <button class="btn btn-coral" style="width:100%" id="avUpload">选一张照片</button>
+        <div class="hint">会自动裁成方形并压缩,只保存很小的一张</div></div>
       ${me.photoURL?`<div class="field"><label>Google 头像</label>
         <button class="btn btn-ghost" style="width:100%" id="avGoogle">用我的 Google 头像</button></div>`:""}
       <div class="field"><label>选一个</label>
@@ -1561,12 +1593,28 @@ function openAvatarPicker(host){
     preview("emoji:"+b.dataset.e);
   }));
   $("#avUrl").addEventListener("input", e=>{ clearGrid(); preview(e.target.value.trim()); });
+  $("#avUpload").addEventListener("click", ()=>$("#avFile").click());
+  $("#avFile").addEventListener("change", async e=>{
+    const f = e.target.files && e.target.files[0]; if(!f) return;
+    const btn = $("#avUpload"); btn.disabled = true; btn.textContent = "处理中…";
+    try{
+      const d = await fileToAvatar(f);
+      clearGrid(); $("#avUrl").value = "";
+      preview(d);
+      toast("照片已就绪,点「用这个」保存");
+    }catch(err){ toast(err.message); console.error(err); }
+    btn.disabled = false; btn.textContent = "选一张照片";
+    e.target.value = "";     // 同一张图再选一次也能触发 change
+  });
+
   const g = $("#avGoogle");
   if(g) g.addEventListener("click", ()=>{ clearGrid(); $("#avUrl").value=""; preview(me.photoURL); });
   $("#avSave").addEventListener("click", ()=>{
     const v = (picked||"").trim();
-    if(v && !v.startsWith("emoji:") && !/^https:\/\//.test(v)){ toast("图片链接要以 https:// 开头"); return; }
-    if(v.length > 480){ toast("这个链接太长了"); return; }
+    const isData = v.startsWith("data:image/");
+    if(v && !v.startsWith("emoji:") && !isData && !/^https:\/\//.test(v)){
+      toast("图片链接要以 https:// 开头"); return; }
+    if(v.length > (isData ? AVA_MAX : 480)){ toast("这张图/链接太大了"); return; }
     q("#f-photo").value = v;
     q("#avatarPreview").innerHTML = avatarHtml({photo:v, gender:gender()});
     $("#modalHost").innerHTML = "";
