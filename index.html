@@ -373,10 +373,24 @@
   .chat-bar .ai-btn{border:1.5px solid var(--outline);background:var(--surface);
     border-radius:50%;width:40px;height:40px;padding:0;font-size:19px;flex-shrink:0}
   .chat-bar .ai-btn.busy{background:var(--butter);opacity:.7;cursor:wait}
-  .head-act + .head-act{margin-left:0}
-  .head-act.on{background:var(--butter);color:var(--ink)}
-  .ai-warn{background:var(--butter-soft);border:1.5px solid var(--outline);border-radius:var(--r-sm);
-    padding:11px 13px;font-size:12px;line-height:1.75;color:var(--ink);margin-bottom:16px}
+  /* 输入框上方那条:当前模型 + 当前模式,点开就是配置面板 */
+  .ai-strip{max-width:560px;margin:0 auto 9px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .ai-chip{border:1.5px solid var(--outline);background:var(--surface);color:var(--ink-soft);
+    border-radius:var(--pill);padding:5px 12px;font-size:11.5px;cursor:pointer;
+    font-family:var(--cute);display:inline-flex;align-items:center;gap:5px;max-width:100%}
+  .ai-chip:hover{background:var(--butter-soft);color:var(--ink)}
+  .ai-chip.on{background:var(--butter);color:var(--ink)}
+  .ai-chip .caret{opacity:.55}
+  .ai-chip #aiChipText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px}
+  .ai-panel{background:var(--surface);border-top:var(--bw) solid var(--outline);
+    max-height:min(62vh,440px);overflow-y:auto;padding:15px 16px;flex-shrink:0}
+  .ai-panel-inner{max-width:560px;margin:0 auto}
+  .ai-panel .field{margin-bottom:13px}
+  .ai-seg{display:flex;gap:7px}
+  .ai-seg button{flex:1;border:1.5px solid var(--outline);background:var(--bg);color:var(--ink-soft);
+    border-radius:var(--pill);padding:8px 0;font-size:13px;cursor:pointer;font-family:var(--cute)}
+  .ai-seg button.on{background:var(--accent);color:var(--ink);box-shadow:0 2px 0 var(--outline)}
+  .ai-note{font-size:11.5px;color:var(--ink-soft);line-height:1.7;margin-top:9px}
   .ai-acts{display:flex;gap:9px;margin-top:4px}
   .ai-acts .btn{flex:1}
 
@@ -512,12 +526,18 @@
     <button class="back" id="chatBack" aria-label="返回">&lsaquo;</button>
     <span id="chatAva"></span>
     <div><div class="nm" id="chatName"></div><div class="sub">💘 已匹配</div></div>
-    <button class="head-act" id="chatAiAuto" title="开启后,你挂着这个页面时 AI 会自动替你回复">🤖 代回复</button>
     <button class="head-act" id="chatBlock">拉黑</button>
   </div>
   <div id="chatMsgs"></div>
   <div class="emoji-panel hidden" id="emojiPanel"><div class="emoji-panel-inner" id="emojiInner"></div></div>
-  <div class="chat-bar"><div class="chat-bar-inner">
+  <div class="ai-panel hidden" id="aiPanel"><div class="ai-panel-inner" id="aiPanelForm"></div></div>
+  <div class="chat-bar">
+    <!-- 仿 Claude VS Code 那条:模型/模式就摆在输入框上方,点一下就能改 -->
+    <div class="ai-strip">
+      <button class="ai-chip" id="aiChip" title="配置这个会话用哪个 AI">🤖 <span id="aiChipText">未配置</span> <span class="caret">▾</span></button>
+      <button class="ai-chip" id="aiChipMode" title="✨ 只出草稿 / 🤖 直接替你回复">✨ 建议</button>
+    </div>
+    <div class="chat-bar-inner">
     <button class="emoji-btn" id="emojiToggle" aria-label="表情" title="表情">😊</button>
     <button class="ai-btn" id="aiSuggest" aria-label="让 AI 帮我想一句" title="让 AI 帮我想一句">✨</button>
     <input id="chatInput" placeholder="说点什么…" maxlength="1000" autocomplete="off">
@@ -940,7 +960,8 @@ function openChat(uid, name, photo, gender, sub){
   toggleEmoji(false);
   curChatMsgs = [];
   aiPrimed = false;        // 第一批快照只用来「认门」,不对历史消息代回复
-  syncAiToggle();
+  syncAiStrip();
+  toggleAiPanel(false);
   show("view-chat");
   $("#chatInput").focus();
 
@@ -1013,6 +1034,7 @@ async function sendMsg(){
 
 function closeChat(){
   toggleEmoji(false);
+  toggleAiPanel(false);
   if(unsubChat){ try{ unsubChat(); }catch(e){} unsubChat = null; }
   curChatPeer = null;
   curChatMsgs = [];
@@ -1033,11 +1055,17 @@ function closeChat(){
    这是纯静态站的硬限制,不是可以调的开关。
    ========================================== */
 const AI_CFG_KEY = "cl_ai_cfg", AI_AUTO_KEY = "cl_ai_auto";
+
+/* 站点自带的免费额度走这个代理:DeepSeek 的 key 存在 Worker 里,不下发到浏览器。
+   部署方法见 worker/README.md,部署完把地址填到这里。
+   留空也能跑 —— 只是所有人都得自己填 Key。                                    */
+const AI_PROXY_URL = "";   // 例:"https://codelove-ai.你的子域.workers.dev/chat"
 let curChatMsgs = [], aiBusy = false, aiSeenId = null, aiPrimed = false;
 
 const AI_PROVIDERS = {
   deepseek: {
     label:"DeepSeek", model:"deepseek-chat", keyUrl:"https://platform.deepseek.com/api_keys",
+    models:["deepseek-chat","deepseek-reasoner"],
     url:"https://api.deepseek.com/chat/completions",
     headers:k=>({ "content-type":"application/json", "authorization":`Bearer ${k}` }),
     body:(model,sys,user)=>({ model, max_tokens:400,
@@ -1046,6 +1074,7 @@ const AI_PROVIDERS = {
   },
   claude: {
     label:"Claude", model:"claude-opus-5", keyUrl:"https://console.anthropic.com/settings/keys",
+    models:["claude-opus-5","claude-sonnet-5","claude-haiku-4-5"],
     url:"https://api.anthropic.com/v1/messages",
     headers:k=>({ "content-type":"application/json", "x-api-key":k,
       "anthropic-version":"2023-06-01",
@@ -1060,6 +1089,7 @@ const AI_PROVIDERS = {
   },
   openai: {
     label:"ChatGPT", model:"gpt-5", keyUrl:"https://platform.openai.com/api-keys",
+    models:["gpt-5","gpt-5-mini","gpt-4.1"],
     url:"https://api.openai.com/v1/chat/completions",
     headers:k=>({ "content-type":"application/json", "authorization":`Bearer ${k}` }),
     // 新模型只认 max_completion_tokens,旧的 max_tokens 会被拒
@@ -1070,8 +1100,17 @@ const AI_PROVIDERS = {
 };
 
 function readJson(k, d){ try{ return JSON.parse(localStorage.getItem(k)) || d; }catch(e){ return d; } }
-function aiCfg(){ return readJson(AI_CFG_KEY, {}); }
-function aiReady(){ const c = aiCfg(); return !!(c.key && AI_PROVIDERS[c.provider]); }
+// 没配过的人默认落在 DeepSeek 上:国内直连最稳,价格也最低
+function aiCfg(){ return { provider:"deepseek", ...readJson(AI_CFG_KEY, {}) }; }
+// 自己没填 Key、又选着 DeepSeek 的登录用户,走本站的免费额度
+function usingFreeQuota(c){
+  c = c || aiCfg();
+  return !!(AI_PROXY_URL && !c.key && c.provider === "deepseek" && me);
+}
+function aiReady(){
+  const c = aiCfg();
+  return !!(AI_PROVIDERS[c.provider] && (c.key || usingFreeQuota(c)));
+}
 function autoOn(uid){ return !!readJson(AI_AUTO_KEY, {})[uid]; }
 function setAuto(uid, on){
   const m = readJson(AI_AUTO_KEY, {});
@@ -1118,26 +1157,47 @@ function aiError(status, raw, p){
   return `${p.label} 返回 ${status}${msg ? ":"+msg.slice(0,120) : ""}`;
 }
 
+function cleanReply(raw){
+  const out = (raw || "").trim().replace(/^[“"「『]+/, "").replace(/[”"」』]+$/, "");
+  if(!out) throw new Error("模型没返回内容,换个模型再试试");
+  return out.slice(0, 1000);   // 规则里 text 上限 1000,超了会被拒
+}
+
+// 走本站免费额度:带上 Firebase 的登录凭证,Worker 那边验完才肯代发
+async function viaProxy(sys, userText){
+  let res;
+  try{
+    res = await fetch(AI_PROXY_URL, {
+      method:"POST",
+      headers:{ "content-type":"application/json", authorization:`Bearer ${await me.getIdToken()}` },
+      body: JSON.stringify({ messages:[{role:"system",content:sys},{role:"user",content:userText}] })
+    });
+  }catch(e){ throw new Error("连不上本站的 AI 服务,检查一下网络"); }
+
+  const j = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(j.error || `本站 AI 服务返回 ${res.status}`);
+  return cleanReply(j?.choices?.[0]?.message?.content);
+}
+
 async function aiComplete(userText){
   const c = aiCfg(), p = AI_PROVIDERS[c.provider];
-  if(!p)     throw new Error("还没选服务商");
-  if(!c.key) throw new Error("还没填 API Key");
-  const model = (c.model||"").trim() || p.model;
+  if(!p) throw new Error("还没选服务商");
+  const sys = aiSystemPrompt();
 
+  if(usingFreeQuota(c)) return viaProxy(sys, userText);
+  if(!c.key) throw new Error("还没填 API Key");
+
+  const model = (c.model||"").trim() || p.model;
   let res;
   try{
     res = await fetch(p.url, { method:"POST", headers:p.headers(c.key),
-                               body:JSON.stringify(p.body(model, aiSystemPrompt(), userText)) });
+                               body:JSON.stringify(p.body(model, sys, userText)) });
   }catch(e){
     // fetch 抛异常基本只有两种:断网,或者服务商没放行浏览器跨域请求
     throw new Error(`连不上 ${p.label}:可能是网络不通,也可能是该服务商不允许网页直连`);
   }
   if(!res.ok) throw new Error(aiError(res.status, await res.text().catch(()=> ""), p));
-
-  const out = (p.read(await res.json()) || "").trim()
-                .replace(/^[“"「『]+/, "").replace(/[”"」』]+$/, "");
-  if(!out) throw new Error("模型没返回内容,换个模型再试试");
-  return out.slice(0, 1000);   // 规则里 text 上限 1000,超了会被拒
+  return cleanReply(p.read(await res.json()));
 }
 
 /* ---------- 聊天页交互 ---------- */
@@ -1146,16 +1206,32 @@ function setAiBusy(on){
   $("#aiSuggest").classList.toggle("busy", on);
   $("#aiSuggest").disabled = on;
 }
-function syncAiToggle(){
-  const on = !!curChatPeer && autoOn(curChatPeer.uid);
-  $("#chatAiAuto").classList.toggle("on", on);
-  $("#chatAiAuto").textContent = on ? "🤖 代回复中" : "🤖 代回复";
+
+// 输入框上方那条状态:左边是「用哪个模型」,右边是「建议还是代回复」
+function syncAiStrip(){
+  const c = aiCfg(), p = AI_PROVIDERS[c.provider], ready = aiReady();
+  $("#aiChipText").textContent = !ready ? "点这里配置 AI"
+    : usingFreeQuota(c) ? `${p.label} · 本站免费额度`
+    : `${p.label} · ${(c.model||"").trim() || p.model}`;
+  $("#aiChip").classList.toggle("on", ready);
+
+  const auto = !!curChatPeer && autoOn(curChatPeer.uid);
+  const mode = $("#aiChipMode");
+  mode.classList.toggle("on", auto);
+  mode.textContent = auto ? "🤖 代回复中" : "✨ 建议";
+}
+
+function toggleAiPanel(force){
+  const pn = $("#aiPanel");
+  const openIt = force !== undefined ? force : pn.classList.contains("hidden");
+  if(openIt){ toggleEmoji(false); renderAiForm($("#aiPanelForm"), true); }
+  pn.classList.toggle("hidden", !openIt);
 }
 
 // ✨ 按钮:生成一句填进输入框,发不发由你决定
 async function aiSuggest(){
   if(!curChatPeer || aiBusy) return;
-  if(!aiReady()){ toast("先到「我的 → AI 助手」配置一下"); return; }
+  if(!aiReady()){ toggleAiPanel(true); toast("先配置一个 AI"); return; }
   setAiBusy(true);
   try{
     const text = await aiComplete(buildPrompt(curChatMsgs));
@@ -1187,86 +1263,118 @@ async function maybeAutoReply(msgs){
 }
 
 $("#aiSuggest").addEventListener("click", aiSuggest);
-$("#chatAiAuto").addEventListener("click", ()=>{
+$("#aiChip").addEventListener("click", ()=>toggleAiPanel());
+$("#aiChipMode").addEventListener("click", ()=>{
   if(!curChatPeer) return;
-  if(!aiReady()){ toast("先到「我的 → AI 助手」配置一下"); return; }
+  if(!aiReady()){ toggleAiPanel(true); toast("先配置一个 AI"); return; }
   const on = !autoOn(curChatPeer.uid);
   setAuto(curChatPeer.uid, on);
-  syncAiToggle();
-  toast(on ? "已开启:你挂着这个页面时,AI 会替你回复,并标注「AI 代回复」"
-           : "已关闭代回复");
+  syncAiStrip();
+  toast(on ? "代回复已开启:你挂着这个页面时 AI 会替你回复,并标注「AI 代回复」"
+           : "已切回建议模式:AI 只出草稿,发不发你决定");
 });
 
-/* ---------- 我的 → AI 助手 ---------- */
-function renderAiCard(){
-  const box = $("#aiCard"); if(!box) return;
+/* 本站免费额度只对 DeepSeek 开放,且要先登录 */
+function freeFor(pk){ return !!AI_PROXY_URL && pk === "deepseek" && !!me; }
+function keyHint(pk){
+  const p = AI_PROVIDERS[pk];
+  const own = `在 <a class="f-keylink" href="${esc(p.keyUrl)}" target="_blank" rel="noopener">${esc(p.label)} 后台</a>`
+            + ` 申请。按调用量计费 —— 和 Pro / Plus 订阅是两笔账,订阅不能用在这里`;
+  return freeFor(pk)
+    ? `本站已内置 DeepSeek 免费额度,留空就能直接用(每人每天有条数上限)。<br>想不限量、或换别的模型,再${own}`
+    : own;
+}
+
+/* ---------- 配置表单 ----------
+   聊天页的面板和「我的」里的卡片长得一样、用的是同一份代码,
+   所以两边永远不会说不一样的话。表单里一律用 class 选择器:
+   两处可能同时存在于 DOM 里,用 id 会撞。                        */
+function renderAiForm(box, inChat){
+  if(!box) return;
   const c = aiCfg(), cur = AI_PROVIDERS[c.provider] ? c.provider : "deepseek";
-  const p = AI_PROVIDERS[cur];
+  const p = AI_PROVIDERS[cur], ns = inChat ? "chat" : "me";
+  const auto = !!(inChat && curChatPeer && autoOn(curChatPeer.uid));
+  const seg = (k,v)=>`<button type="button" data-p="${k}"${k===cur?' class="on"':""}>${esc(v.label)}</button>`;
+
   box.innerHTML = `
-    <div class="ai-warn">
-      🔐 API Key 只保存在这台设备的浏览器里,不会上传到我们的服务器。
-      换设备要重新填一次;AI 也只在你开着本页时才工作。
-    </div>
+    ${inChat ? `<div class="field"><label>这个会话的模式</label>
+      <div class="ai-seg f-modeseg">
+        <button type="button" data-m="suggest"${!auto?' class="on"':""}>✨ 只给建议</button>
+        <button type="button" data-m="auto"${auto?' class="on"':""}>🤖 自动代回复</button>
+      </div>
+      <div class="hint">代回复只在你开着本页时生效,发出去的消息会带「🤖 AI 代回复」标注</div></div>` : ""}
     <div class="field"><label>服务商</label>
-      <select id="ai-provider">${Object.entries(AI_PROVIDERS).map(([k,v])=>
-        `<option value="${k}"${k===cur?" selected":""}>${esc(v.label)}</option>`).join("")}</select></div>
+      <div class="ai-seg f-provseg">${Object.entries(AI_PROVIDERS).map(([k,v])=>seg(k,v)).join("")}</div></div>
     <div class="field"><label>API Key</label>
-      <input id="ai-key" type="password" autocomplete="off" placeholder="粘贴你的 API Key"
-        value="${esc(c.key||"")}">
-      <div class="hint">去 <a id="ai-keylink" href="${esc(p.keyUrl)}" target="_blank" rel="noopener">服务商后台</a> 申请,费用由你自己的账户结算</div></div>
+      <input class="f-key" type="password" autocomplete="off" placeholder="${freeFor(cur)?"留空即可 —— 用本站的免费额度":"粘贴你的 API Key"}" value="${esc(c.key||"")}">
+      <div class="hint f-keyhint">${keyHint(cur)}</div></div>
     <div class="field"><label>模型</label>
-      <input id="ai-model" autocomplete="off" placeholder="${esc(p.model)}" value="${esc(c.model||"")}">
-      <div class="hint">留空就用默认的 <code id="ai-modelhint">${esc(p.model)}</code></div></div>
+      <input class="f-model" autocomplete="off" list="ai-models-${ns}" placeholder="${esc(p.model)}" value="${esc(c.model||"")}">
+      <datalist id="ai-models-${ns}" class="f-models">${p.models.map(m=>`<option value="${esc(m)}">`).join("")}</datalist>
+      <div class="hint">留空就用 <code class="f-modelhint">${esc(p.model)}</code></div></div>
     <div class="field"><label>人设 / 语气(可选)</label>
-      <textarea id="ai-persona" maxlength="500" placeholder="例如:说话简短一点,爱开玩笑,别太热情">${esc(c.persona||"")}</textarea></div>
+      <textarea class="f-persona" maxlength="500" placeholder="例如:说话简短一点,爱开玩笑,别太热情">${esc(c.persona||"")}</textarea></div>
     <div class="ai-acts">
-      <button class="btn btn-ghost" id="ai-test">测试</button>
-      <button class="btn btn-coral btn-pill" id="ai-save">保存</button>
+      <button class="btn btn-ghost f-test">测试连接</button>
+      <button class="btn btn-ghost f-clear">清除</button>
     </div>
-    <button class="btn btn-ghost" style="width:100%;margin-top:10px" id="ai-clear">清除本机配置</button>`;
+    <div class="ai-note">🔐 改动即时生效,不用点保存。API Key 只存在这台设备上,不会上传服务器。</div>`;
 
-  // 换服务商时,把默认模型和申请链接跟着换掉
-  $("#ai-provider").addEventListener("change", e=>{
-    const np = AI_PROVIDERS[e.target.value];
-    $("#ai-model").placeholder = np.model;
-    $("#ai-modelhint").textContent = np.model;
-    $("#ai-keylink").href = np.keyUrl;
-  });
+  const q = s => box.querySelector(s);
+  const save = ()=>{
+    localStorage.setItem(AI_CFG_KEY, JSON.stringify({
+      provider: q(".f-provseg .on").dataset.p,
+      key:      q(".f-key").value.trim(),
+      model:    q(".f-model").value.trim(),
+      persona:  q(".f-persona").value.trim()
+    }));
+    syncAiStrip();
+  };
+  [".f-key",".f-model",".f-persona"].forEach(s=>q(s).addEventListener("input", save));
 
-  const collect = ()=>({
-    provider: $("#ai-provider").value,
-    key:      $("#ai-key").value.trim(),
-    model:    $("#ai-model").value.trim(),
-    persona:  $("#ai-persona").value.trim()
-  });
+  // 换服务商:默认模型、候选列表、申请链接一起换
+  box.querySelectorAll(".f-provseg button").forEach(b=>b.addEventListener("click", ()=>{
+    box.querySelectorAll(".f-provseg button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    const np = AI_PROVIDERS[b.dataset.p];
+    q(".f-model").placeholder = np.model;
+    q(".f-modelhint").textContent = np.model;
+    q(".f-key").placeholder = freeFor(b.dataset.p) ? "留空即可 —— 用本站的免费额度" : "粘贴你的 API Key";
+    q(".f-keyhint").innerHTML = keyHint(b.dataset.p);
+    q(".f-models").innerHTML = np.models.map(m=>`<option value="${esc(m)}">`).join("");
+    save();
+  }));
 
-  $("#ai-save").addEventListener("click", ()=>{
-    localStorage.setItem(AI_CFG_KEY, JSON.stringify(collect()));
-    toast("已保存到本机");
-  });
+  const modeSeg = q(".f-modeseg");
+  if(modeSeg) modeSeg.querySelectorAll("button").forEach(b=>b.addEventListener("click", ()=>{
+    if(!curChatPeer) return;
+    if(b.dataset.m==="auto" && !aiReady()){ toast("先填 API Key,再开代回复"); return; }
+    modeSeg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    setAuto(curChatPeer.uid, b.dataset.m==="auto");
+    syncAiStrip();
+  }));
 
-  $("#ai-test").addEventListener("click", async e=>{
-    const btn = e.currentTarget, prev = aiCfg();
-    localStorage.setItem(AI_CFG_KEY, JSON.stringify(collect()));   // 用当前表单里的值去试
+  q(".f-test").addEventListener("click", async e=>{
+    const btn = e.currentTarget;
+    save();
     btn.disabled = true; btn.textContent = "测试中…";
-    try{
-      const out = await aiComplete("请只回复两个字:在的");
-      toast("连通了,模型说:"+out.slice(0,20));
-    }catch(err){
-      localStorage.setItem(AI_CFG_KEY, JSON.stringify(prev));      // 没通就别覆盖原来能用的配置
-      toast(err.message);
-      console.error(err);
-    }
-    btn.disabled = false; btn.textContent = "测试";
+    try{ toast("连通了,模型说:" + (await aiComplete("请只回复两个字:在的")).slice(0,20)); }
+    catch(err){ toast(err.message); console.error(err); }
+    btn.disabled = false; btn.textContent = "测试连接";
   });
 
-  $("#ai-clear").addEventListener("click", ()=>{
+  q(".f-clear").addEventListener("click", ()=>{
     localStorage.removeItem(AI_CFG_KEY);
     localStorage.removeItem(AI_AUTO_KEY);
-    renderAiCard(); syncAiToggle();
-    toast("已清除本机的 AI 配置和代回复开关");
+    renderAiForm(box, inChat);
+    if(box !== $("#aiCard")) renderAiCard();      // 另一处也跟着刷新
+    syncAiStrip();
+    toast("已清除本机的 AI 配置");
   });
 }
+
+function renderAiCard(){ renderAiForm($("#aiCard"), false); }
 
 
 /* ---------- 表情 ---------- */
