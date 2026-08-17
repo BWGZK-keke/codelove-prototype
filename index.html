@@ -182,6 +182,10 @@
   .match-card{display:flex;align-items:flex-start;gap:14px;padding:17px;background:var(--surface);
     border:var(--bw) solid var(--outline);border-radius:var(--r);margin-bottom:13px;box-shadow:var(--sh)}
   .match-card .info{flex:1;min-width:0}
+  .contact-box.reveal{cursor:pointer;display:flex;align-items:center;gap:8px}
+  .contact-box.reveal:hover{background:var(--butter-soft)}
+  .reveal-hint{margin-left:auto;font-family:var(--cute);font-size:10.5px;
+    border:1.5px solid var(--outline);border-radius:var(--pill);padding:1px 8px;background:var(--surface)}
   .contact-box{font-family:var(--mono);font-size:11.5px;background:var(--mint-soft);
     color:var(--ink);border:1.5px solid var(--outline);border-radius:var(--pill);
     padding:6px 13px;margin-top:9px;display:inline-block;word-break:break-all}
@@ -3322,6 +3326,17 @@ async function fetchContact(uid){
   }catch(e){ return ""; }
 }
 
+// 匹配成功不等于要把邮箱直接摊在页面上 —— 截图、旁人一眼扫过都会漏出去。
+// 默认只显示打码版,点一下才展开(顺手复制)。
+function maskEmail(e){
+  e = String(e||"");
+  const at = e.indexOf("@");
+  if(at < 1) return e ? "***" : "";
+  const name = e.slice(0, at), dom = e.slice(at);
+  const keep = name.length <= 2 ? name.slice(0,1) : name.slice(0,2);
+  return keep + "***" + dom;
+}
+
 async function renderMatches(){
   // 只在首次打开时显示 spinner;实时刷新时保持原内容,避免闪烁
   if(!$("#matchList").innerHTML.trim())
@@ -3343,13 +3358,23 @@ async function renderMatches(){
       <div class="info">
         <div class="uname">${esc(u.name)} <span class="badge b-amber">💘 双向心动</span></div>
         <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
-        <div class="contact-box">📧 ${esc(u.email||"未公开")}</div>
+        ${u.email
+          ? `<div class="contact-box reveal" data-mail="${esc(u.email)}"
+                title="点一下显示完整邮箱">📧 ${esc(maskEmail(u.email))}<span class="reveal-hint">显示</span></div>`
+          : `<div class="contact-box">📧 未公开</div>`}
         <button class="btn-chat" data-chat="${esc(u.uid)}" data-nm="${esc(u.name)}"
           data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 发消息</button>
       </div>
     </div>`).join("")
     : `<div class="empty"><div class="big">✨</div>还没有匹配<br>去广场多发几个心动吧</div>`;
 
+  $("#matchList").querySelectorAll("[data-mail]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      if(b.dataset.shown) return;
+      b.dataset.shown = "1";
+      b.innerHTML = `📧 ${esc(b.dataset.mail)}`;
+      navigator.clipboard?.writeText(b.dataset.mail).then(()=>toast("邮箱已复制")).catch(()=>{});
+    }));
   $("#page-matches").querySelectorAll("[data-twin]").forEach(b=>
     b.addEventListener("click", ()=>{
       const u = allUsers.find(x=>x.uid===b.dataset.twin);
