@@ -123,6 +123,12 @@
     border:1.5px dashed var(--outline);border-radius:var(--pill);padding:7px 18px}
   .login .tip{margin-top:26px;font-size:12.5px;color:var(--ink-soft);max-width:300px;line-height:1.9}
 
+  /* ---------- 邮箱登录 ---------- */
+  .or-line{display:flex;align-items:center;gap:12px;max-width:320px;width:100%;
+    margin:20px auto 4px;color:var(--ink-faint);font-size:12px}
+  .or-line::before,.or-line::after{content:"";flex:1;height:1.5px;background:var(--line)}
+  .mail-form{max-width:320px;width:100%;margin:0 auto}
+
   /* ---------- 表单 ---------- */
   .form-title{font-family:var(--cute);font-size:27px;margin:28px 0 6px;letter-spacing:.01em}
   .form-sub{font-size:13.5px;color:var(--ink-soft);margin-bottom:20px}
@@ -764,6 +770,19 @@
     <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.2 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C41 35.4 44 30.1 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
     使用 Google 账号登录
   </button>
+  <div class="or-line"><span>或用邮箱</span></div>
+  <div class="mail-form">
+    <div class="ai-seg" id="authMode">
+      <button type="button" data-m="in" class="on">登录</button>
+      <button type="button" data-m="up">注册</button>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <input id="authEmail" type="email" autocomplete="email" placeholder="邮箱"></div>
+    <div class="field">
+      <input id="authPass" type="password" autocomplete="current-password" placeholder="密码(至少 6 位)"></div>
+    <button class="btn btn-coral btn-pill" style="width:100%" id="authGo">登录</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="authForgot">忘记密码</button>
+  </div>
   <div class="tip">登录即表示同意平台服务条款。你的邮箱仅在双方互相心动(匹配成功)后,才会展示给对方。</div>
 </div>
 
@@ -914,7 +933,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut }
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
+         createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -957,6 +977,16 @@ function fbError(e){
     return "域名未授权:Authentication → Settings → 已授权域名,添加 bwgzk-keke.github.io";
   if(c.includes("operation-not-allowed"))
     return "Google 登录方式未启用:Authentication → Sign-in method → 打开 Google";
+  // 邮箱密码登录的几种常见失败
+  if(c.includes("email-already-in-use"))
+    return "这个邮箱已经注册过了,切到「登录」试试";
+  if(c.includes("invalid-email"))       return "邮箱格式不对";
+  if(c.includes("weak-password"))       return "密码太简单了,至少 6 位";
+  if(c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found"))
+    return "邮箱或密码不对";
+  if(c.includes("too-many-requests"))   return "尝试太频繁,过几分钟再试";
+  if(c.includes("operation-not-allowed") && c.includes("password"))
+    return "邮箱登录方式还没开通:Firebase 控制台 → Authentication → Sign-in method → 启用「电子邮件/密码」";
   if(c.includes("popup-blocked"))
     return "浏览器拦截了登录弹窗,请允许弹窗后重试";
   if(c.includes("popup-closed-by-user") || c.includes("cancelled-popup"))
@@ -1074,6 +1104,38 @@ $("#loginBack").addEventListener("click", ()=>show("view-landing"));
 applyLang(curLang());
 
 /* ---------- auth ---------- */
+/* ---------- 邮箱 + 密码 ----------
+   和 Google 登录并存。注册出来的账号没有 displayName / photoURL,
+   资料表单本来就有兜底(昵称留空、头像用 emoji),不用特殊处理。 */
+let authMode = "in";
+$("#authMode").querySelectorAll("button").forEach(b=>b.addEventListener("click", ()=>{
+  authMode = b.dataset.m;
+  $("#authMode").querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b));
+  $("#authGo").textContent = authMode === "up" ? "注册并进入" : "登录";
+  $("#authPass").autocomplete = authMode === "up" ? "new-password" : "current-password";
+}));
+
+async function doEmailAuth(){
+  const email = $("#authEmail").value.trim(), pass = $("#authPass").value;
+  if(!email || !pass){ toast("邮箱和密码都要填"); return; }
+  if(authMode === "up" && pass.length < 6){ toast("密码至少 6 位"); return; }
+  const btn = $("#authGo"); btn.disabled = true; btn.textContent = "处理中…";
+  try{
+    if(authMode === "up") await createUserWithEmailAndPassword(auth, email, pass);
+    else                  await signInWithEmailAndPassword(auth, email, pass);
+    // 成功后 onAuthStateChanged 会接管,这里不用再做什么
+  }catch(e){ toast(fbError(e)); console.error(e); }
+  btn.disabled = false; btn.textContent = authMode === "up" ? "注册并进入" : "登录";
+}
+$("#authGo").addEventListener("click", doEmailAuth);
+$("#authPass").addEventListener("keydown", e=>{ if(e.key === "Enter") doEmailAuth(); });
+$("#authForgot").addEventListener("click", async ()=>{
+  const email = $("#authEmail").value.trim();
+  if(!email){ toast("先填上邮箱,我给你发重置链接"); return; }
+  try{ await sendPasswordResetEmail(auth, email); toast("重置密码的邮件已发出,去邮箱看看"); }
+  catch(e){ toast(fbError(e)); console.error(e); }
+});
+
 $("#btnGoogle").addEventListener("click", async ()=>{
   try{ await signInWithPopup(auth, new GoogleAuthProvider()); }
   catch(e){ const m = fbError(e); if(m) toast(m); console.error(e); }
