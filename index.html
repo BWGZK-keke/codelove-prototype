@@ -3216,7 +3216,10 @@ function subscribeMatchmakerDesk(){
             <div class="note-time">${timeAgo(r.createdAt)}</div>
           </div>
           <div class="note-body">${r.note?esc(r.note):"<i style='color:var(--ink-faint)'>(没有填写备注)</i>"}</div>
-          <div class="contact-box">📧 ${esc(mails[r.uid]||"读不到邮箱")}</div>
+          ${mails[r.uid]
+            ? `<div class="contact-box reveal" data-mail="${esc(mails[r.uid])}"
+                  title="点一下显示完整邮箱">📧 ${esc(maskEmail(mails[r.uid]))}<span class="reveal-hint">显示</span></div>`
+            : `<div class="contact-box">📧 读不到邮箱</div>`}
           <div class="note-foot">
             <button class="reply-btn" data-mmchat="${esc(r.uid)}" data-nm="${esc(u.name||"申请人")}"
               data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 直接对话</button>
@@ -3233,6 +3236,13 @@ function subscribeMatchmakerDesk(){
       $("#mmDesk").querySelectorAll("[data-mmchat]").forEach(b=>
         b.addEventListener("click", ()=>openChat(b.dataset.mmchat, b.dataset.nm,
           b.dataset.ph, b.dataset.gd, "✦ 红娘服务")));
+      $("#mmDesk").querySelectorAll("[data-mail]").forEach(b=>
+        b.addEventListener("click", ()=>{
+          if(b.dataset.shown) return;
+          b.dataset.shown = "1";
+          b.innerHTML = `📧 ${esc(b.dataset.mail)}`;
+          navigator.clipboard?.writeText(b.dataset.mail).then(()=>toast("邮箱已复制")).catch(()=>{});
+        }));
       $("#mmDesk").querySelectorAll("[data-acc]").forEach(b=>
         b.addEventListener("click", async ()=>{
           try{ await setDoc(doc(db,"concierge",b.dataset.acc), {status:"accepted"}, {merge:true});
@@ -3345,10 +3355,9 @@ async function renderMatches(){
   const pendingIds= [...myLikes].filter(u=>!likedMe.has(u) && !myBlocks.has(u));
 
   const [matches, pending] = await Promise.all([
-    Promise.all(matchIds.map(async uid=>{
-      const [p, email] = await Promise.all([fetchProfile(uid), fetchContact(uid)]);
-      return p ? {...p, email} : null;
-    })),
+    // 只取资料,不取邮箱 —— 页面既然不显示,就没必要把它拉进浏览器,
+    // 免得从控制台或内存里一眼看到。真要联系,走站内私信。
+    Promise.all(matchIds.map(fetchProfile)),
     Promise.all(pendingIds.map(fetchProfile))
   ]).then(r=>[r[0].filter(Boolean), r[1].filter(Boolean)]);
 
@@ -3358,23 +3367,13 @@ async function renderMatches(){
       <div class="info">
         <div class="uname">${esc(u.name)} <span class="badge b-amber">💘 双向心动</span></div>
         <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
-        ${u.email
-          ? `<div class="contact-box reveal" data-mail="${esc(u.email)}"
-                title="点一下显示完整邮箱">📧 ${esc(maskEmail(u.email))}<span class="reveal-hint">显示</span></div>`
-          : `<div class="contact-box">📧 未公开</div>`}
+        <div class="contact-box">💬 已匹配,直接在站内私信联系</div>
         <button class="btn-chat" data-chat="${esc(u.uid)}" data-nm="${esc(u.name)}"
           data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 发消息</button>
       </div>
     </div>`).join("")
     : `<div class="empty"><div class="big">✨</div>还没有匹配<br>去广场多发几个心动吧</div>`;
 
-  $("#matchList").querySelectorAll("[data-mail]").forEach(b=>
-    b.addEventListener("click", ()=>{
-      if(b.dataset.shown) return;
-      b.dataset.shown = "1";
-      b.innerHTML = `📧 ${esc(b.dataset.mail)}`;
-      navigator.clipboard?.writeText(b.dataset.mail).then(()=>toast("邮箱已复制")).catch(()=>{});
-    }));
   $("#page-matches").querySelectorAll("[data-twin]").forEach(b=>
     b.addEventListener("click", ()=>{
       const u = allUsers.find(x=>x.uid===b.dataset.twin);
