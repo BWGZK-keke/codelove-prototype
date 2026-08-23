@@ -197,6 +197,13 @@
   .vis-seg{flex:1;min-width:0}
   .vis-seg button{font-size:11.5px;padding:5px 4px}
 
+  .rep-list{display:flex;flex-direction:column;gap:2px}
+  .rep-row{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
+    border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);
+    font-size:14px;color:var(--ink);font-family:var(--cute)}
+  .rep-row:has(input:checked){border-color:var(--outline);background:var(--rose-soft)}
+  .rep-row input{width:16px;height:16px;accent-color:var(--accent);flex:0 0 auto}
+
   .chk{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;
     color:var(--ink-soft);cursor:pointer;font-family:var(--cute)}
   .chk input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:0 0 auto}
@@ -261,8 +268,8 @@
   /* ---------- 章节标题 ---------- */
   .sec-head{display:flex;align-items:center;gap:9px;margin-top:28px}
   .sec-head .form-title{margin:0}
-  .sec-ico{color:var(--accent);font-size:17px;line-height:1;
-    -webkit-text-stroke:.5px var(--outline)}
+  .sec-ico{color:var(--accent);display:inline-flex;flex:0 0 auto}
+  .sec-ico svg{width:15px;height:15px}
 
   /* ---------- 星芒 ---------- */
   .sparkle{position:absolute;color:var(--butter);opacity:.7;pointer-events:none;
@@ -519,6 +526,11 @@
     padding:34px 24px;box-shadow:var(--sh)}
   .lp-badge{display:inline-block;background:var(--mint-soft);border:1.5px solid var(--outline);
     border-radius:var(--pill);font-size:11.5px;padding:3px 11px;color:var(--ink);margin-top:9px}
+
+  .lp-foot-in a{display:block;background:none;border:0;padding:0;cursor:pointer;
+    font-family:var(--cute);font-size:13px;color:var(--ink-soft);text-decoration:none;
+    margin-bottom:7px;text-align:left}
+  .lp-foot-in a:hover{color:var(--ink)}
 
   .lp-soon{opacity:.62}
   .lp-soon .lp-ico{background:var(--surface-2)}
@@ -877,6 +889,8 @@
         <button data-lp-login data-i18n="nav_login"></button></div>
       <div><h4 data-i18n="foot_about"></h4>
         <button data-lp="home" data-i18n="foot_team"></button>
+        <a href="privacy.html" data-i18n="foot_privacy"></a>
+        <a href="terms.html" data-i18n="foot_terms"></a>
         <button class="lp-lang" style="margin-top:4px" id="lpLang2">中 / EN</button></div>
     </div>
     <div class="lp-copy">© 2026 CodeLove · <span data-i18n="foot_copy"></span></div>
@@ -910,7 +924,10 @@
     <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="authForgot">忘记密码</button>
   </div>
   <div class="auth-note hidden" id="authNote"></div>
-  <div class="tip">登录即表示同意平台服务条款。你的邮箱仅在双方互相心动(匹配成功)后,才会展示给对方。</div>
+  <div class="tip">继续即表示你已阅读并同意
+    <a href="terms.html" target="_blank" rel="noopener">用户协议</a>与
+    <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a>。
+    你的邮箱仅在双方互相心动(匹配成功)后,才会展示给对方。</div>
 </div>
 
 <!-- ============ 邮箱验证 ============
@@ -978,7 +995,7 @@
     </div>
     <!-- 留言板 -->
     <div id="page-board" class="hidden">
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">留言板</div></div>
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">留言板</div></div>
       <div class="form-sub">写给所有人 · 显示最新 50 条</div>
       <div class="card compose">
         <textarea id="boardInput" maxlength="500" placeholder="想认识什么样的人?最近在忙什么?"></textarea>
@@ -995,15 +1012,23 @@
       <div class="form-sub">资料会展示在广场,请真实填写</div>
       <div class="card" id="profileFormCard"></div>
 
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">AI 助手</div></div>
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">AI 助手</div></div>
       <div class="form-sub">配一个自己的 AI,帮你想私信怎么回。用你自己的 API Key,按量计费</div>
       <div class="card" id="aiCard"></div>
 
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我拉黑的人</div></div>
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">我拉黑的人</div></div>
       <div class="form-sub">拉黑后:对方不会出现在你的广场,也无法给你留言或私信</div>
       <div id="blockList"></div>
 
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我的 ID</div></div>
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">条款</div></div>
+      <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
+        <a class="btn btn-ghost btn-pill" href="terms.html" target="_blank" rel="noopener"
+           style="flex:1;text-align:center;text-decoration:none">用户协议</a>
+        <a class="btn btn-ghost btn-pill" href="privacy.html" target="_blank" rel="noopener"
+           style="flex:1;text-align:center;text-decoration:none">隐私政策</a>
+      </div>
+
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">我的 ID</div></div>
       <div class="form-sub">配置红娘权限时要用,点一下复制</div>
       <div class="uid-box" id="uidBox" title="点击复制"><code id="uidText"></code><span class="uid-copy">复制</span></div>
 
@@ -1015,21 +1040,21 @@
       <div class="form-sub">真人红娘一对一牵线,也可以申请成为红娘</div>
       <!-- 红娘工作台:不在名单里的人根本不会看到(读被规则拒绝就保持隐藏) -->
       <div id="mmDeskWrap" class="hidden">
-        <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">红娘工作台</div></div>
+        <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">红娘工作台</div></div>
         <div class="form-sub">指名你的申请会出现在这里,含申请人邮箱</div>
         <div id="mmDesk"></div>
 
-        <div class="sec-head" style="margin-top:24px"><span class="sec-ico">✦</span>
+        <div class="sec-head" style="margin-top:24px"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span>
           <div class="form-title">成为红娘的申请</div></div>
         <div class="form-sub">通过的话,把申请人的 ID 加进 firestore.rules 的 matchmakerIdOf 白名单再发布</div>
         <div id="mmApplyDesk"></div>
       </div>
 
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">专属红娘</div></div>
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">专属红娘</div></div>
       <div class="form-sub">一对一牵线服务,由真人红娘为你筛选和引荐</div>
       <div class="card" id="conciergeCard"></div>
 
-      <div class="sec-head"><span class="sec-ico">✦</span><div class="form-title">我要成为红娘</div></div>
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">我要成为红娘</div></div>
       <div class="form-sub">帮别人牵线。提交后由管理员开通权限,通过后就能看到红娘工作台</div>
       <div class="card" id="mmApplyCard"></div>
     </div>
@@ -1058,7 +1083,9 @@
   <div class="chat-head">
     <button class="back" id="chatBack" aria-label="返回">&lsaquo;</button>
     <span id="chatAva"></span>
-    <div><div class="nm" id="chatName"></div><div class="sub">💘 已匹配</div></div>
+    <div style="flex:1;min-width:0"><div class="nm" id="chatName"></div>
+      <div class="sub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"><path d="M12 20s-7-4.3-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.8C19 15.7 12 20 12 20z"/></svg>已匹配</div></div>
+    <button class="ai-chip" id="chatReport" title="举报这个人" style="flex:0 0 auto">举报</button>
     <button class="head-act" id="chatBlock">拉黑</button>
   </div>
   <div id="chatMsgs"></div>
@@ -1214,7 +1241,8 @@ const I18N = {
     dl_soon:"开发中",
     dl_cta_h:"不用等客户端", dl_cta_d:"网页版就是完整版,登录即可使用。", dl_cta_b:"用 Google 登录",
     foot_tag:"程序员严肃交友社区", foot_product:"产品", foot_about:"关于",
-    foot_team:"创始团队", foot_copy:"用心做给写代码的人"
+    foot_team:"创始团队", foot_privacy:"隐私政策", foot_terms:"用户协议",
+    foot_copy:"用心做给写代码的人"
   },
   en: {
     nav_home:"Home", nav_dl:"Downloads", nav_login:"Log in",
@@ -1249,7 +1277,8 @@ const I18N = {
     dl_soon:"In development",
     dl_cta_h:"No need to wait", dl_cta_d:"The web version is the full version. Sign in and start.", dl_cta_b:"Sign in with Google",
     foot_tag:"Serious dating for programmers", foot_product:"Product", foot_about:"About",
-    foot_team:"Founding team", foot_copy:"Made for people who write code"
+    foot_team:"Founding team", foot_privacy:"Privacy", foot_terms:"Terms",
+    foot_copy:"Made for people who write code"
   }
 };
 
@@ -1579,7 +1608,14 @@ function renderProfileForm(host, data, isNew){
           ).join("")}</div>
         </div>`).join("")}
     </details>
-    <button class="btn btn-coral" style="width:100%" id="f-save">${isNew?"完成注册,进入广场":"保存修改"}</button>`;
+    ${isNew ? `
+    <label class="chk" style="margin-top:16px">
+      <input type="checkbox" id="f-agree">
+      <span>我已阅读并同意
+        <a href="terms.html" target="_blank" rel="noopener">用户协议</a>与
+        <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a></span>
+    </label>` : ""}
+    <button class="btn btn-coral" style="width:100%;margin-top:12px" id="f-save">${isNew?"完成注册,进入广场":"保存修改"}</button>`;
   // 分档选择器:点一下换一档,选中态就地更新
   host.querySelectorAll(".vis-seg").forEach(seg=>{
     seg.addEventListener("click", e=>{
@@ -1602,6 +1638,10 @@ async function saveProfile(host,isNew){
   const name=v("f-name"), age=parseInt(v("f-age")), city=v("f-city"), role=v("f-role");
   if(!name || !age || !city || !role){ toast("请填写所有必填项"); return; }
   if(age<18||age>60){ toast("年龄需在 18-60 之间"); return; }
+  // 注册时必须主动勾选。光在页脚放个链接不算同意 —— 要的是一个明确动作,
+  // 而且要留下时间戳。改资料时不再重复要求。
+  const agree = host.querySelector("#f-agree");
+  if(isNew && agree && !agree.checked){ toast("请先阅读并勾选用户协议与隐私政策"); return; }
   const btn = host.querySelector("#f-save"); btn.disabled = true; btn.textContent = "保存中…";
   // 公开资料:绝不含邮箱。广场会拉取全部 users,任何写进这里的东西都等同于公开。
   const school = v("f-school");
@@ -1659,7 +1699,12 @@ async function saveProfile(host,isNew){
       // 这两个用整份覆盖,不 merge —— 字段换了档就该从旧文档里消失
       setDoc(doc(db,"shared",me.uid), bucket("matched")),
       setDoc(doc(db,"mmOnly",me.uid), bucket("mm")),
-      setDoc(doc(db,"profiles",me.uid), { ...all, vis, uid: me.uid, updatedAt: serverTimestamp() }),
+      // 同意条款的时间戳留在私人底稿里。users 是公开的,不该带这个;
+      // 而 contacts 只放邮箱。
+      setDoc(doc(db,"profiles",me.uid), {
+        ...all, vis, uid: me.uid, updatedAt: serverTimestamp(),
+        ...(isNew ? { agreedAt: serverTimestamp(), agreedTo: "terms+privacy" } : {})
+      }, {merge:true}),
       setDoc(doc(db,"contacts",me.uid), {email: me.email||"", updatedAt: serverTimestamp()}, {merge:true})
     ]);
     // 本地留完整的:自己的资料自己当然都看得见,打分也该用全量
@@ -2137,6 +2182,69 @@ function openAvatarPicker(host){
   });
 }
 
+/* ================= 举报 (REQ-017) =================
+   交友产品没有举报通道就不该开放,App Store 审核指南 1.2 对 UGC 也是硬要求。
+   处理人复用现成的红娘名单,不再单开一套管理员。
+
+   有一条要特别说:**举报人自己也读不到自己提交过的举报**。
+   只写不读,是为了不让被举报的人有任何办法探到「谁举报了我」——
+   和 blocks 那边不让查「谁拉黑了我」是同一个考虑,现实里这会招来报复。 */
+const REPORT_REASONS = [
+  ["harassment", "辱骂或骚扰"],
+  ["sexual",     "色情或性交易"],
+  ["scam",       "诈骗或站外引流"],
+  ["fake",       "虚假资料 / 冒充他人"],
+  ["underage",   "疑似未成年"],
+  ["other",      "其他"]
+];
+
+// kind: user 整个账号 / post 留言板 / wall 个人墙 / message 私信
+function openReportSheet({ target, name, kind = "user", contextId = "", excerpt = "" }){
+  if(!target || target === me.uid){ toast("举报不了自己"); return; }
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="form-title" style="font-size:17px">举报${esc(name ? " " + name : "")}</div>
+      <div class="form-sub" style="margin:6px 0 14px">
+        ${kind === "user" ? "举报这个账号。" : "举报这条内容。"}
+        我们会看,处理结果不会告诉被举报的人,也不会让对方知道是谁举报的。</div>
+      ${excerpt ? `<div class="rp-lead" style="margin-bottom:12px">
+        <span class="rp-k">被举报的内容</span>${esc(excerpt.slice(0,200))}</div>` : ""}
+      <div class="rep-list">${REPORT_REASONS.map(([k,label],i)=>`
+        <label class="rep-row">
+          <input type="radio" name="rep-why" value="${k}"${i===0?" checked":""}>
+          <span>${esc(label)}</span>
+        </label>`).join("")}</div>
+      <div class="field" style="margin-top:12px"><label>补充说明(可选)</label>
+        <textarea id="rep-detail" maxlength="500" placeholder="发生了什么?越具体越好处理"></textarea></div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">算了</button>
+        <button class="btn btn-coral" id="rep-go">提交举报</button>
+      </div>
+      <div class="hint" style="margin-top:10px;line-height:1.8">
+        如果对方已经在骚扰你,<b>先拉黑</b> —— 拉黑是立刻生效的,举报要等人处理。</div>
+    </div>
+  </div>`;
+  $("#rep-go").addEventListener("click", async ()=>{
+    const btn = $("#rep-go"); btn.disabled = true; btn.textContent = "提交中…";
+    const reason = $("#modalHost").querySelector('input[name="rep-why"]:checked')?.value || "other";
+    const detail = $("#rep-detail").value.trim();
+    if(detail.length > 500){ toast("补充说明最多 500 个字符"); btn.disabled = false; btn.textContent = "提交举报"; return; }
+    try{
+      await addDoc(collection(db,"reports"), {
+        from: me.uid, target, kind, contextId: contextId.slice(0,200),
+        reason, detail, excerpt: excerpt.slice(0,1000),
+        status: "open", createdAt: serverTimestamp()
+      });
+      $("#modalHost").innerHTML = "";
+      toast("收到了,我们会看。要立刻不受打扰的话请拉黑。");
+    }catch(e){
+      toast("提交失败: " + fbError(e)); console.error(e);
+      btn.disabled = false; btn.textContent = "提交举报";
+    }
+  });
+}
+
 /* ---------- 匹配报告 ----------
    点卡片上的分数就摊开看:每个维度拿了多少分、为什么。
    打分本身不花钱、立刻可见;想要更细的分析再单独点一次 AI(每人缓存一天)。 */
@@ -2171,9 +2279,12 @@ async function openTwinPortrait(u){
     user: u, twin: parseTwin(u.twin), lover: await fetchLover(u.uid), own: false,
     title: `${u.name || "TA"} 的测评报告`,
     sub: [u.age && u.age+"岁", u.role, u.city].filter(Boolean).join(" · "),
-    actions: `<button class="btn btn-coral" style="width:100%"
-      onclick="this.closest('.modal-mask').remove()">知道了</button>`
+    actions: `<button class="btn btn-ghost" id="rpReport">举报</button>
+              <button class="btn btn-coral" style="flex:1"
+                onclick="this.closest('.modal-mask').remove()">知道了</button>`
   });
+  const rb = $("#rpReport");
+  if(rb) rb.addEventListener("click", ()=> openReportSheet({ target:u.uid, name:u.name }));
 }
 
 // 自己的报告:两份测评在同一页,可以就地重测、就地改可见性
@@ -3063,6 +3174,11 @@ function renderFeed(){
    房间 ID = 两人 uid 排序拼接,双方算出来是同一个,不用额外存房间文档。
    能不能读写由 firestore.rules 实时校验「双方仍互相心动」,前端绕不过去。 */
 let unsubChat = null, curChatPeer = null;
+$("#chatReport").addEventListener("click", ()=>{
+  if(!curChatPeer) return;
+  openReportSheet({ target: curChatPeer, name: $("#chatName").textContent,
+                    kind: "message", contextId: chatIdFor(curChatPeer) });
+});
 function chatIdFor(uid){ return [me.uid, uid].sort().join("_"); }
 function tms(t){ return t && typeof t.toMillis==="function" ? t.toMillis() : Number.MAX_SAFE_INTEGER; }
 
@@ -3770,7 +3886,9 @@ async function renderNotes(host, notes, opts){
       <div class="note-body">${esc(n.text)}</div>
       <div class="note-foot">
         <button class="reply-btn" data-rep="${esc(n.id)}">💬 回复</button>
-        ${canDel?`<button class="note-del" data-del="${esc(n.id)}">删除</button>`:""}
+        ${canDel?`<button class="note-del" data-del="${esc(n.id)}">删除</button>`
+                :`<button class="note-del" data-report="${esc(n.id)}"
+                    data-rt="${esc(n.from)}" data-rn="${esc(u.name||"")}">举报</button>`}
       </div>
       <div class="replies hidden" data-repbox="${esc(n.id)}"></div>
     </div>`;
@@ -3778,6 +3896,15 @@ async function renderNotes(host, notes, opts){
 
   host.querySelectorAll("[data-del]").forEach(b=>
     b.addEventListener("click", ()=>opts.onDelete(b.dataset.del)));
+  host.querySelectorAll("[data-report]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const note = notes.find(n=>n.id === b.dataset.report);
+      openReportSheet({ target:b.dataset.rt, name:b.dataset.rn,
+                        kind: opts.wallOwner ? "wall" : "post",
+                        contextId: b.dataset.report,
+                        // 带上原文快照:对方删掉之后,处理的人还得看得见举报的是什么
+                        excerpt: note ? note.text : "" });
+    }));
   host.querySelectorAll("[data-rep]").forEach(b=>
     b.addEventListener("click", ()=>toggleReplies(b.dataset.rep, host, opts)));
 }
