@@ -1041,6 +1041,9 @@
       <div class="form-sub">拉黑后:对方不会出现在你的广场,也无法给你留言或私信</div>
       <div id="blockList"></div>
 
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">谁看过我</div></div>
+      <div class="card" id="mmSeen"></div>
+
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">账号</div></div>
       <div class="card">
         <button class="btn btn-ghost btn-pill" style="width:100%" id="btnDelAccount">注销账号</button>
@@ -1776,6 +1779,7 @@ async function enterApp(){
   syncMatchBtn();
   syncAutoWatchers();
   renderTwinCard();
+  renderMmSeen();
   $("#uidText").textContent = me.uid;
   startListeners();
   subscribeBoard();
@@ -2351,6 +2355,57 @@ function openAvatarPicker(host){
   });
 }
 
+/* ================= 红娘查看留痕 (REQ-015 / REQ-023) =================
+   需求文档把「红娘能看到全站资料」列为全系统最大的隐私风险点。留痕是唯一的
+   约束手段,而且**用户自己要看得到** —— 只有红娘和平台看得到的日志约束不了谁。
+
+   规则那边做了一件更实在的事:想读某人的「仅红娘」那一档,得先有这条记录
+   存在,否则直接拒。跳过留痕的代价是也读不到东西,这就不是自觉的事了。
+   见 firestore.rules 里 mmAudit 那一段。
+
+   一对人只有一条,月份放字段里每次覆盖 —— 不会刷屏,而「本月有 N 位红娘
+   看过你」正好按这个字段数。代价是只留最后一次不留历史,写在注释里。 */
+function iAmMatchmaker(){ return MATCHMAKERS.some(m => m.uid === me?.uid); }
+function thisMonth(){ return new Date().toISOString().slice(0, 7); }
+
+async function logMmView(targetUid){
+  if(!iAmMatchmaker() || !targetUid || targetUid === me.uid) return;
+  try{
+    await setDoc(doc(db,"mmAudit",`${me.uid}_${targetUid}`), {
+      matchmakerUid: me.uid, targetUid, month: thisMonth(),
+      action: "view", at: serverTimestamp()
+    });
+  }catch(e){ console.error("留痕没写成", e); }
+}
+
+// 「我的」页:本月有谁看过我
+async function renderMmSeen(){
+  const host = $("#mmSeen"); if(!host || !me) return;
+  try{
+    const snap = await getDocs(query(collection(db,"mmAudit"),
+      where("targetUid","==",me.uid), where("month","==",thisMonth())));
+    const rows = [];
+    snap.forEach(d=>rows.push(d.data()));
+    if(!rows.length){
+      host.innerHTML = `<div class="hint">本月还没有红娘看过你的资料。</div>`;
+      return;
+    }
+    const names = rows.map(r=>{
+      const m = MATCHMAKERS.find(x=>x.uid === r.matchmakerUid);
+      return m ? m.name : "一位红娘";
+    });
+    host.innerHTML = `
+      <div style="font-size:14px;color:var(--ink);line-height:1.9">
+        本月有 <b>${rows.length}</b> 位红娘看过你的资料:${esc(names.join("、"))}</div>
+      <div class="hint" style="margin-top:6px">
+        红娘看你的资料是为了牵线。这条记录你看得到、红娘删不掉 ——
+        想彻底不被看到,可以在资料里把字段设成「不给看」。</div>`;
+  }catch(e){
+    host.innerHTML = `<div class="hint">读不到查看记录:${esc(fbError(e))}</div>`;
+    console.error(e);
+  }
+}
+
 /* ================= 分身对分身 (REQ-033) =================
    让两个人的 AI 分身先聊十轮,再由**另一个上下文**评判那段对话。
    需求文档说这是「减少无效对话」这个核心价值最直接的产品化 —— 看完报告
@@ -2755,6 +2810,7 @@ async function publishTwin(){
 
 // 点头像看对方的分身
 async function openTwinPortrait(u){
+  logMmView(u.uid);   // 红娘看谁的资料都留痕;不是红娘的话这里直接返回
   openReport({
     user: u, twin: parseTwin(u.twin), lover: await fetchLover(u.uid), own: false,
     title: `${u.name || "TA"} 的测评报告`,
