@@ -511,6 +511,21 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pick-grid button.on{background:var(--accent);box-shadow:0 2px 0 var(--outline)}
 
+  .lv-row{display:flex;align-items:center;gap:12px;margin-top:11px;cursor:pointer;
+    border:1.5px solid var(--outline);border-radius:var(--r-sm);padding:11px 13px;background:var(--rose-soft)}
+  .lv-row:hover{background:var(--butter-soft)}
+  .lv-ico{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--outline);
+    display:flex;align-items:center;justify-content:center;font-size:19px;background:var(--surface);flex-shrink:0}
+  .lv-t{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
+  .lv-s{font-size:11px;color:var(--ink-soft);margin-top:2px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .lv-go{font-size:11.5px;border:1.5px solid var(--outline);border-radius:var(--pill);
+    padding:2px 10px;background:var(--surface);color:var(--ink);flex-shrink:0}
+  .lv-h{font-family:var(--cute);font-size:14px;margin:16px 0 7px;color:var(--ink);font-weight:400}
+  .lv-box{background:var(--surface-2);border:1.5px solid var(--outline);border-radius:var(--r-xs);
+    padding:10px 13px;font-size:13.5px;line-height:1.8;color:var(--ink)}
+  .lv-why{font-size:11.5px;color:var(--ink-soft);margin-top:4px;line-height:1.7}
+
   /* ---------- AI 分身 ---------- */
   .ava-tap{cursor:pointer;display:inline-flex;border-radius:50%}
   .ava-tap:active{transform:scale(.94)}
@@ -1544,7 +1559,10 @@ async function runAiMatch(){
   try{
     // 一次最多送 40 个人,再多提示词就太长了
     const batch = allUsers.slice(0, 40);
+    const lv = loverPrompt();
     const prompt = "我的资料:\n" + profileLine({...myProfile, uid:"me"}) +
+      (lv ? "\n\n我做过一份恋人偏好测评,结论是:" + lv +
+            "\n打分时请把这份偏好算进去 —— 越贴合这个描述的人分越高。" : "") +
       "\n\n候选人:\n" + batch.map(profileLine).join("\n") +
       `\n\n请对上面 ${batch.length} 个候选人逐一打分。`;
     const raw = await aiCall(MATCH_SYS, prompt, "match");
@@ -1870,6 +1888,231 @@ function openRecPicker(req){
   });
 }
 
+/* ================= 恋人画像测评(进阶) =================
+   和「AI 分身」那套 MBTI 小测不同,这套问的是「你适合什么样的恋人」,
+   四个维度都取自交友产品里真实在用的框架:
+
+     依恋类型      secure / anxious / avoidant / fearful —— 预测相处动力学
+     Fisher 气质   探索者·建设者·指挥者·协调者(多巴胺/血清素/睾酮/雌激素),
+                   Helen Fisher 的配对规律:探索者配探索者、建设者配建设者、
+                   协调者与指挥者互补
+     爱的语言      Chapman 五种 —— 你需要对方怎么表达
+     刚需权重      OkCupid 式:同一件事对不同人重要性差别极大,分开问
+
+   结果只存在本机,不写进公开资料 —— 依恋类型这种东西不该挂在个人主页上,
+   它的用途是让 AI 给你排序时知道该找谁。                                  */
+const LOVER_KEY = "cl_lover";
+
+const ATT = { secure:"安全型", anxious:"焦虑型", avoidant:"回避型", fearful:"矛盾型" };
+const FISH = {
+  explorer:{n:"探索者", d:"好奇、爱尝鲜、不喜欢被安排"},
+  builder: {n:"建设者", d:"稳定、守约、重视秩序和长期"},
+  director:{n:"指挥者", d:"直接、目标感强、爱把问题拆开"},
+  negotiator:{n:"协调者", d:"共情强、想得远、在意关系的感受"}
+};
+const LANG = {
+  words:"肯定的言语", time:"精心的时刻", acts:"服务的行动",
+  gifts:"用心的礼物", touch:"身体的接触"
+};
+// Fisher 自己的结论:同类相吸的是探索者和建设者,协调者与指挥者互补
+const FISH_MATCH = { explorer:"explorer", builder:"builder",
+                     negotiator:"director", director:"negotiator" };
+
+const LOVER_Q = [
+  // —— 依恋 ——
+  { q:"对方几小时没回消息,你第一反应是…",
+    a:[{t:"多半在忙,不至于多想", d:{secure:2}},
+       {t:"会开始琢磨是不是我说错了什么", d:{anxious:2}},
+       {t:"正好,我也乐得清静", d:{avoidant:2}}] },
+  { q:"关系刚开始变亲密的时候,你…",
+    a:[{t:"挺享受,顺其自然", d:{secure:2}},
+       {t:"想再靠近一点,最好每天都联系", d:{anxious:2}},
+       {t:"会有点想往后退,需要点空间", d:{avoidant:2}}] },
+  { q:"吵完架之后,你更倾向…",
+    a:[{t:"当天说开,不想带着过夜", d:{anxious:1, secure:1}},
+       {t:"先各自冷静,过阵子再谈", d:{avoidant:2}},
+       {t:"等情绪落地就主动去谈", d:{secure:2}}] },
+  { q:"「TA 其实没那么喜欢我」这个念头,你…",
+    a:[{t:"基本不会冒出来", d:{secure:2}},
+       {t:"偶尔会,但能自己压下去", d:{secure:1, anxious:1}},
+       {t:"挺常出现的", d:{anxious:2}}] },
+  { q:"需要对方帮忙的时候,你会…",
+    a:[{t:"直接开口", d:{secure:2}},
+       {t:"先自己扛,实在不行再说", d:{avoidant:2}},
+       {t:"会开口,但担心给人添麻烦", d:{anxious:2}}] },
+  // —— Fisher 气质 ——
+  { q:"突然空出一整天,你更想…",
+    a:[{t:"临时起意去个没去过的地方", d:{explorer:2}},
+       {t:"把计划好的事一件件做完", d:{builder:2}},
+       {t:"啃一个一直没解决的难题", d:{director:2}},
+       {t:"约个人好好聊一下午", d:{negotiator:2}}] },
+  { q:"你欣赏一个人,通常是因为 TA…",
+    a:[{t:"有意思,跟 TA 待着不无聊", d:{explorer:2}},
+       {t:"靠谱,说到做到", d:{builder:2}},
+       {t:"脑子清楚,一针见血", d:{director:2}},
+       {t:"体贴,懂得照顾别人的感受", d:{negotiator:2}}] },
+  { q:"做一件事,你的风格是…",
+    a:[{t:"先动起来,边做边改", d:{explorer:2}},
+       {t:"按既定的方法一步步来", d:{builder:2}},
+       {t:"直奔结果,过程能省则省", d:{director:2}},
+       {t:"先看看各方感受,再决定怎么推", d:{negotiator:2}}] },
+  { q:"聊天时你最享受哪一种?",
+    a:[{t:"听对方讲没听过的经历", d:{explorer:2}},
+       {t:"聊具体安排,把事定下来", d:{builder:2}},
+       {t:"针对一个观点认真辩一辩", d:{director:2}},
+       {t:"聊感受、聊人、聊关系", d:{negotiator:2}}] },
+  // —— 爱的语言 ——
+  { q:"什么最让你觉得「被在乎」?",
+    a:[{t:"一句具体的夸奖或肯定", d:{words:2}},
+       {t:"放下手机,专心陪我一会儿", d:{time:2}},
+       {t:"默默帮我把事情做了", d:{acts:2}},
+       {t:"记得我随口提过的东西并送给我", d:{gifts:2}},
+       {t:"一个拥抱", d:{touch:2}}] },
+  { q:"你难过的时候,最希望对方…",
+    a:[{t:"说点让我安心的话", d:{words:2}},
+       {t:"什么都不用做,陪着就行", d:{time:2}},
+       {t:"帮我把眼前的麻烦解决掉", d:{acts:2}},
+       {t:"抱一下", d:{touch:2}}] },
+  { q:"你自己表达喜欢,通常是…",
+    a:[{t:"直接说出来", d:{words:2}},
+       {t:"把时间留给 TA", d:{time:2}},
+       {t:"帮 TA 做事", d:{acts:2}},
+       {t:"送点小东西", d:{gifts:2}},
+       {t:"多一些肢体上的亲近", d:{touch:2}}] },
+  // —— 刚需(OkCupid 式:同一件事对不同人权重差别很大)——
+  { q:"异地对你来说…",
+    a:[{t:"接受不了", d:{}, need:"要同城"},
+       {t:"能接受一段时间", d:{}, need:"能接受短期异地"},
+       {t:"无所谓,合适最重要", d:{}, need:"不介意异地"}] },
+  { q:"如果对方作息和你差很多(比如你早睡 TA 熬夜)…",
+    a:[{t:"挺在意的,会互相影响", d:{}, need:"希望作息接近"},
+       {t:"还行,各过各的也可以", d:{}, need:"作息可以不同"}] },
+  { q:"你希望关系推进的节奏是…",
+    a:[{t:"慢慢来,先做朋友", d:{}, need:"节奏偏慢"},
+       {t:"顺其自然", d:{}, need:"节奏顺其自然"},
+       {t:"看准了就直接一点", d:{}, need:"节奏偏快"}] }
+];
+
+function loverData(){ return readJson(LOVER_KEY, null); }
+function hasLover(){ const l = loverData(); return !!(l && l.att); }
+
+function scoreLover(answers){
+  const d = {}, needs = [];
+  const add = (k,v)=> d[k] = (d[k]||0) + v;
+  answers.forEach((ai, qi)=>{
+    const o = LOVER_Q[qi] && LOVER_Q[qi].a[ai];
+    if(!o) return;
+    Object.entries(o.d||{}).forEach(([k,v])=>add(k,v));
+    if(o.need) needs.push(o.need);
+  });
+  const top = keys => keys.reduce((a,b)=>(d[b]||0) > (d[a]||0) ? b : a, keys[0]);
+
+  // 焦虑和回避都高 = 矛盾型(既想靠近又想逃),这是公认的第四类
+  const anx = d.anxious||0, avo = d.avoidant||0, sec = d.secure||0;
+  let att = top(["secure","anxious","avoidant"]);
+  if(anx >= 3 && avo >= 3 && anx + avo > sec) att = "fearful";
+
+  const fisher = top(["explorer","builder","director","negotiator"]);
+  const langs = ["words","time","acts","gifts","touch"]
+    .filter(k=>d[k]).sort((a,b)=>d[b]-d[a]).slice(0,2);
+  return { att, fisher, langs, needs, at: Date.now(), answers };
+}
+
+// 适合你的对象长什么样
+function loverIdeal(l){
+  const attAdvice = {
+    secure:  {want:"安全型 或 任意类型", why:"你本身稳,能接住对方的不安,选择面最广"},
+    anxious: {want:"安全型", why:"最该避开回避型 —— 你越靠近对方越退,是最典型的消耗组合"},
+    avoidant:{want:"安全型", why:"需要一个不追不逼、能给你空间又不会走掉的人"},
+    fearful: {want:"安全型,而且要有耐心", why:"你自己既想靠近又会想逃,对方的稳定比热情更重要"}
+  }[l.att] || {want:"安全型", why:""};
+  const fm = FISH_MATCH[l.fisher];
+  return {
+    att: attAdvice,
+    fisher: { key: fm, ...FISH[fm],
+              why: fm === l.fisher ? "同类相吸:你们看世界的方式接近" : "互补型:一个偏理性推进,一个偏关系感受" },
+    langs: l.langs.map(k=>LANG[k]).filter(Boolean)
+  };
+}
+
+// 给 AI 排序用的一段话
+function loverPrompt(){
+  const l = loverData();
+  if(!l || !l.att) return "";
+  const id = loverIdeal(l);
+  return [
+    `我的依恋类型是${ATT[l.att]},适合我的对象偏向:${id.att.want}。`,
+    `我的气质类型是${FISH[l.fisher].n},比较合得来的是${id.fisher.n}(${id.fisher.d})。`,
+    id.langs.length ? `我需要对方擅长:${id.langs.join("、")}。` : "",
+    (l.needs||[]).length ? `我的硬性偏好:${l.needs.join("、")}。` : ""
+  ].filter(Boolean).join("");
+}
+
+/* ---------- 测评界面 ---------- */
+function openLoverQuiz(){
+  let step = 0; const answers = [];
+  const host = $("#modalHost");
+  const draw = ()=>{
+    if(step >= LOVER_Q.length){
+      const res = scoreLover(answers);
+      localStorage.setItem(LOVER_KEY, JSON.stringify(res));
+      renderTwinCard();
+      host.innerHTML = `
+      <div class="modal-mask" onclick="this.remove()">
+        <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+          ${loverPortraitHtml(res)}
+          <div class="modal-actions" style="margin-top:16px">
+            <button class="btn btn-ghost" id="lvRedo">重测</button>
+            <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">好了</button>
+          </div>
+        </div>
+      </div>`;
+      $("#lvRedo").addEventListener("click", ()=>{ step=0; answers.length=0; draw(); });
+      return;
+    }
+    const q = LOVER_Q[step];
+    host.innerHTML = `
+    <div class="modal-mask" onclick="this.remove()">
+      <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+        <div class="quiz-bar"><div class="quiz-fill" style="width:${step/LOVER_Q.length*100}%"></div></div>
+        <div class="quiz-step">${step+1} / ${LOVER_Q.length}</div>
+        <div class="quiz-q">${esc(q.q)}</div>
+        <div class="quiz-opts">${q.a.map((o,i)=>
+          `<button type="button" data-i="${i}">${esc(o.t)}</button>`).join("")}</div>
+        ${step>0?`<button class="btn btn-ghost" style="width:100%;margin-top:14px" id="lvBack">← 上一题</button>`:""}
+      </div>
+    </div>`;
+    host.querySelectorAll(".quiz-opts button").forEach(b=>
+      b.addEventListener("click", ()=>{ answers[step] = +b.dataset.i; step++; draw(); }));
+    const back = $("#lvBack");
+    if(back) back.addEventListener("click", ()=>{ step--; draw(); });
+  };
+  draw();
+}
+
+function loverPortraitHtml(l){
+  const id = loverIdeal(l);
+  return `
+    <div style="text-align:center;margin-bottom:6px">
+      <div class="twin-ava" style="margin:0 auto 12px;width:64px;height:64px;font-size:32px">💞</div>
+      <div class="twin-name">你适合什么样的恋人</div>
+    </div>
+    <h4 class="lv-h">对方的依恋类型</h4>
+    <div class="lv-box"><b>${esc(id.att.want)}</b>
+      <div class="lv-why">${esc(id.att.why)}</div>
+      <div class="lv-why">(你自己是${esc(ATT[l.att])})</div></div>
+    <h4 class="lv-h">对方的气质</h4>
+    <div class="lv-box"><b>${esc(id.fisher.n)}</b> —— ${esc(id.fisher.d)}
+      <div class="lv-why">${esc(id.fisher.why)};你是${esc(FISH[l.fisher].n)}</div></div>
+    ${id.langs.length?`<h4 class="lv-h">对方最好擅长</h4>
+      <div class="twin-tags">${id.langs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
+    ${(l.needs||[]).length?`<h4 class="lv-h">你的硬性偏好</h4>
+      <div class="twin-tags">${l.needs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
+    <div class="hint" style="margin-top:14px;line-height:1.8">
+      这份结果只存在你自己的设备上,不会出现在你的公开资料里。<br>
+      它的用途是让 AI 匹配时知道该优先给你排谁。</div>`;
+}
+
 /* ================= AI 分身 =================
    让 AI 演的是「你」,不是一个通用助手。人格来自一份小测验:
    前 5 题走 MBTI 那四个维度,后 5 题是交友软件常问的相处偏好。
@@ -2001,7 +2244,8 @@ function renderTwinCard(){
       </div>
     </div>
     <div class="twin-tags">${(t.tags||[]).map(x=>`<span>${esc(x)}</span>`).join("")}</div>
-    <button class="btn btn-ghost btn-pill" style="width:100%;margin-top:14px" id="twinEdit">查看 / 重新测试</button>`
+    <button class="btn btn-ghost btn-pill" style="width:100%;margin-top:14px" id="twinEdit">查看 / 重新测试</button>
+    ${loverRowHtml()}`
   : `
     <div class="twin-top">
       <div class="twin-ava">🪞</div>
@@ -2010,9 +2254,41 @@ function renderTwinCard(){
         <div class="twin-sub">10 道题,一分钟。之后 AI 会按你的性格替你说话,而不是像个客服</div>
       </div>
     </div>
-    <button class="btn btn-coral btn-pill" style="width:100%;margin-top:14px" id="twinStart">开始测试</button>`;
+    <button class="btn btn-coral btn-pill" style="width:100%;margin-top:14px" id="twinStart">开始测试</button>
+    ${loverRowHtml()}`;
   const b = host.querySelector("#twinEdit") || host.querySelector("#twinStart");
   if(b) b.addEventListener("click", openTwinQuiz);
+  const lb = host.querySelector("#lvOpen");
+  if(lb) lb.addEventListener("click", ()=>{
+    const l = loverData();
+    if(!l) return openLoverQuiz();
+    $("#modalHost").innerHTML = `
+      <div class="modal-mask" onclick="this.remove()">
+        <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+          ${loverPortraitHtml(l)}
+          <div class="modal-actions" style="margin-top:16px">
+            <button class="btn btn-ghost" id="lvAgain">重新测试</button>
+            <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">知道了</button>
+          </div>
+        </div>
+      </div>`;
+    $("#lvAgain").addEventListener("click", openLoverQuiz);
+  });
+}
+
+// 分身卡片下面那一行:进阶测评的入口
+function loverRowHtml(){
+  const l = loverData();
+  return `<div class="lv-row" id="lvOpen">
+    <div class="lv-ico">💞</div>
+    <div style="flex:1;min-width:0">
+      <div class="lv-t">${l ? "我适合什么样的恋人" : "测测你适合什么样的恋人"}</div>
+      <div class="lv-s">${l
+        ? esc(`${ATT[l.att]} · 适合${FISH[FISH_MATCH[l.fisher]].n}`)
+        : "15 题,基于依恋理论 · Fisher 气质 · 爱的语言"}</div>
+    </div>
+    <span class="lv-go">${l ? "查看" : "开始"}</span>
+  </div>`;
 }
 
 const AI_DEEP_KEY = "cl_ai_deep";
