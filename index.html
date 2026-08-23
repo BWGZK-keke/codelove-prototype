@@ -142,6 +142,15 @@
   /* 后台没开通登录方式这类错,toast 两秒就没了,而它恰恰需要人去点一下控制台。
      所以单开一条不会自动消失的提示,带可点的链接。 */
   /* 发信结果:成了显示时间,没成显示原因。两种都要说,不能只留一片空白 */
+  /* 未验证提示条。不是弹窗 —— 它要一直在那儿,但不能挡住任何操作 */
+  .vb{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:12.5px;
+    line-height:1.6;background:var(--butter-soft);border-bottom:1.5px solid var(--outline);
+    color:var(--ink)}
+  .vb-go{flex:0 0 auto;font-family:var(--cute);font-size:12px;cursor:pointer;
+    background:var(--surface);border:1.5px solid var(--outline);border-radius:var(--pill);
+    padding:4px 12px;color:var(--ink)}
+  .vb-go:active{transform:translateY(1px)}
+
   .vf-state{margin:12px auto 0;max-width:360px;font-size:12.5px;line-height:1.8;
     text-align:center;color:var(--ink-soft)}
   .vf-state.ok{color:var(--ink-soft)}
@@ -896,6 +905,7 @@
      邮箱注册的人在这里停一下,点完邮件里的链接才进得去。Google 登录的
      邮箱天然已验证,不会走到这一页。                                  -->
 <div id="view-verify" class="login hidden">
+  <button class="lp-cta" id="verifyBack" style="position:absolute;top:18px;left:18px;background:var(--surface);font-size:13px;padding:6px 15px">&lsaquo; 返回</button>
   <div class="logo" style="margin-bottom:18px">Code<em>Love</em></div>
   <div class="form-title" style="text-align:center">先验证一下邮箱</div>
   <div class="form-sub" style="text-align:center;max-width:360px;margin:10px auto 0">
@@ -926,6 +936,10 @@
 
 <!-- ============ 主应用 ============ -->
 <div id="view-app" class="hidden">
+  <div class="vb hidden" id="verifyBar">
+    <span id="verifyBarText"></span>
+    <button class="vb-go" id="verifyBarGo">去验证</button>
+  </div>
   <div class="topbar">
     <div class="logo">Code<em>Love</em></div>
     <button class="me-chip" id="topMe" title="我的资料"><span id="topAva"></span><span id="topName"></span></button>
@@ -1374,7 +1388,11 @@ async function refreshVerify(){
 $("#verifyDone").addEventListener("click", async ()=>{
   const btn = $("#verifyDone"); btn.disabled = true; btn.textContent = "检查中…";
   try{
-    if(await refreshVerify()){ me = auth.currentUser; await routeAfterAuth(me); }
+    if(await refreshVerify()){
+      me = auth.currentUser;
+      toast("验证好了");
+      await routeAfterAuth(me);
+    }
     else toast("还没看到验证记录。点完邮件里的链接再试一次");
   }catch(e){ toast(fbError(e, "email")); }
   btn.disabled = false; btn.textContent = "我已经点过链接了";
@@ -1401,20 +1419,32 @@ $("#verifyFix").addEventListener("click", async ()=>{
   }
 });
 $("#verifyOut").addEventListener("click", ()=> signOut(auth));
+$("#verifyBack").addEventListener("click", ()=>{ myProfile ? enterApp() : show("view-onboard"); });
+$("#verifyBarGo").addEventListener("click", openVerifyView);
+
+// 打开验证页。发信放在这里而不是登录时 —— 每次登录都发一封既没必要,
+// 也更容易撞上 Firebase 的发信配额。
+async function openVerifyView(){
+  $("#verifyMail").textContent = (me && me.email) || "你的邮箱";
+  show("view-verify");
+  if(!verifySend) await trySendVerification(auth.currentUser);
+  else renderVerifyState();
+}
+
+function renderVerifyBanner(){
+  const bar = $("#verifyBar"); if(!bar) return;
+  const need = needsVerify(me);
+  bar.classList.toggle("hidden", !need);
+  if(need) $("#verifyBarText").textContent =
+    "邮箱还没验证。资料和广场都能用,但心动、留言、私信要验证之后才行。";
+}
 
 // 登录之后往哪走:没验证 → 验证页;没资料 → 填资料;都有 → 进广场
 async function routeAfterAuth(user){
-  if(needsVerify(user)){
-    $("#verifyMail").textContent = user.email || "你的邮箱";
-    show("view-verify");
-    // 这一页原来写死一句「验证链接已经发到 X」—— 但只有**刚注册那一次**真的发了信。
-    // 已经有账号还没验证的人(比如这套验证上线之前注册的),重新登录会直接落到
-    // 这一页,一封信都没发过,却被告知「已经发了」,只能干等。
-    // 所以:落到这一页时如果本次会话还没发过,就发一封。
-    if(!verifySend) await trySendVerification(user);
-    else renderVerifyState();
-    return;
-  }
+  // 没验证邮箱**不再挡在门外**(REQ-069)。发信是全链路里最不可靠的一环:
+  // 默认发件域名进垃圾箱、QQ/163 静默丢弃、还有配额。让它决定用户能不能进
+  // 产品,这个设计是错的。现在资料随便建、广场随便看,只有「碰到别人」的动作
+  // (心动、留言、私信)在服务端要求验过 —— 那才是验证真正要挡的事。
   const snap = await getDoc(doc(db,"users",user.uid));
   if(snap.exists()){ myProfile = snap.data(); purgeLegacyLocalData(); enterApp(); }
   else { purgeLegacyLocalData();
@@ -1550,6 +1580,7 @@ async function saveProfile(host,isNew){
 /* ---------- main app ---------- */
 async function enterApp(){
   show("view-app");
+  renderVerifyBanner();
   renderTopAva();
   $("#topName").textContent = myProfile.name;
   renderProfileForm($("#profileFormCard"), myProfile, false);
