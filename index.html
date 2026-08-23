@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CodeLove · 程序员严肃交友</title>
+<!-- 图标源码在 assets/icon/,改视觉跑 python3 assets/icon/generate.py 重出全套 -->
+<link rel="icon" href="assets/icon/favicon.svg" type="image/svg+xml">
+<!-- 不认 SVG 图标的浏览器兜底。16 那版是单独画的:那个尺寸下 `</>` 只会糊成噪点,
+     所以只留心形 —— 同一张图缩下去反而认不出来。 -->
+<link rel="icon" href="assets/icon/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="assets/icon/favicon-16.png" sizes="16x16" type="image/png">
+<!-- 加到主屏幕用满幅那版,圆角交给 iOS 切,自己带透明圆角会露出黑角 -->
+<link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
+<meta name="theme-color" content="#FDF3E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#241B15" media="(prefers-color-scheme: dark)">
 <style>
   /* ============================================================
      CodeLove —— 参照小红书那套情侣手账的"贴纸风"
@@ -128,6 +138,14 @@
     margin:20px auto 4px;color:var(--ink-faint);font-size:12px}
   .or-line::before,.or-line::after{content:"";flex:1;height:1.5px;background:var(--line)}
   .mail-form{max-width:320px;width:100%;margin:0 auto}
+
+  /* 后台没开通登录方式这类错,toast 两秒就没了,而它恰恰需要人去点一下控制台。
+     所以单开一条不会自动消失的提示,带可点的链接。 */
+  .auth-note{margin-top:14px;text-align:left;font-size:13px;line-height:1.8;
+    background:var(--butter-soft);border:1.5px solid var(--outline);border-radius:14px;
+    padding:13px 15px;color:var(--ink)}
+  .auth-note a{color:var(--ink);font-weight:600;word-break:break-all}
+  .auth-note .who{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:7px}
 
   /* ---------- 表单 ---------- */
   .form-title{font-family:var(--cute);font-size:27px;margin:28px 0 6px;letter-spacing:.01em}
@@ -825,6 +843,7 @@
     <button class="btn btn-coral btn-pill" style="width:100%" id="authGo">登录</button>
     <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="authForgot">忘记密码</button>
   </div>
+  <div class="auth-note hidden" id="authNote"></div>
   <div class="tip">登录即表示同意平台服务条款。你的邮箱仅在双方互相心动(匹配成功)后,才会展示给对方。</div>
 </div>
 
@@ -1012,14 +1031,27 @@ const matchNotified = new Set(); // 已弹过「匹配成功」的人,防止重�
 let myCard = null;      // 自己在广场里的那张卡(用于预览,不参与心动)
 
 /* ---------- 把 Firebase 错误码翻成「该去点哪里」 ---------- */
-function fbError(e){
+// 后台没开通某个登录方式时,Firebase 两条路返回的是同一个 operation-not-allowed,
+// 错误里不带 provider。所以调用方必须告诉这个函数「刚才走的是哪条路」——
+// 否则邮箱注册失败会被报成「Google 登录方式未启用」,把人指到错误的开关上。
+const CONSOLE_AUTH = "https://console.firebase.google.com/project/codelove-7b495/authentication/providers";
+function setupError(c, how){
+  if(!c.includes("operation-not-allowed") && !c.includes("configuration-not-found")) return null;
+  if(how === "email")
+    return { msg:"邮箱登录方式还没开通。Firebase 控制台 → Authentication → Sign-in method → 启用「电子邮件/密码」",
+             link:CONSOLE_AUTH };
+  if(how === "google")
+    return { msg:"Google 登录方式还没开通。Firebase 控制台 → Authentication → Sign-in method → 启用 Google",
+             link:CONSOLE_AUTH };
+  return { msg:"这种登录方式后台还没开通。Firebase 控制台 → Authentication → Sign-in method",
+           link:CONSOLE_AUTH };
+}
+function fbError(e, how){
   const c = e && e.code || "";
-  if(c.includes("configuration-not-found"))
-    return "后台未开通:请到 Firebase 控制台 → Authentication → 启用 Google 登录";
+  const setup = setupError(c, how);
+  if(setup) return setup.msg;
   if(c.includes("unauthorized-domain"))
     return "域名未授权:Authentication → Settings → 已授权域名,添加 bwgzk-keke.github.io";
-  if(c.includes("operation-not-allowed"))
-    return "Google 登录方式未启用:Authentication → Sign-in method → 打开 Google";
   // 邮箱密码登录的几种常见失败
   if(c.includes("email-already-in-use"))
     return "这个邮箱已经注册过了,切到「登录」试试";
@@ -1028,8 +1060,6 @@ function fbError(e){
   if(c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found"))
     return "邮箱或密码不对";
   if(c.includes("too-many-requests"))   return "尝试太频繁,过几分钟再试";
-  if(c.includes("operation-not-allowed") && c.includes("password"))
-    return "邮箱登录方式还没开通:Firebase 控制台 → Authentication → Sign-in method → 启用「电子邮件/密码」";
   if(c.includes("popup-blocked"))
     return "浏览器拦截了登录弹窗,请允许弹窗后重试";
   if(c.includes("popup-closed-by-user") || c.includes("cancelled-popup"))
@@ -1176,8 +1206,9 @@ async function doEmailAuth(){
   try{
     if(authMode === "up") await createUserWithEmailAndPassword(auth, email, pass);
     else                  await signInWithEmailAndPassword(auth, email, pass);
+    clearAuthNote();
     // 成功后 onAuthStateChanged 会接管,这里不用再做什么
-  }catch(e){ toast(fbError(e)); console.error(e); }
+  }catch(e){ reportAuthError(e, "email"); }
   btn.disabled = false; btn.textContent = authMode === "up" ? "注册并进入" : "登录";
 }
 $("#authGo").addEventListener("click", doEmailAuth);
@@ -1185,14 +1216,33 @@ $("#authPass").addEventListener("keydown", e=>{ if(e.key === "Enter") doEmailAut
 $("#authForgot").addEventListener("click", async ()=>{
   const email = $("#authEmail").value.trim();
   if(!email){ toast("先填上邮箱,我给你发重置链接"); return; }
-  try{ await sendPasswordResetEmail(auth, email); toast("重置密码的邮件已发出,去邮箱看看"); }
-  catch(e){ toast(fbError(e)); console.error(e); }
+  try{ await sendPasswordResetEmail(auth, email); clearAuthNote();
+       toast("重置密码的邮件已发出,去邮箱看看"); }
+  catch(e){ reportAuthError(e, "email"); }
 });
 
 $("#btnGoogle").addEventListener("click", async ()=>{
-  try{ await signInWithPopup(auth, new GoogleAuthProvider()); }
-  catch(e){ const m = fbError(e); if(m) toast(m); console.error(e); }
+  try{ await signInWithPopup(auth, new GoogleAuthProvider()); clearAuthNote(); }
+  catch(e){ reportAuthError(e, "google"); }
 });
+
+// 登录失败统一走这里:普通失败弹 toast,后台没开通这类要人去动手的,
+// 额外留一条带链接的常驻提示 —— 两秒就消失的东西没法照着做。
+function clearAuthNote(){ const n = $("#authNote"); if(n) n.classList.add("hidden"); }
+function reportAuthError(e, how){
+  console.error(e);
+  const setup = setupError(e && e.code || "", how);
+  const n = $("#authNote");
+  if(setup && n){
+    n.innerHTML = `${esc(setup.msg)}<a href="${setup.link}" target="_blank" rel="noopener">`
+                + `打开 Authentication 设置页</a>`
+                + `<span class="who">这一步只能项目所有者在 Firebase 控制台里做,改前端代码绕不过去。</span>`;
+    n.classList.remove("hidden");
+    n.scrollIntoView({ block:"nearest" });
+    return;
+  }
+  const m = fbError(e, how); if(m) toast(m);
+}
 $("#btnLogout").addEventListener("click", async ()=>{ await signOut(auth); });
 
 onAuthStateChanged(auth, async user=>{
