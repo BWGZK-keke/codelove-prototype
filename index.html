@@ -206,6 +206,18 @@
     margin-bottom:3px}
   .del-i span{flex:0 0 auto;color:var(--ink-faint)}
 
+  .sim-m{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:12.5px;
+    color:var(--ink-soft)}
+  .sim-m > span{flex:0 0 96px}
+  .sim-m .mr-bar{flex:1;min-width:0}
+  .sim-m b{flex:0 0 30px;text-align:right;font-family:var(--mono);color:var(--ink)}
+  .sim-log{margin-top:8px;border:1.5px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 13px;background:var(--surface-2);max-height:260px;overflow-y:auto}
+  .sim-t{display:flex;gap:8px;font-size:13px;line-height:1.8;margin-bottom:7px}
+  .sim-w{flex:0 0 auto;color:var(--ink-faint);font-size:11.5px;padding-top:3px}
+  .sim-t.me .sim-w{color:var(--accent)}
+  .sim-x{color:var(--ink)}
+
   .rep-list{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
     border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);
@@ -2339,6 +2351,98 @@ function openAvatarPicker(host){
   });
 }
 
+/* ================= 分身对分身 (REQ-033) =================
+   让两个人的 AI 分身先聊十轮,再由**另一个上下文**评判那段对话。
+   需求文档说这是「减少无效对话」这个核心价值最直接的产品化 —— 看完报告
+   再决定要不要心动,比盲聊二十条强。
+
+   评判之所以另起一次调用:同一个上下文里既写对话又打分,模型会照着自己
+   刚写的东西夸,分数没有意义。评判那一次只拿到一段聊天记录,不知道是谁
+   生成的,也不知道「应该给好评」。这一层在 Worker 里做,前端只画结果。
+
+   一次算 4 条额度 —— 它比一句话贵得多,按一条算会让成本失控。          */
+function personaLine(u, twin, lover){
+  const bits = [u.name || "TA"];
+  if(twin) bits.push(`${twin.type},${(twin.traits||[]).join("、")}`);
+  if((twin?.tags||[]).length) bits.push(twin.tags.join("、"));
+  const facts = dot([u.age && u.age+"岁", u.city, u.role, u.industry]);
+  if(facts) bits.push(facts);
+  if((u.stack||[]).length) bits.push("标签:" + u.stack.join("、"));
+  if(u.bio) bits.push("自我介绍:" + u.bio);
+  if(lover) bits.push(`依恋${ATT[lover.att]},气质${FISH[lover.fisher].n}`);
+  return bits.join(";");
+}
+
+async function openSimulate(u){
+  const myTwin = twinData(), theirTwin = parseTwin(u.twin);
+  if(!myTwin || !myTwin.type){ toast("先做一次 AI 分身测评,不然没有你的设定"); return; }
+  if(!theirTwin){ toast("TA 还没做 AI 分身,模拟不了"); return; }
+
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="qz-head"><div class="qz-title">让分身先聊一段</div>
+        <div class="qz-sub">正在模拟十轮对话,再请另一个模型如实点评。大约十几秒。</div></div>
+      <div class="empty" style="padding:26px 10px"><div class="spin"></div>生成中…</div>
+    </div>
+  </div>`;
+
+  try{
+    const myLover = loverData(), theirLover = loverCache.get(u.uid) || await fetchLover(u.uid);
+    const out = await callProxy("/simulate", {
+      a: personaLine(myProfile || {name:"我"}, myTwin, myLover),
+      b: personaLine(u, theirTwin, theirLover)
+    });
+    renderSimulate(u, out);
+  }catch(e){
+    $("#modalHost").innerHTML = `
+    <div class="modal-mask" onclick="this.remove()">
+      <div class="modal wide" onclick="event.stopPropagation()">
+        <div class="qz-head"><div class="qz-title">没生成出来</div>
+          <div class="qz-sub">${esc(e.message || "未知错误")}</div></div>
+        <div class="modal-actions"><button class="btn btn-coral" style="width:100%"
+          onclick="this.closest('.modal-mask').remove()">知道了</button></div>
+      </div>
+    </div>`;
+    console.error(e);
+  }
+}
+
+function renderSimulate(u, out){
+  const r = out.report || {};
+  const bar = (label, n) => `
+    <div class="sim-m"><span>${esc(label)}</span>
+      <div class="mr-bar"><i style="width:${Math.max(0,Math.min(100,+n||0))}%"></i></div>
+      <b>${Math.round(+n||0)}</b></div>`;
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="qz-head"><div class="qz-title">分身模拟:你 × ${esc(u.name||"TA")}</div>
+        <div class="qz-sub">下面这段是模拟出来的,不是 TA 说过的话。点评由另一个模型独立给出。</div></div>
+
+      ${r.verdict ? `<div class="rp-lead"><b>${esc(r.verdict)}</b></div>` : ""}
+      ${bar("话题聊得到一起", r.topic)}
+      ${bar("语气节奏搭不搭", r.tone)}
+      ${(r.friction||[]).length ? `<div class="rp-k" style="margin-top:12px">可能出问题的地方</div>
+        <div class="rp-grid">${r.friction.map(f=>`<div>· ${esc(f)}</div>`).join("")}</div>` : ""}
+
+      <div class="rp-k" style="margin-top:14px">模拟出来的对话</div>
+      <div class="sim-log">${(out.turns||[]).map(t=>`
+        <div class="sim-t ${t.who === "a" ? "me" : ""}">
+          <span class="sim-w">${t.who === "a" ? "你" : esc(u.name||"TA")}</span>
+          <span class="sim-x">${esc(t.text||"")}</span></div>`).join("")}</div>
+
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn btn-ghost" id="simAgain">再来一次</button>
+        <button class="btn btn-coral" style="flex:1"
+          onclick="this.closest('.modal-mask').remove()">知道了</button>
+      </div>
+      <div class="hint" style="margin-top:8px">这一次用掉 4 条额度。</div>
+    </div>
+  </div>`;
+  $("#simAgain").addEventListener("click", ()=>openSimulate(u));
+}
+
 /* ================= 发布前的内容过滤 (REQ-040) =================
    审核指南 1.2 对 UGC 产品要四件事:发布前过滤、举报、拉黑、能联系到运营方。
    后三件都有了,这里补第一件。
@@ -2656,11 +2760,12 @@ async function openTwinPortrait(u){
     title: `${u.name || "TA"} 的测评报告`,
     sub: [u.age && u.age+"岁", u.role, u.city].filter(Boolean).join(" · "),
     actions: `<button class="btn btn-ghost" id="rpReport">举报</button>
-              <button class="btn btn-coral" style="flex:1"
-                onclick="this.closest('.modal-mask').remove()">知道了</button>`
+              <button class="btn btn-coral" style="flex:1" id="rpSim">让分身先聊一段</button>`
   });
   const rb = $("#rpReport");
   if(rb) rb.addEventListener("click", ()=> openReportSheet({ target:u.uid, name:u.name }));
+  const sb = $("#rpSim");
+  if(sb) sb.addEventListener("click", ()=> openSimulate(u));
 }
 
 // 自己的报告:两份测评在同一页,可以就地重测、就地改可见性
@@ -3749,7 +3854,8 @@ function purgeLegacyLocalData(){
   if(dropped) toast("这台设备上有上一个账号留下的测评记录,已经清掉了");
 }
 // 没配过的人默认落在 DeepSeek 上:国内直连最稳,价格也最低
-function aiCfg(){ return { provider:"deepseek", ...readJson(uidKey(AI_CFG_KEY), {}) }; }
+function aiCfg(){ return { provider:"deepseek", proxyModel:"deepseek-chat",
+                           ...readJson(uidKey(AI_CFG_KEY), {}) }; }
 // 自己没填 Key、又选着 DeepSeek 的登录用户,走本站的免费额度
 function usingFreeQuota(c){
   c = c || aiCfg();
@@ -3840,23 +3946,45 @@ function cleanReply(raw){
 }
 
 // 走本站免费额度:带上 Firebase 的登录凭证,Worker 那边验完才肯代发
-async function viaProxy(sys, userText, task){
+/* 本站免费额度能用的模型 (REQ-032)。这份表只用来画界面 ——
+   真正说了算的是 Worker 里的白名单:客户端报什么模型都行,不合格
+   会被**静默降级**回 DeepSeek,不会报错打断对话。 */
+const PROXY_MODELS = [
+  ["deepseek-chat",   "DeepSeek"],
+  ["claude-sonnet-5", "Claude Sonnet"],
+  ["gpt-5",           "GPT-5"],
+  ["claude-opus-5",   "Claude Opus"]
+];
+
+async function callProxy(path, payload){
   let res;
   try{
-    res = await fetch(AI_PROXY_URL, {
+    res = await fetch(AI_PROXY_URL.replace(/\/chat$/, "") + path, {
       method:"POST",
       headers:{ "content-type":"application/json", authorization:`Bearer ${await me.getIdToken()}` },
-      body: JSON.stringify({ task, messages:[{role:"system",content:sys},{role:"user",content:userText}] })
+      body: JSON.stringify({ model: aiCfg().proxyModel || "deepseek-chat", ...payload })
     });
   }catch(e){ throw new Error("连不上本站的 AI 服务,检查一下网络"); }
-
   const j = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(j.error || `本站 AI 服务返回 ${res.status}`);
   // 服务端每次都会回报剩余次数,记下来给设置面板显示 ——
   // 不然「还能用几次」全靠猜,出问题时也说不清是额度还是别的原因
   if(typeof j.__quota_left === "number")
     localStorage.setItem(uidKey("cl_ai_quota"), JSON.stringify({left:j.__quota_left, at:Date.now()}));
-  return j?.choices?.[0]?.message?.content || "";
+  // 降级只提示一次:每句话都弹一遍会很烦,而这件事说一次就够了
+  if(j.__downgraded && !sessionStorage.getItem("cl_dg")){
+    sessionStorage.setItem("cl_dg", "1");
+    toast(`已改用 DeepSeek:${j.__downgraded}`);
+  }
+  return j;
+}
+
+async function viaProxy(sys, userText, task){
+  const j = await callProxy("/chat", {
+    task, messages:[{role:"system",content:sys},{role:"user",content:userText}]
+  });
+  // Worker 会把各家的响应统一成 __text,前端不用管是谁答的
+  return j.__text || j?.choices?.[0]?.message?.content || "";
 }
 
 // 拿模型原文。task 决定这次给多大的输出上限:
@@ -4085,6 +4213,11 @@ function renderAiForm(box, inChat){
       <input class="f-model" autocomplete="off" list="ai-models-${ns}" placeholder="${esc(p.model)}" value="${esc(c.model||"")}">
       <datalist id="ai-models-${ns}" class="f-models">${p.models.map(m=>`<option value="${esc(m)}">`).join("")}</datalist>
       <div class="hint">留空就用 <code class="f-modelhint">${esc(p.model)}</code></div></div>
+    ${freeFor(cur) && !c.key ? `<div class="field"><label>用哪个模型</label>
+      <div class="ai-seg f-pmseg" style="flex-wrap:wrap">${PROXY_MODELS.map(([k,label])=>
+        `<button type="button" data-pm="${k}"${(c.proxyModel||"deepseek-chat")===k?' class="on"':""}>${esc(label)}</button>`).join("")}</div>
+      <div class="hint">内测期间都能选。<b>没配上的会自动换回 DeepSeek</b>,
+        不会报错打断对话 —— 换了会提示一次。</div></div>` : ""}
     <div class="field"><label>语气</label>
       <div class="ai-seg f-toneseg" style="flex-wrap:wrap">${Object.entries(AI_TONES).map(([k,v])=>
         `<button type="button" data-t="${k}"${(c.tone||"natural")===k?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div></div>
@@ -4111,6 +4244,7 @@ function renderAiForm(box, inChat){
       model:    q(".f-model").value.trim(),
       tone:     (q(".f-toneseg .on")||{dataset:{}}).dataset.t || "natural",
       length:   (q(".f-lenseg .on")||{dataset:{}}).dataset.l || "medium",
+      proxyModel: (q(".f-pmseg .on")||{dataset:{}}).dataset.pm || "deepseek-chat",
       persona:  q(".f-persona").value.trim()
     }));
     syncAiStrip();
@@ -4133,7 +4267,7 @@ function renderAiForm(box, inChat){
   const shareBtn = q("#lvShare");
   if(shareBtn) shareBtn.addEventListener("click", shareLoverToChat);
 
-  [[".f-toneseg","t"],[".f-lenseg","l"]].forEach(([sel])=>{
+  [[".f-toneseg","t"],[".f-lenseg","l"],[".f-pmseg","pm"]].forEach(([sel])=>{
     box.querySelectorAll(sel+" button").forEach(b=>b.addEventListener("click", ()=>{
       box.querySelectorAll(sel+" button").forEach(x=>x.classList.remove("on"));
       b.classList.add("on"); save();
