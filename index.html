@@ -268,6 +268,18 @@
   .mm-btn svg{width:14px;height:14px}
   .mm-btn.go{background:var(--accent-soft);border-color:var(--outline)}
   .mm-btn:active{transform:translateY(1px)}
+  .mm-empty{font-size:13px;color:var(--ink-faint);padding:14px 2px;line-height:1.9}
+
+  /* 申请徽章的两条路。走不了的那条是灰的、不给点 —— 假装能点更糟 */
+  .vr-row{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;cursor:pointer;
+    border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+  .vr-row.on{border-color:var(--outline);background:var(--accent-soft)}
+  .vr-row.off{cursor:not-allowed;opacity:.62;background:var(--surface)}
+  .vr-tick{flex:0 0 auto;width:16px;height:16px;color:var(--ink-soft);margin-top:2px}
+  .vr-tick svg{width:16px;height:16px}
+  .vr-row.on .vr-tick{color:var(--ink)}
+  .vr-off{font-family:var(--cute);font-size:11px;color:var(--ink-faint);
+    border:1.5px solid var(--line);border-radius:var(--pill);padding:1px 7px;vertical-align:2px}
 
   .rep-list{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
@@ -1137,6 +1149,11 @@
         <div id="mmDesk"></div>
 
         <div class="sec-head" style="margin-top:24px"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span>
+          <div class="form-title">验证申请</div></div>
+        <div class="form-sub">指名你的、和没指定人的,都在这里。核过了在这里发徽章</div>
+        <div id="mmVerifyDesk"></div>
+
+        <div class="sec-head" style="margin-top:24px"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span>
           <div class="form-title">成为红娘的申请</div></div>
         <div class="form-sub">通过的话,把申请人的 ID 加进 firestore.rules 的 matchmakerIdOf 白名单再发布</div>
         <div id="mmApplyDesk"></div>
@@ -1866,6 +1883,8 @@ function stopListeners(){
   if(unsubBoard){ try{ unsubBoard(); }catch(e){} unsubBoard = null; }
   if(unsubDesk){ try{ unsubDesk(); }catch(e){} unsubDesk = null; }
   if(unsubApplyDesk){ try{ unsubApplyDesk(); }catch(e){} unsubApplyDesk = null; }
+  unsubVerifyDesk.forEach(f=>{ try{ f(); }catch(e){} });
+  unsubVerifyDesk = []; vdRows = {};
   $("#mmDeskWrap").classList.add("hidden");
   if(unsubWall){ try{ unsubWall(); }catch(e){} unsubWall = null; }
   if(unsubReplies){ try{ unsubReplies(); }catch(e){} unsubReplies = null; openReplyId = null; }
@@ -2701,17 +2720,18 @@ function verifyBadgesHtml(list){
 
 /* 红娘发徽章。门开得很大(对谁都能发、不需要复核),所以 by 字段必须是本人:
    留痕是现在唯一的检查,不能让人挂别人的名字。规则里也卡了这一条。 */
-function openVerifySheet(u){
+function openVerifySheet(u, preset){
   const mmId = (MATCHMAKERS.find(m=>m.uid === me.uid)||{}).id;
+  const pre = VERIFY_TYPES[preset] ? preset : "edu";
   $("#modalHost").innerHTML = `
   <div class="modal-mask" onclick="this.remove()">
     <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
       <div class="qz-head"><div class="qz-title">给 ${esc(u.name||"TA")} 发验证徽章</div>
         <div class="qz-sub">只填结论。材料看完就该删,别在这里记任何原件内容。</div></div>
       <div class="field"><label>验证哪一项</label>
-        <div class="ai-seg vf-seg">${Object.entries(VERIFY_TYPES).map(([k,v],i)=>
-          `<button type="button" data-v="${k}"${i===0?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div>
-        <div class="hint vf-hint">${esc(VERIFY_TYPES.edu.hint)}</div></div>
+        <div class="ai-seg vf-seg">${Object.entries(VERIFY_TYPES).map(([k,v])=>
+          `<button type="button" data-v="${k}"${k===pre?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div>
+        <div class="hint vf-hint">${esc(VERIFY_TYPES[pre].hint)}</div></div>
       <div class="field"><label>结论</label>
         <input id="vfLevel" maxlength="20" placeholder="如:博士 / 高级工程师 / 500万+">
         <div class="hint">资产只写区间。写具体金额等于把人挂出去当靶子。</div></div>
@@ -2753,44 +2773,96 @@ function openVerifySheet(u){
   });
 }
 
-/* 自助提交验证。**材料不进 Firestore** —— 原件要走 Storage 而且阅后即焚,
-   那部分还没开通。这里只记「我要验哪一项」和一句备注。
+/* 一键申请徽章,两条路 (REQ-075):
 
-   核发那一端客户端谁都写不了(见 firestore.rules)。所以现在提交完就是
-   等着,不会自动变成徽章。界面上如实说,不装作已经在处理了 ——
+     请红娘核验 —— 可以指名某一位。指名了就只有那一位看得到这条申请
+                   (规则里卡了),因为交材料这件事是冲着某个人去的。
+     自己上传材料 —— 要 Storage 才做得了。**没开通,所以这条路在界面上
+                   就是灰的**,不给点。假装能点、点了再说「稍后处理」,
+                   比直接说没开通更糟。
+
+   不管走哪条,**材料都不进 Firestore**。原件走 Storage、看完就删、
+   只留结论 —— 这里存的只有「我要验哪一项」和一句备注。
+
    宁可没有徽章,也不要一个没人核过的徽章:用户看到「资产证明 · 500万+」
    是会当真的,会拿它去决定要不要见面。                                */
+const VERIFY_ROUTES = {
+  mm:   { label:"请红娘核验", sub:"把材料给红娘看,核过就发徽章", ok:true },
+  self: { label:"自己上传材料", sub:"传学位证 / 在职证明,看完即删,只留结论",
+          ok:false, why:"上传通道还没开通,开了就能不经过人直接验" }
+};
+
 function openVerifyRequest(type){
   const t = VERIFY_TYPES[type];
+  let route = "mm", mm = "";
+  const routeRows = () => Object.entries(VERIFY_ROUTES).map(([k,r])=>`
+    <div class="vr-row${route === k ? " on" : ""}${r.ok ? "" : " off"}"
+         ${r.ok ? `data-route="${k}"` : ""}>
+      <span class="vr-tick">${r.ok ? ICON_CHECK : ICON_CLOCK}</span>
+      <div style="flex:1;min-width:0">
+        <div class="qz-t">${esc(r.label)}${
+          r.ok ? "" : ` <span class="vr-off">未开通</span>`}</div>
+        <div class="qz-s">${esc(r.ok ? r.sub : r.why)}</div>
+      </div>
+    </div>`).join("");
+
+  const mmRows = () => `
+    <div class="field" style="margin-top:12px"><label>交给谁</label>
+      <div class="ai-seg vf-seg">
+        <button type="button" data-mm=""${mm === "" ? ' class="on"' : ""}>不指定</button>
+        ${MATCHMAKERS.map(m=>
+          `<button type="button" data-mm="${esc(m.id)}"${
+            mm === m.id ? ' class="on"' : ""}>${esc(m.name)}</button>`).join("")}
+      </div>
+      <div class="hint">${mm === ""
+        ? `不指定的话,${MATCHMAKERS.length} 位红娘都看得到,谁有空谁接。`
+        : "指名之后<b>只有 " + esc((MATCHMAKERS.find(x=>x.id===mm)||{}).name)
+          + " 看得到这条申请</b>,另一位看不到。"}</div></div>`;
+
   $("#modalHost").innerHTML = `
   <div class="modal-mask" onclick="this.remove()">
     <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
       <div class="qz-head"><div class="qz-title">验证${esc(t.label)}</div>
         <div class="qz-sub">验证是加分项,不是门槛 —— 不验也能正常用。</div></div>
       <div class="rp-lead"><span class="rp-k">可以用来证明的</span>${esc(t.hint)}</div>
-      <div class="field" style="margin-top:12px"><label>说明(可选)</label>
+      <div class="field" style="margin-top:12px"><label>怎么验</label>
+        <div id="vrRoutes" style="display:flex;flex-direction:column;gap:8px">${routeRows()}</div></div>
+      <div id="vrMm">${mmRows()}</div>
+      <div class="field"><label>说明(可选)</label>
         <textarea id="vrNote" maxlength="300"
           placeholder="${type === "asset" ? "写区间就行,别写具体数字" : "例如:2019 年博士毕业"}"></textarea>
         <div class="hint">${type === "asset"
           ? "资产只登记区间。写具体金额等于把自己挂出去当靶子。"
-          : "先提交,我们会联系你走核验流程。"}</div></div>
+          : "写清楚你打算拿什么证明,红娘接了会来找你要。"}</div></div>
       <div class="hint" style="line-height:1.9">
-        <b>材料不要贴在这里。</b>上传通道还没开,开了之后是看完就删、只留结论。
-        现在提交的只是一条「我要验这一项」的记录,只有你自己看得到。</div>
+        <b>材料不要贴在这里。</b>这条记录里只有「验哪一项」和你写的说明,
+        原件走单独的通道,看完就删、只留结论。</div>
       <div class="modal-actions" style="margin-top:14px">
         <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">算了</button>
         <button class="btn btn-coral" id="vrGo">提交</button>
       </div>
     </div>
   </div>`;
+
+  const host = $("#modalHost");
+  const bindRoutes = () => host.querySelectorAll("[data-route]").forEach(r=>
+    r.addEventListener("click", ()=>{
+      route = r.dataset.route;
+      $("#vrRoutes").innerHTML = routeRows(); bindRoutes();
+    }));
+  const bindMm = () => host.querySelectorAll("[data-mm]").forEach(b=>
+    b.addEventListener("click", ()=>{ mm = b.dataset.mm; $("#vrMm").innerHTML = mmRows(); bindMm(); }));
+  bindRoutes(); bindMm();
+
   $("#vrGo").addEventListener("click", async ()=>{
     const btn = $("#vrGo"); btn.disabled = true; btn.textContent = "提交中…";
     try{
       await setDoc(doc(db,"verifyRequests",`${me.uid}_${type}`), {
         uid: me.uid, type, note: $("#vrNote").value.trim(),
-        status: "pending", at: serverTimestamp() });
-      $("#modalHost").innerHTML = "";
-      toast("提交好了。核验通道开通后会处理。");
+        status: "pending", route, mm, at: serverTimestamp() });
+      host.innerHTML = "";
+      toast(mm ? `已发给 ${(MATCHMAKERS.find(x=>x.id===mm)||{}).name}`
+               : "提交好了,等红娘接单");
       renderMyVerify();
     }catch(e){
       toast("提交失败:" + fbError(e)); console.error(e);
@@ -2804,12 +2876,12 @@ async function renderMyVerify(){
   const host = $("#myVerify"); if(!host || !me) return;
   const list = await fetchVerified(me.uid);
   const have = new Set(list.map(v=>v.type));
-  let pending = new Set();
+  const pending = new Map();
   try{
     for(const k of Object.keys(VERIFY_TYPES)){
       if(have.has(k)) continue;
       const d = await getDoc(doc(db,"verifyRequests",`${me.uid}_${k}`));
-      if(d.exists()) pending.add(k);
+      if(d.exists()) pending.set(k, d.data());
     }
   }catch(e){ console.error(e); }
 
@@ -2825,11 +2897,16 @@ async function renderMyVerify(){
           <div style="flex:1;min-width:0"><div class="qz-t">${esc(t.label)}</div>
             <div class="qz-s">已验证</div></div>
           <button class="qz-go" data-vdel="${esc(k)}">撤下</button></div>`;
-        if(pending.has(k)) return `<div class="qz-row" style="cursor:default">
-          <span class="qz-ico">${LOVE_ICON}</span>
+        if(pending.has(k)){
+          const q = pending.get(k);
+          const who = (MATCHMAKERS.find(x=>x.id === q.mm)||{}).name;
+          return `<div class="qz-row" style="cursor:default">
+          <span class="qz-ico">${ICON_CLOCK}</span>
           <div style="flex:1;min-width:0"><div class="qz-t">${esc(t.label)}</div>
-            <div class="qz-s">已提交,等红娘处理</div></div>
+            <div class="qz-s">${who ? `已发给 ${esc(who)},等 TA 找你要材料`
+                                    : "已提交,等红娘接单后来找你要材料"}</div></div>
           <button class="qz-go" data-vcancel="${esc(k)}">撤回</button></div>`;
+        }
         return `<div class="qz-row" data-vreq="${esc(k)}">
           <span class="qz-ico">${LOVE_ICON}</span>
           <div style="flex:1;min-width:0"><div class="qz-t">${esc(t.label)}</div>
@@ -5771,6 +5848,86 @@ function subscribeMatchmakerDesk(){
     err=>{ $("#mmDeskWrap").classList.add("hidden"); }   // 不是红娘,静默隐藏
   );
   subscribeMmApplyDesk();
+  subscribeVerifyDesk();
+}
+
+/* 验证申请的待办 (REQ-075)。
+
+   为什么是**两条**查询而不是一条:规则里「指名了谁就只有谁看得到」,
+   而 Firestore 的 list 查询是拿规则静态判定的 —— 一条不带条件的
+   collection 查询没法证明每条结果都合规,整条会被拒。所以按
+   mm == 我 和 mm == '' 分两次查,合起来再渲染。
+
+   接单这个动作没有单独的状态位:红娘看到申请 → 私下找 TA 要材料 →
+   核完在这里发徽章,发完待办自动清掉(openVerifySheet 里删的)。
+   中间那一步在系统外面,系统里不假装它在里面。                      */
+let unsubVerifyDesk = [];
+let vdRows = {};
+function subscribeVerifyDesk(){
+  if(unsubVerifyDesk.length) return;
+  const mmId = (MATCHMAKERS.find(m=>m.uid === me.uid)||{}).id;
+  if(!mmId) return;
+  [mmId, ""].forEach(who=>{
+    unsubVerifyDesk.push(onSnapshot(
+      query(collection(db,"verifyRequests"), where("mm","==",who), limit(50)),
+      snap=>{
+        const seen = {};
+        snap.forEach(d=>{ seen[d.id] = {id:d.id, ...d.data()}; });
+        // 每条查询只负责自己那一批,不要互相覆盖
+        Object.keys(vdRows).forEach(k=>{ if(vdRows[k].__q === who) delete vdRows[k]; });
+        Object.entries(seen).forEach(([k,v])=>{ vdRows[k] = {...v, __q: who}; });
+        renderVerifyDesk();
+      },
+      err=>console.error(err)));
+  });
+}
+
+async function renderVerifyDesk(){
+  const host = $("#mmVerifyDesk"); if(!host) return;
+  const rows = Object.values(vdRows).sort((a,b)=>(b.at?.toMillis?.()||0)-(a.at?.toMillis?.()||0));
+  if(!rows.length){
+    host.innerHTML = `<div class="mm-empty">没有待处理的验证申请。</div>`;
+    return;
+  }
+  const profs = {};
+  await Promise.all(rows.map(async r=>{ profs[r.uid] = await fetchProfile(r.uid); }));
+  host.innerHTML = rows.map(r=>{
+    const u = profs[r.uid] || {name:"未知用户"};
+    const t = VERIFY_TYPES[r.type] || {label:r.type};
+    return `
+    <div class="mm-card">
+      <div class="mm-top">${avatarHtml(u)}
+        <div style="flex:1;min-width:0">
+          <div class="mm-nm">${esc(u.name||"未知用户")}
+            <span class="badge b-amber">验${esc(t.label)}</span>
+            ${r.mm ? "" : `<span class="badge">没指定人</span>`}</div>
+          <div class="mm-mt">${esc(dot([u.age && u.age+"岁", u.role, u.city, u.edu]))}</div>
+        </div>
+        <div class="mm-age">${timeAgo(r.at)}</div></div>
+      ${r.note ? `<div class="mm-note">${esc(r.note)}</div>` : ""}
+      <div class="mm-acts">
+        <button class="mm-btn" data-vdfile="${esc(r.uid)}">${ICON_FILE}档案</button>
+        <button class="mm-btn" data-vdchat="${esc(r.uid)}">${ICON_CHAT}要材料</button>
+        <button class="mm-btn" data-vdgrant="${esc(r.uid)}" data-t="${esc(r.type)}">${ICON_CHECK}核过了,发徽章</button>
+        <button class="mm-btn" data-vddrop="${esc(r.uid)}_${esc(r.type)}">退回</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  host.querySelectorAll("[data-vdfile]").forEach(b=>
+    b.addEventListener("click", ()=>openClientFile(b.dataset.vdfile)));
+  host.querySelectorAll("[data-vdchat]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = profs[b.dataset.vdchat] || {};
+      openChat(b.dataset.vdchat, u.name || "TA", u.photo || "", u.gender || "", "验证材料");
+    }));
+  host.querySelectorAll("[data-vdgrant]").forEach(b=>
+    b.addEventListener("click", ()=>openVerifySheet(profs[b.dataset.vdgrant] || {uid:b.dataset.vdgrant}, b.dataset.t)));
+  host.querySelectorAll("[data-vddrop]").forEach(b=>b.addEventListener("click", async ()=>{
+    if(!confirm("退回之后这条申请就没了,对方要重新提交。继续?")) return;
+    try{ await delDoc(doc(db,"verifyRequests",b.dataset.vddrop)); toast("已退回"); }
+    catch(e){ toast("退不掉:" + fbError(e)); }
+  }));
 }
 
 /* 谁申请了成为红娘 —— 同样只有红娘读得到(规则里 isMatchmaker() 才放行),
