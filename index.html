@@ -185,6 +185,18 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
 
+  /* 可见性面板。默认折起来 —— 大多数人不会改,不该让它占掉半屏 */
+  .vis-box{margin-top:14px;border:1.5px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 14px;background:var(--surface-2)}
+  .vis-box summary{font-family:var(--cute);font-size:13.5px;color:var(--ink);
+    cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .vis-sum{font-size:11.5px;color:var(--ink-soft);border:1.5px solid var(--outline);
+    border-radius:var(--pill);padding:2px 10px;background:var(--surface);white-space:nowrap}
+  .vis-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .vis-k{flex:0 0 62px;font-size:12.5px;color:var(--ink-soft)}
+  .vis-seg{flex:1;min-width:0}
+  .vis-seg button{font-size:11.5px;padding:5px 4px}
+
   .chk{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;
     color:var(--ink-soft);cursor:pointer;font-family:var(--cute)}
   .chk input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:0 0 auto}
@@ -1446,7 +1458,16 @@ async function routeAfterAuth(user){
   // 产品,这个设计是错的。现在资料随便建、广场随便看,只有「碰到别人」的动作
   // (心动、留言、私信)在服务端要求验过 —— 那才是验证真正要挡的事。
   const snap = await getDoc(doc(db,"users",user.uid));
-  if(snap.exists()){ myProfile = snap.data(); purgeLegacyLocalData(); enterApp(); }
+  if(snap.exists()){
+    // 公开文档里没有被隐藏的字段,得把私人底稿合回来,否则一进「我的资料」
+    // 那些字段就是空的 —— 用户会以为自己填的东西丢了,然后再填一遍。
+    let draft = {};
+    try{ const d = await getDoc(doc(db,"profiles",user.uid)); if(d.exists()) draft = d.data(); }
+    catch(e){ console.error("底稿没读到", e); }
+    myProfile = { ...draft, ...snap.data() };
+    if(draft.vis) myProfile.vis = draft.vis;
+    purgeLegacyLocalData(); enterApp();
+  }
   else { purgeLegacyLocalData();
          renderProfileForm($("#onboardFormCard"), null, true); show("view-onboard"); }
 }
@@ -1471,6 +1492,27 @@ const GENDERS = ["男","女"];
 const INDUSTRY = ["软件研发","算法与数据","硬件与芯片","学术科研","产品与设计","金融量化","医疗生物","创业","其他"];
 const LEVEL    = ["在读学生","应届","初级","中级","高级","资深/专家","管理","创始人","教职","其他"];
 const ORG      = ["大厂","独角兽","初创","外企","国企/央企","高校/院所","自由职业","其他"];
+
+/* ---------- 字段级可见性 (REQ-020) ----------
+   Firestore 的读权限是按**文档**判的,没法在一个文档里对不同字段给不同的
+   可见范围。所以「谁能看」这件事决定了值**存在哪儿**:
+
+     pub     → users/{uid}    所有登录用户
+     matched → shared/{uid}   互相心动之后
+     mm      → mmOnly/{uid}   只有被指名的那位红娘
+     off     → 哪儿都不写,只留在 profiles/{uid} 的私人底稿里
+
+   这不是「拉出来再不显示」。选了非公开,广场拉全量也带不出那个值。   */
+const VIS_FIELDS = [
+  ["age","年龄"], ["edu","学历"], ["city","城市"], ["role","具体职位"],
+  ["industry","行业"], ["level","职级"], ["org","单位类型"], ["school","学校"],
+  ["stack","标签"], ["bio","自我介绍"]
+];
+const VIS_TIERS = [["pub","公开"], ["matched","匹配后"], ["mm","仅红娘"], ["off","不给看"]];
+const VIS_DEFAULT = "pub";
+function visOf(vis, k){ return (vis && vis[k]) || VIS_DEFAULT; }
+// 卡片上有值才拼进去,免得渲染出「Alice · 」或者「Alice · 0」这种半截
+function dot(parts){ return parts.filter(x => x !== undefined && x !== null && x !== "").join(" · "); }
 // 选择器:第一项是「未填」,老用户不会被强行按上一个不属于他的标签
 const optList = (arr, cur) => ['<option value="">未填</option>']
   .concat(arr.map(x => `<option ${cur === x ? "selected" : ""}>${x}</option>`)).join("");
@@ -1503,10 +1545,7 @@ function renderProfileForm(host, data, isNew){
     </div>
     <div class="field"><label>学校</label>
       <input id="f-school" maxlength="20" value="${esc(d.school||"")}" placeholder="如:上海交通大学">
-      <label class="chk"><input type="checkbox" id="f-school-show" ${d.school?"checked":""}>
-        <span>在资料里展示学校</span></label>
-      <div class="hint">不勾选就不写进公开资料。广场是一次性拉取所有人的资料的,
-        存进去等于对所有已登录用户可见 —— 所以「隐藏」在这里是真的不存,不是前端不显示。</div></div>
+      <div class="hint">谁能看到,在下面「谁能看到我的资料」里逐项选。</div></div>
     <div class="row2">
       <div class="field"><label>行业</label>
         <select id="f-industry">${optList(INDUSTRY, d.industry)}</select></div>
@@ -1524,7 +1563,37 @@ function renderProfileForm(host, data, isNew){
       <div class="hint">最多 8 个</div></div>
     <div class="field"><label>自我介绍</label>
       <textarea id="f-bio" maxlength="140" placeholder="一句话让别人认识你(140字内)">${esc(d.bio||"")}</textarea></div>
+    <details class="vis-box"${(d.vis && Object.values(d.vis).some(x=>x!=="pub")) ? " open" : ""}>
+      <summary>谁能看到我的资料 <span class="vis-sum">${
+        (()=>{ const n = VIS_FIELDS.filter(([k])=>visOf(d.vis,k)!=="pub").length;
+               return n ? `${n} 项不公开` : "全部公开"; })()
+      }</span></summary>
+      <div class="hint" style="margin:8px 0 10px">
+        选了非公开的字段<b>根本不会写进公开资料</b>,不是写进去再不显示 ——
+        广场是一次性拉取所有人资料的,写进去就等于下发到每台客户端。</div>
+      ${VIS_FIELDS.map(([k,label])=>`
+        <div class="vis-row">
+          <span class="vis-k">${esc(label)}</span>
+          <div class="ai-seg vis-seg" data-f="${k}">${VIS_TIERS.map(([t,tl])=>
+            `<button type="button" data-t="${t}"${visOf(d.vis,k)===t?' class="on"':""}>${tl}</button>`
+          ).join("")}</div>
+        </div>`).join("")}
+    </details>
     <button class="btn btn-coral" style="width:100%" id="f-save">${isNew?"完成注册,进入广场":"保存修改"}</button>`;
+  // 分档选择器:点一下换一档,选中态就地更新
+  host.querySelectorAll(".vis-seg").forEach(seg=>{
+    seg.addEventListener("click", e=>{
+      const b = e.target.closest("button[data-t]"); if(!b) return;
+      seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      const box = host.querySelector(".vis-box .vis-sum");
+      if(box){
+        const n = [...host.querySelectorAll(".vis-seg")]
+          .filter(sg => sg.querySelector("button.on")?.dataset.t !== "pub").length;
+        box.textContent = n ? `${n} 项不公开` : "全部公开";
+      }
+    });
+  });
   host.querySelector("#f-save").addEventListener("click", ()=>saveProfile(host,isNew));
   host.querySelector("#f-avatar").addEventListener("click", ()=>openAvatarPicker(host));
 }
@@ -1535,8 +1604,7 @@ async function saveProfile(host,isNew){
   if(age<18||age>60){ toast("年龄需在 18-60 之间"); return; }
   const btn = host.querySelector("#f-save"); btn.disabled = true; btn.textContent = "保存中…";
   // 公开资料:绝不含邮箱。广场会拉取全部 users,任何写进这里的东西都等同于公开。
-  const showSchool = host.querySelector("#f-school-show").checked;
-  const school = showSchool ? v("f-school") : "";
+  const school = v("f-school");
   // 长度上限要和 firestore.rules 数出来的完全一致。规则里的 size() 数的是
   // **UTF-16 码元**(实测:70 个 emoji 就顶满 140),恰好和 JS 的 .length、
   // HTML 的 maxlength 一样 —— 所以这里用 .length,不用 [...s].length。
@@ -1549,28 +1617,55 @@ async function saveProfile(host,isNew){
       return;
     }
   }
-  const data = {
-    name, age, city, role,
-    gender: v("f-gender"), edu: v("f-edu"),
+  // 每个字段选的档。学校那个勾选框是这套机制的前身,现在归到 vis 里统一管。
+  const vis = {};
+  host.querySelectorAll(".vis-seg").forEach(seg=>{
+    vis[seg.dataset.f] = seg.querySelector("button.on")?.dataset.t || VIS_DEFAULT;
+  });
+  // 字段的**完整**值。底稿留一份,免得「隐藏」变成「删除」——
+  // 今天把城市藏起来、明天想公开,不用重新再填一遍。
+  const all = {
+    age, city, role, edu: v("f-edu"),
     industry: v("f-industry"), level: v("f-level"), org: v("f-org"),
+    school: v("f-school"),
     stack: v("f-stack").split(/\s+/).filter(Boolean).slice(0,8),
-    bio: v("f-bio"),
-    photo: v("f-photo"),
-    twin: twinString(),
+    bio: v("f-bio")
+  };
+  // 三个不公开的档各写各的文档 —— 读权限是按文档判的,同一份文档做不到
+  // 「这个字段给匹配的人看、那个字段只给红娘看」。
+  const bucket = t => {
+    const o = { uid: me.uid, updatedAt: serverTimestamp() };
+    for(const [k] of VIS_FIELDS) if(vis[k] === t && all[k] !== "" ) o[k] = all[k];
+    return o;
+  };
+
+  // 公开资料:只放选了「公开」的。非公开的要显式 deleteField ——
+  // merge 写入不会因为本地没这个字段就删掉它,界面看不见、DevTools 看得见,
+  // 那不叫隐藏。
+  const data = {
+    name, gender: v("f-gender"),
+    photo: v("f-photo"), twin: twinString(),
+    hidden: VIS_FIELDS.filter(([k])=>vis[k] !== "pub").map(([k])=>k),
     uid: me.uid, updatedAt: serverTimestamp()
   };
-  // 取消展示学校时要真的删掉字段。setDoc 用的是 merge,不删就等于还留在公开资料里,
-  // 界面上看不见,DevTools 里看得见 —— 那不叫隐藏。
-  if(school) data.school = school;
-  else if(myProfile && myProfile.school) data.school = deleteField();
+  for(const [k] of VIS_FIELDS){
+    if(vis[k] === "pub" && all[k] !== "") data[k] = all[k];
+    else if(myProfile && myProfile[k] !== undefined) data[k] = deleteField();
+  }
   try{
     // 邮箱单独存 contacts/{uid},由安全规则限制只有双向心动的人能读
     await Promise.all([
       setDoc(doc(db,"users",me.uid), data, {merge:true}),
+      // 这两个用整份覆盖,不 merge —— 字段换了档就该从旧文档里消失
+      setDoc(doc(db,"shared",me.uid), bucket("matched")),
+      setDoc(doc(db,"mmOnly",me.uid), bucket("mm")),
+      setDoc(doc(db,"profiles",me.uid), { ...all, vis, uid: me.uid, updatedAt: serverTimestamp() }),
       setDoc(doc(db,"contacts",me.uid), {email: me.email||"", updatedAt: serverTimestamp()}, {merge:true})
     ]);
-    myProfile = { ...data, school };
-    if(!school) delete myProfile.school;
+    // 本地留完整的:自己的资料自己当然都看得见,打分也该用全量
+    myProfile = { ...all, ...{name, gender:v("f-gender"), photo:v("f-photo"),
+                              twin:twinString(), uid:me.uid}, vis,
+                  hidden: data.hidden };
     toast(isNew ? "资料已提交,我们会看一遍" : "已保存");
     if(isNew){ enterApp(); setTimeout(openWelcomeQuizzes, 700); }
   }catch(e){ toast("保存失败: "+fbError(e)); console.error(e); }
@@ -2884,9 +2979,9 @@ function selfCardHtml(u){
     <div class="ucard-top">
       ${avatarHtml(u)}
       <div style="flex:1">
-        <div class="uname">${esc(u.name)} · ${esc(u.age)}
+        <div class="uname">${esc(dot([u.name, u.age]))}
           <span class="badge b-indigo">👤 这是你</span></div>
-        <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
+        <div class="umeta">${esc(dot([u.role, u.level, u.org, u.city])) || "未公开更多信息"}</div>
       </div>
     </div>
     <div class="ucard-body">
@@ -2920,8 +3015,8 @@ function renderFeed(){
       <div class="ucard-top">
         <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatar}</span>
         <div style="flex:1">
-          <div class="uname">${esc(u.name)} · ${esc(u.age)}
-            <span class="badge b-green">${esc(u.edu)}</span>
+          <div class="uname">${esc(dot([u.name, u.age]))}
+            ${u.edu?`<span class="badge b-green">${esc(u.edu)}</span>`:""}
             ${u.school?`<span class="badge b-indigo">${esc(u.school)}</span>`:""}
             ${isNew(u)?`<span class="badge b-amber">🌱 新加入</span>`:""}</div>
           <div class="umeta">${esc([u.role, u.level, u.org, u.city].filter(Boolean).join(" · "))}</div>
@@ -4246,7 +4341,7 @@ async function renderMatches(){
       <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatarHtml(u)}</span>
       <div class="info">
         <div class="uname">${esc(u.name)} <span class="badge b-amber">💘 双向心动</span></div>
-        <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
+        <div class="umeta">${esc(dot([u.role, u.level, u.org, u.city])) || "未公开更多信息"}</div>
       </div>
       <button class="btn-chat" data-chat="${esc(u.uid)}" data-nm="${esc(u.name)}"
         data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 发消息</button>
@@ -4266,7 +4361,7 @@ async function renderMatches(){
       <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatarHtml(u)}</span>
       <div class="info">
         <div class="uname">${esc(u.name)}</div>
-        <div class="umeta">${esc(u.role)} · ${esc(u.city)} · 等待对方回应中…</div>
+        <div class="umeta">${esc(dot([u.role, u.city, "等待对方回应中…"]))}</div>
       </div>
     </div>`).join("")
     : `<div class="empty" style="padding:24px">暂无</div>`;
