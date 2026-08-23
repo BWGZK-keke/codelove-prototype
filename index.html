@@ -144,6 +144,10 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
 
+  .chk{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;
+    color:var(--ink-soft);cursor:pointer;font-family:var(--cute)}
+  .chk input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:0 0 auto}
+
   /* ---------- 底部导航:参考图那排描边药丸 ---------- */
   .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
     border-top:var(--bw) solid var(--outline);display:flex;
@@ -443,7 +447,17 @@
   .lp-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r);
     padding:24px 20px;box-shadow:var(--sh)}
   .lp-ico{width:52px;height:52px;border-radius:50%;border:var(--bw) solid var(--outline);
-    display:flex;align-items:center;justify-content:center;font-size:25px;margin-bottom:15px}
+    display:flex;align-items:center;justify-content:center;margin-bottom:15px;color:var(--ink)}
+  .lp-ico svg{width:24px;height:24px}
+  /* 准入:三步一列,不做卡片,留白比装饰重要 */
+  .lp-gate{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:2px}
+  .lp-gate-row{display:flex;gap:16px;align-items:flex-start;padding:18px 4px}
+  .lp-gate-row + .lp-gate-row{border-top:1.5px solid var(--line)}
+  .lp-gate-ico{flex:0 0 34px;height:34px;color:var(--ink-soft);display:flex;
+    align-items:center;justify-content:center}
+  .lp-gate-ico svg{width:22px;height:22px}
+  .lp-gate h3{font-family:var(--cute);font-size:16px;font-weight:400;margin:0 0 5px;color:var(--ink)}
+  .lp-gate p{font-size:13.5px;line-height:1.95;color:var(--ink-soft);margin:0}
   .lp-card h3{font-family:var(--cute);font-size:17.5px;margin:0 0 9px;color:var(--ink);font-weight:400}
   .lp-card p{font-size:13.5px;line-height:1.95;color:var(--ink-soft);margin:0}
   .lp-num{font-family:var(--mono);font-size:12px;color:var(--ink-faint);margin-bottom:9px}
@@ -664,8 +678,6 @@
   <div id="lp-home">
     <div class="lp-wrap">
       <header class="lp-hero">
-        <svg class="sparkle" style="top:6%;left:9%;width:26px;height:26px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.7 6.4 4.9 10.6 12 12-7.1 1.4-11.3 5.6-12 12-.7-6.4-4.9-10.6-12-12C7.1 10.6 11.3 6.4 12 0z"/></svg>
-        <svg class="sparkle s2" style="top:16%;right:11%;width:18px;height:18px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.7 6.4 4.9 10.6 12 12-7.1 1.4-11.3 5.6-12 12-.7-6.4-4.9-10.6-12-12C7.1 10.6 11.3 6.4 12 0z"/></svg>
         <h1 class="lp-h1" data-i18n="hero_h1"></h1>
         <p class="lp-sub" data-i18n="hero_sub"></p>
         <div class="lp-code">while(alone) { keep_looking(); }</div>
@@ -680,13 +692,13 @@
         <h2 class="lp-h2" data-i18n="f_title"></h2>
         <p class="lp-lead" data-i18n="f_lead"></p>
         <div class="lp-grid lp-g4">
-          <div class="lp-card"><div class="lp-ico" style="background:var(--sky-soft)">🪪</div>
+          <div class="lp-card"><div class="lp-ico" style="background:var(--sky-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16.2c.6-1.5 1.7-2.2 3-2.2s2.4.7 3 2.2"/><path d="M14.5 10h4M14.5 13.5h4"/></svg></div>
             <h3 data-i18n="f1_t"></h3><p data-i18n="f1_d"></p></div>
-          <div class="lp-card"><div class="lp-ico" style="background:var(--butter-soft)">✨</div>
+          <div class="lp-card"><div class="lp-ico" style="background:var(--butter-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4.2-4.6"/><circle cx="12" cy="17" r="1.2"/></svg></div>
             <h3 data-i18n="f2_t"></h3><p data-i18n="f2_d"></p></div>
-          <div class="lp-card"><div class="lp-ico" style="background:var(--rose-soft)">💬</div>
+          <div class="lp-card"><div class="lp-ico" style="background:var(--rose-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3.5V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/><path d="M8.5 10.5h7M8.5 13.5h4"/></svg></div>
             <h3 data-i18n="f3_t"></h3><p data-i18n="f3_d"></p></div>
-          <div class="lp-card"><div class="lp-ico" style="background:var(--mint-soft)">🔒</div>
+          <div class="lp-card"><div class="lp-ico" style="background:var(--mint-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2.2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15" r="1.1"/></svg></div>
             <h3 data-i18n="f4_t"></h3><p data-i18n="f4_d"></p></div>
         </div>
       </section>
@@ -702,19 +714,33 @@
       </section>
 
       <section class="lp-sec">
+        <div class="lp-eyebrow">ADMISSION</div>
+        <h2 class="lp-h2" data-i18n="g_title"></h2>
+        <p class="lp-lead" data-i18n="g_lead"></p>
+        <div class="lp-gate">
+          <div class="lp-gate-row"><div class="lp-gate-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16.2c.6-1.5 1.7-2.2 3-2.2s2.4.7 3 2.2"/><path d="M14.5 10h4M14.5 13.5h4"/></svg></div>
+            <div><h3 data-i18n="g1_t"></h3><p data-i18n="g1_d"></p></div></div>
+          <div class="lp-gate-row"><div class="lp-gate-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="2.6"/></svg></div>
+            <div><h3 data-i18n="g2_t"></h3><p data-i18n="g2_d"></p></div></div>
+          <div class="lp-gate-row"><div class="lp-gate-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16l-6 7v6l-4 2v-8z"/></svg></div>
+            <div><h3 data-i18n="g3_t"></h3><p data-i18n="g3_d"></p></div></div>
+        </div>
+      </section>
+
+      <section class="lp-sec">
         <div class="lp-eyebrow">THE TEAM</div>
         <h2 class="lp-h2" data-i18n="t_title"></h2>
         <p class="lp-lead" data-i18n="t_lead"></p>
         <div class="lp-team"><div class="lp-grid lp-g3">
-          <div><div class="lp-ico" style="background:var(--sky-soft)">🧑‍🔬</div>
+          <div><div class="lp-ico" style="background:var(--sky-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l7 2.6v5.3c0 4.2-2.8 7.4-7 9.1-4.2-1.7-7-4.9-7-9.1V6.1z"/><path d="M9.2 12.2l2 2 3.6-3.9"/></svg></div>
             <h3 style="font-family:var(--cute);font-size:16.5px;margin:0 0 6px;font-weight:400" data-i18n="t1_t"></h3>
             <p style="font-size:13px;line-height:1.9;color:var(--ink-soft);margin:0" data-i18n="t1_d"></p>
             <span class="lp-badge" data-i18n="t_phd"></span></div>
-          <div><div class="lp-ico" style="background:var(--butter-soft)">🤖</div>
+          <div><div class="lp-ico" style="background:var(--butter-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="7" r="2.2"/><circle cx="12" cy="17.5" r="2.2"/><path d="M7.6 8.7l3 7M16.4 8.7l-3 7M8.2 7h7.6"/></svg></div>
             <h3 style="font-family:var(--cute);font-size:16.5px;margin:0 0 6px;font-weight:400" data-i18n="t2_t"></h3>
             <p style="font-size:13px;line-height:1.9;color:var(--ink-soft);margin:0" data-i18n="t2_d"></p>
             <span class="lp-badge" data-i18n="t_res"></span></div>
-          <div><div class="lp-ico" style="background:var(--rose-soft)">🎨</div>
+          <div><div class="lp-ico" style="background:var(--rose-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.4"/><path d="M3.5 9h17"/><path d="M8 13.5h5.5"/></svg></div>
             <h3 style="font-family:var(--cute);font-size:16.5px;margin:0 0 6px;font-weight:400" data-i18n="t3_t"></h3>
             <p style="font-size:13px;line-height:1.9;color:var(--ink-soft);margin:0" data-i18n="t3_d"></p>
             <span class="lp-badge" data-i18n="t_phd"></span></div>
@@ -737,13 +763,13 @@
         <p class="lp-sub" data-i18n="dl_sub"></p>
       </header>
       <div class="lp-grid lp-g3">
-        <div class="lp-card"><div class="lp-ico" style="background:var(--mint-soft)">🌐</div>
+        <div class="lp-card"><div class="lp-ico" style="background:var(--mint-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="12" rx="2.2"/><path d="M8.5 20h7M12 16.5V20"/></svg></div>
           <h3 data-i18n="dl_web_t"></h3><p data-i18n="dl_web_d"></p>
           <div style="margin-top:15px"><button class="lp-cta" data-lp-login data-i18n="dl_web_b"></button></div></div>
-        <div class="lp-card lp-soon"><div class="lp-ico">🍎</div>
+        <div class="lp-card lp-soon"><div class="lp-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.8" width="10" height="18.4" rx="2.6"/><path d="M10.6 5.4h2.8"/></svg></div>
           <h3 data-i18n="dl_ios_t"></h3><p data-i18n="dl_ios_d"></p>
           <span class="lp-pill" data-i18n="dl_soon"></span></div>
-        <div class="lp-card lp-soon"><div class="lp-ico">🤖</div>
+        <div class="lp-card lp-soon"><div class="lp-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="3" width="11" height="18" rx="2.4"/><path d="M10 6.2h4"/></svg></div>
           <h3 data-i18n="dl_and_t"></h3><p data-i18n="dl_and_d"></p>
           <span class="lp-pill" data-i18n="dl_soon"></span></div>
       </div>
@@ -898,8 +924,9 @@
 <!-- ============ 首次注册资料页 ============ -->
 <div id="view-onboard" class="hidden">
   <div class="wrap" style="padding-top:10px">
-    <div class="form-title">欢迎加入 CodeLove 🎉</div>
-    <div class="form-sub">完善资料后即可进入广场(所有字段公开展示,邮箱除外)</div>
+    <div class="form-title">欢迎加入 CodeLove</div>
+    <div class="form-sub">我们审核资料,不是注册即入场。提交后我们会看一遍,通常 24 小时内;
+      审核期间你可以先逛广场。除邮箱外,下面填的内容都会公开展示。</div>
     <div class="card" id="onboardFormCard"></div>
   </div>
 </div>
@@ -952,7 +979,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
          createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc }
+import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1023,60 +1050,70 @@ const I18N = {
   zh: {
     nav_home:"首页", nav_dl:"下载", nav_login:"登录",
     hero_h1:'为写代码的人,<em>重做一遍</em>的交友体验',
-    hero_sub:"CodeLove 是面向工程师与研究者的严肃交友社区。真实资料、AI 逐个分析的契合度,只有双方都心动,联系方式才会互相可见。",
+    hero_sub:"CodeLove 面向工程师与研究者,以认真找长期关系为前提。我们解决的不是「没人可选」,而是「筛选成本太高」—— 资料真实,契合度逐个分析并写明理由,双方都心动才开始。",
     hero_cta:"开始使用", hero_cta2:"看看客户端",
     f_title:"我们做了什么不一样的", f_lead:"不是又一个划来划去的应用。四件事从头想过。",
-    f1_t:"真实资料", f1_d:"Google 账号登录,一人一份资料。没有匿名马甲,也没有僵尸号。",
-    f2_t:"AI 契合度", f2_d:"AI 一次读完全场资料,给每个人打分并写明理由 —— 而不是所有人都显示同一个数字。",
-    f3_t:"AI 私信助手", f3_d:"不知道怎么开口,让 AI 起个草稿;你不在的时候,也可以让它替你回,消息会明确标注。",
-    f4_t:"双向才可见", f4_d:"只有互相心动,邮箱才对彼此可见。这条规则写在数据库里,不是前端说了算。",
+    f1_t:"真实资料", f1_d:"邮箱或 Google 账号登录,一人一份资料。没有匿名马甲,也没有僵尸号。",
+    f2_t:"契合度写明理由", f2_d:"AI 一次读完全场资料,给每个人打分并写出依据 —— 而不是所有人都显示同一个数字。分数可以点开,看到每一维是怎么来的。",
+    f3_t:"AI 分身", f3_d:"做完测评,分身会带着你的性格设定回答。不知道怎么开口时让它起草;你不在的时候也可以让它替你回,消息会明确标注是 AI 发的。",
+    f4_t:"双向才可见", f4_d:"只有互相心动,联系方式才对彼此可见。这条规则写在服务端规则里,不是前端说了算。",
     h_title:"怎么用",
     s1_t:"填一份真实资料", s1_d:"城市、职业、技术栈与兴趣标签,还有一句让人记住你的自我介绍。",
-    s2_t:"在广场里逐个看", s2_d:"每张卡片都有契合度分数和一句理由。看对眼就点心动。",
-    s3_t:"双向心动才开聊", s3_d:"两个人都点了心动,私信才会开启,邮箱这时才互相可见。",
-    t_title:"关于我们", t_lead:"创始团队全部来自计算机方向,清一色的博士与研究员 —— 我们自己就是这个社区的目标用户。",
-    t1_t:"系统与基础设施", t1_d:"分布式系统方向,负责数据模型与安全规则。",
-    t2_t:"机器学习", t2_d:"负责契合度模型与 AI 助手的效果调优。",
-    t3_t:"人机交互", t3_d:"负责产品设计与交互,把复杂的东西藏起来。",
+    s2_t:"逐个看,不用划", s2_d:"每张卡片带契合度和一句理由。点分数能看到完整的匹配报告。",
+    s3_t:"双向心动才开聊", s3_d:"两个人都点了心动,私信才会开启。也可以请真人红娘牵线。",
+    g_title:"我们审核资料,不是注册即入场",
+    g_lead:"门槛本身就是承诺。这三步之后,你才会出现在别人的推荐里。",
+    g1_t:"一人一份资料", g1_d:"邮箱或 Google 账号登录,资料与账号绑定,不能开小号。",
+    g2_t:"资料人工过目", g2_d:"提交后我们会看一遍,通常 24 小时内。不通过会告诉你原因和怎么改。",
+    g3_t:"可选的资质验证", g3_d:"学历与在职可以用学校或公司邮箱验证。验证是加分项,不是门槛,验了也可以选择不展示。",
+    t_title:"关于我们", t_lead:"创始团队来自计算机方向,博士与研究员。这个产品最早是为了解决我们自己的问题 —— 我们就是它的目标用户。",
+    t1_t:"系统与安全", t1_d:"分布式系统方向。数据模型与隐私规则由这条线负责:所有隐私承诺都写在服务端,前端改代码绕不过。",
+    t2_t:"匹配与模型", t2_d:"机器学习方向。契合度模型、AI 分身、以及每条推荐背后的理由由这条线负责。",
+    t3_t:"产品与交互", t3_d:"人机交互方向。负责把复杂度藏起来,并守住这一页上写的每一条克制。",
     t_phd:"计算机博士", t_res:"研究员",
-    cta_h:"现在就可以开始", cta_d:"网页版已经能用了,用 Google 账号一秒登录。",
+    cta_h:"网页版已经可用", cta_d:"浏览器直接打开,用 Google 账号或邮箱登录。",
     cta_b:"用 Google 登录",
-    dl_h1:"客户端<em>马上就来</em>", dl_sub:"移动端还在开发中。网页版功能已经完整,手机浏览器也能直接用。",
+    dl_h1:"客户端<em>还在做</em>", dl_sub:"移动端仍在开发中。网页版功能已经完整,手机浏览器也能直接用。",
     dl_web_t:"网页版", dl_web_d:"现已可用,手机和电脑浏览器都支持,不用安装。", dl_web_b:"直接进入",
     dl_ios_t:"iOS", dl_ios_d:"原生 App 正在开发,上架后会在这里提供下载。",
     dl_and_t:"Android", dl_and_d:"原生 App 正在开发,上架后会在这里提供下载。",
-    dl_soon:"敬请期待",
-    dl_cta_h:"不用等客户端", dl_cta_d:"网页版就是完整版,现在登录就能用。", dl_cta_b:"用 Google 登录",
+    dl_soon:"开发中",
+    dl_cta_h:"不用等客户端", dl_cta_d:"网页版就是完整版,登录即可使用。", dl_cta_b:"用 Google 登录",
     foot_tag:"程序员严肃交友社区", foot_product:"产品", foot_about:"关于",
     foot_team:"创始团队", foot_copy:"用心做给写代码的人"
   },
   en: {
     nav_home:"Home", nav_dl:"Downloads", nav_login:"Log in",
     hero_h1:'Dating, <em>rebuilt</em> for people who write code',
-    hero_sub:"CodeLove is a serious dating community for engineers and researchers. Real profiles, AI that reads every profile and explains the fit, and contact details that unlock only when both sides say yes.",
+    hero_sub:"CodeLove is for engineers and researchers looking for something long-term. The problem we solve is not a shortage of candidates \u2014 it is the cost of filtering. Real profiles, a compatibility score with its reasoning shown, and nothing starts until both sides say yes.",
     hero_cta:"Get started", hero_cta2:"See the apps",
     f_title:"What we did differently", f_lead:"Not another swiping app. Four things rethought from scratch.",
-    f1_t:"Real profiles", f1_d:"Google sign-in, one profile per person. No throwaway handles, no bot accounts.",
-    f2_t:"AI compatibility", f2_d:"AI reads every profile in one pass and gives each person a score with a reason — instead of showing everyone the same number.",
-    f3_t:"AI reply assistant", f3_d:"Stuck on the first message? Let AI draft it. Away from your desk? It can answer for you — and those messages are labelled as such.",
-    f4_t:"Mutual only", f4_d:"Emails become visible only after both sides like each other. That rule lives in the database, not in the interface.",
+    f1_t:"Real profiles", f1_d:"Email or Google sign-in, one profile per person. No throwaway handles, no bot accounts.",
+    f2_t:"Scores that explain themselves", f2_d:"AI reads every profile in one pass and scores each person with its reasoning \u2014 instead of showing everyone the same number. Tap a score to see how each dimension was derived.",
+    f3_t:"Your AI twin", f3_d:"Take the assessment and your twin answers in character. Let it draft the first message, or reply while you are away \u2014 those messages are labelled as AI.",
+    f4_t:"Mutual only", f4_d:"Contact details unlock only after both sides like each other. That rule lives in the server-side rules, not in the interface.",
     h_title:"How it works",
     s1_t:"Write a real profile", s1_d:"City, role, your stack and interests, plus one line that makes you memorable.",
-    s2_t:"Browse the plaza", s2_d:"Every card carries a compatibility score and a one-line reason. Like the ones you mean.",
-    s3_t:"Match, then talk", s3_d:"When you both like each other, messaging opens and your emails become mutually visible.",
-    t_title:"About us", t_lead:"Our founding team all come from computer science — PhDs and researchers across the board. We built this for people like us.",
-    t1_t:"Systems & infrastructure", t1_d:"Distributed systems. Owns the data model and security rules.",
-    t2_t:"Machine learning", t2_d:"Owns the compatibility model and tuning the AI assistant.",
-    t3_t:"Human-computer interaction", t3_d:"Owns product and interaction design — hiding the complexity.",
+    s2_t:"Read, don't swipe", s2_d:"Every card carries a compatibility score and a one-line reason. Tap the score for the full report.",
+    s3_t:"Match, then talk", s3_d:"When you both like each other, messaging opens. A human matchmaker can also introduce you.",
+    g_title:"We review profiles. Signing up is not the same as getting in.",
+    g_lead:"The bar is the promise. You appear in other people's recommendations only after these three steps.",
+    g1_t:"One profile per person", g1_d:"Email or Google sign-in, tied to your account. No second accounts.",
+    g2_t:"A human reads your profile", g2_d:"We review every submission, usually within 24 hours. If it does not pass we tell you why and what to change.",
+    g3_t:"Verification, optional", g3_d:"Degrees and employment can be verified through a school or company email. Verification helps; it is not a gate, and you can verify without displaying it.",
+    t_title:"About us", t_lead:"The founding team comes from computer science \u2014 PhDs and researchers. This started as a fix for our own problem. We are its target users.",
+    t1_t:"Systems & security", t1_d:"Distributed systems. Owns the data model and the privacy rules: every privacy promise is enforced server-side, so no front-end change can route around it.",
+    t2_t:"Matching & models", t2_d:"Machine learning. Owns the compatibility model, the AI twin, and the reasoning behind every recommendation.",
+    t3_t:"Product & interaction", t3_d:"Human-computer interaction. Hides the complexity, and holds the line on every restraint written on this page.",
     t_phd:"CS PhD", t_res:"Researcher",
-    cta_h:"You can start right now", cta_d:"The web version is live. Sign in with Google in one tap.",
+    cta_h:"The web version is live", cta_d:"Open it in a browser and sign in with Google or email.",
     cta_b:"Sign in with Google",
-    dl_h1:"Our apps are <em>coming soon</em>", dl_sub:"Mobile apps are still in development. The web version is already complete and works in a phone browser too.",
+    dl_h1:"The apps are <em>still being built</em>", dl_sub:"Mobile apps are in development. The web version is already complete and works in a phone browser.",
     dl_web_t:"Web", dl_web_d:"Available now on phone and desktop browsers. Nothing to install.", dl_web_b:"Open the web app",
     dl_ios_t:"iOS", dl_ios_d:"A native app is in development. It will be downloadable here once it ships.",
     dl_and_t:"Android", dl_and_d:"A native app is in development. It will be downloadable here once it ships.",
-    dl_soon:"Coming soon",
-    dl_cta_h:"No need to wait", dl_cta_d:"The web version is the full version. Sign in and start now.", dl_cta_b:"Sign in with Google",
+    dl_soon:"In development",
+    dl_cta_h:"No need to wait", dl_cta_d:"The web version is the full version. Sign in and start.", dl_cta_b:"Sign in with Google",
     foot_tag:"Serious dating for programmers", foot_product:"Product", foot_about:"About",
     foot_team:"Founding team", foot_copy:"Made for people who write code"
   }
@@ -1180,6 +1217,14 @@ onAuthStateChanged(auth, async user=>{
 /* ---------- profile form ---------- */
 const EDU = ["本科","硕士","博士","海外硕士","海外博士"];
 const GENDERS = ["男","女"];
+// 结构化的职业字段(REQ-003)。自由文本筛不了 —— 红娘要按行业挑人、验资要按单位类型
+// 走不同流程,都需要固定枚举。「具体职位」仍然是自由文本:那是表达,不是筛选维度。
+const INDUSTRY = ["软件研发","算法与数据","硬件与芯片","学术科研","产品与设计","金融量化","医疗生物","创业","其他"];
+const LEVEL    = ["在读学生","应届","初级","中级","高级","资深/专家","管理","创始人","教职","其他"];
+const ORG      = ["大厂","独角兽","初创","外企","国企/央企","高校/院所","自由职业","其他"];
+// 选择器:第一项是「未填」,老用户不会被强行按上一个不属于他的标签
+const optList = (arr, cur) => ['<option value="">未填</option>']
+  .concat(arr.map(x => `<option ${cur === x ? "selected" : ""}>${x}</option>`)).join("");
 function renderProfileForm(host, data, isNew){
   const d = data || {};
   const curPhoto = d.photo !== undefined ? d.photo : (me.photoURL || "");
@@ -1206,8 +1251,24 @@ function renderProfileForm(host, data, isNew){
       <div class="field"><label>城市 *</label>
         <input id="f-city" maxlength="12" value="${esc(d.city||"")}" placeholder="如:上海"></div>
     </div>
-    <div class="field"><label>职业 *</label>
-      <input id="f-role" maxlength="20" value="${esc(d.role||"")}" placeholder="如:后端工程师 / 算法研究员"></div>
+    <div class="field"><label>学校</label>
+      <input id="f-school" maxlength="20" value="${esc(d.school||"")}" placeholder="如:上海交通大学">
+      <label class="chk"><input type="checkbox" id="f-school-show" ${d.school?"checked":""}>
+        <span>在资料里展示学校</span></label>
+      <div class="hint">不勾选就不写进公开资料。广场是一次性拉取所有人的资料的,
+        存进去等于对所有已登录用户可见 —— 所以「隐藏」在这里是真的不存,不是前端不显示。</div></div>
+    <div class="row2">
+      <div class="field"><label>行业</label>
+        <select id="f-industry">${optList(INDUSTRY, d.industry)}</select></div>
+      <div class="field"><label>职级</label>
+        <select id="f-level">${optList(LEVEL, d.level)}</select></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>单位类型</label>
+        <select id="f-org">${optList(ORG, d.org)}</select></div>
+      <div class="field"><label>具体职位 *</label>
+        <input id="f-role" maxlength="20" value="${esc(d.role||"")}" placeholder="如:后端工程师"></div>
+    </div>
     <div class="field"><label>技术栈 & 兴趣标签</label>
       <input id="f-stack" maxlength="60" value="${esc((d.stack||[]).join(" "))}" placeholder="用空格分隔,如:Python 攀岩 咖啡 INTJ">
       <div class="hint">最多 8 个</div></div>
@@ -1224,23 +1285,31 @@ async function saveProfile(host,isNew){
   if(age<18||age>60){ toast("年龄需在 18-60 之间"); return; }
   const btn = host.querySelector("#f-save"); btn.disabled = true; btn.textContent = "保存中…";
   // 公开资料:绝不含邮箱。广场会拉取全部 users,任何写进这里的东西都等同于公开。
+  const showSchool = host.querySelector("#f-school-show").checked;
+  const school = showSchool ? v("f-school").slice(0,20) : "";
   const data = {
     name, age, city, role,
     gender: v("f-gender"), edu: v("f-edu"),
+    industry: v("f-industry"), level: v("f-level"), org: v("f-org"),
     stack: v("f-stack").split(/\s+/).filter(Boolean).slice(0,8),
     bio: v("f-bio"),
     photo: v("f-photo"),
     twin: twinString(),
     uid: me.uid, updatedAt: serverTimestamp()
   };
+  // 取消展示学校时要真的删掉字段。setDoc 用的是 merge,不删就等于还留在公开资料里,
+  // 界面上看不见,DevTools 里看得见 —— 那不叫隐藏。
+  if(school) data.school = school;
+  else if(myProfile && myProfile.school) data.school = deleteField();
   try{
     // 邮箱单独存 contacts/{uid},由安全规则限制只有双向心动的人能读
     await Promise.all([
       setDoc(doc(db,"users",me.uid), data, {merge:true}),
       setDoc(doc(db,"contacts",me.uid), {email: me.email||"", updatedAt: serverTimestamp()}, {merge:true})
     ]);
-    myProfile = data;
-    toast(isNew ? "注册成功,欢迎加入!" : "已保存");
+    myProfile = { ...data, school };
+    if(!school) delete myProfile.school;
+    toast(isNew ? "资料已提交,我们会看一遍" : "已保存");
     if(isNew){ enterApp(); setTimeout(openWelcomeQuizzes, 700); }
   }catch(e){ toast("保存失败: "+fbError(e)); console.error(e); }
   btn.disabled = false; btn.textContent = isNew?"完成注册,进入广场":"保存修改";
@@ -1479,6 +1548,7 @@ function ruleParts(u){
   const bo   = bioOverlap(myProfile.bio, u.bio);
   const sameCity = !!(u.city && u.city === myProfile.city);
   const sameRole = !!(u.role && myProfile.role && u.role === myProfile.role);
+  const sameInd  = !!(u.industry && myProfile.industry && u.industry === myProfile.industry);
 
   return [
     { label:"共同标签", max:30, got: 30 * (uni ? both.length/uni : 0),
@@ -1489,8 +1559,9 @@ function ruleParts(u){
       note: u.age ? (ad===0 ? "同岁" : `相差 ${ad} 岁`) : "对方没填年龄" },
     { label:"自我介绍", max:14, got: 14 * bo,
       note: bo > .18 ? "描述里有不少共同的词" : (bo > 0 ? "描述里有一点点重合" : "两段介绍几乎没有交集") },
-    { label:"职业",     max:12, got: sameRole ? 12 : (u.role && myProfile.role ? 6 : 0),
-      note: sameRole ? "同一个岗位方向" : (u.role ? `${myProfile.role||"—"} × ${u.role}` : "对方没填职业") },
+    { label:"职业",     max:12, got: (sameInd || sameRole) ? 12 : (u.role && myProfile.role ? 6 : 0),
+      note: sameInd ? `同在${u.industry}` : sameRole ? "同一个岗位方向"
+          : (u.role ? `${myProfile.role||"—"} × ${u.role}` : "对方没填职业") },
     { label:"学历",     max:12, got: eduScore(myProfile.edu, u.edu),
       note: (myProfile.edu && u.edu) ? `${myProfile.edu} × ${u.edu}` : "有一方没填学历" }
   ];
@@ -1513,7 +1584,7 @@ function hash32(s){
 }
 // 我的资料或候选人集合变了,缓存就该失效
 function matchFingerprint(){
-  const meSig = [myProfile.city, myProfile.age, myProfile.role, myProfile.edu,
+  const meSig = [myProfile.city, myProfile.age, myProfile.role, myProfile.edu, myProfile.industry,
                  (myProfile.stack||[]).join(","), myProfile.bio].join("|");
   const cand = allUsers.map(u=>u.uid).sort().join(",");
   return hash32(meSig + "#" + cand);
@@ -1547,6 +1618,7 @@ const MATCH_SYS = [
 
 function profileLine(u){
   return [`uid=${u.uid}`, u.name, u.age?u.age+"岁":"", u.gender, u.city, u.role, u.edu,
+          [u.industry, u.level, u.org].filter(Boolean).join("/"), u.school,
           (u.stack||[]).join("/"), u.bio ? "简介:"+u.bio : ""]
          .filter(Boolean).join(" | ");
 }
@@ -2566,8 +2638,9 @@ function renderFeed(){
         <div style="flex:1">
           <div class="uname">${esc(u.name)} · ${esc(u.age)}
             <span class="badge b-green">${esc(u.edu)}</span>
+            ${u.school?`<span class="badge b-indigo">${esc(u.school)}</span>`:""}
             ${isNew(u)?`<span class="badge b-amber">🌱 新加入</span>`:""}</div>
-          <div class="umeta">${esc(u.role)} · ${esc(u.city)}</div>
+          <div class="umeta">${esc([u.role, u.level, u.org, u.city].filter(Boolean).join(" · "))}</div>
         </div>
         <div class="compat${compatReason(u)?" by-ai":""}" data-report="${esc(u.uid)}" title="点开看这个分数是怎么来的"><b>${compat(u)}%</b><span>${compatReason(u)?"✨ AI":"契合"}</span></div>
       </div>
