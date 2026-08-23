@@ -435,6 +435,11 @@
     border-radius:50%;margin:0 auto 14px;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
 
+  .wt-what{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
+  .wt-why{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.7}
+  .wt-slow{font-family:var(--sans);font-size:12px;color:var(--rose);margin-top:var(--s3);
+    line-height:1.7;padding:0 var(--s5)}
+
   /* ---------- toast ---------- */
   .toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(10px);
     background:var(--surface);color:var(--ink);font-size:14px;padding:12px 22px;
@@ -715,6 +720,89 @@
     .lp-cta{padding:8px 14px;font-size:13px}
   }
 
+  /* ---------- 匹配成功的那一刻 (REQ-008) ----------
+     一整屏,但不撒花不放音效。克制不等于冷淡:给两个人的头像、
+     给彼此写的那句话、给一个明确的下一步,信息本身就够有分量。 */
+  .mt-mask{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+    padding:var(--s5);background:color-mix(in srgb,var(--bg) 94%,transparent);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    animation:mtIn .28s var(--ease)}
+  @keyframes mtIn{from{opacity:0}to{opacity:1}}
+  .mt-in{width:100%;max-width:400px;text-align:center}
+  .mt-pair{display:flex;align-items:center;justify-content:center;gap:var(--s4);
+    margin-bottom:var(--s5)}
+  .mt-ava .ava,.mt-ava .ava-emoji{width:76px;height:76px;font-size:38px}
+  .mt-link{width:26px;height:26px;color:var(--rose);flex:0 0 auto}
+  .mt-link svg{width:26px;height:26px}
+  .mt-t{font-family:var(--cute);font-size:23px;color:var(--ink);line-height:1.45;
+    text-wrap:balance}
+  .mt-s{font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin-top:var(--s2)}
+  .mt-notes{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s5);text-align:left}
+  .mt-note{background:var(--surface);border:1.5px solid var(--outline);border-radius:var(--r-sm);
+    padding:var(--s3) var(--s4);font-family:var(--sans);font-size:13.5px;line-height:1.8;
+    color:var(--ink)}
+  .mt-who{display:block;font-family:var(--cute);font-size:11.5px;color:var(--ink-soft);
+    margin-bottom:2px}
+  .mt-acts{display:flex;gap:var(--s2);margin-top:var(--s6)}
+  .mt-acts .btn{flex:1}
+
+  /* ---------- 每天三位 (REQ-006) ---------- */
+  .dl-head{margin:var(--s5) 0 var(--s3)}
+  .dl-t{font-family:var(--cute);font-size:18px;color:var(--ink)}
+  .dl-s{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.7}
+  .dl-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+    padding:var(--s3) var(--s4);box-shadow:var(--sh);margin-bottom:var(--s3)}
+  .dl-top{display:flex;align-items:center;gap:var(--s3)}
+  .dl-top .ava,.dl-top .ava-emoji{width:46px;height:46px;font-size:23px}
+  .dl-nm{font-family:var(--cute);font-size:15.5px;color:var(--ink)}
+  .dl-mt{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:1px}
+  .dl-sc{font-family:var(--cute);font-size:18px;color:var(--ink);flex:0 0 auto;
+    background:var(--butter-soft);border:1.5px solid var(--outline);border-radius:var(--pill);
+    padding:2px 11px}
+  .dl-sc span{font-size:11px;color:var(--ink-soft)}
+  .dl-why{font-family:var(--sans);font-size:13px;line-height:1.8;color:var(--ink);
+    background:var(--surface-2);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
+    margin-top:var(--s3)}
+  .dl-foot{font-family:var(--sans);font-size:12px;color:var(--ink-faint);
+    text-align:center;padding:var(--s2) 0 var(--s5);line-height:1.7}
+
+  /* ---------- 收到的心动 (REQ-007) ---------- */
+  .lk-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+    padding:var(--s3) var(--s4);box-shadow:var(--sh);margin-bottom:var(--s3)}
+  .lk-top{display:flex;align-items:center;gap:var(--s3)}
+  .lk-top .ava,.lk-top .ava-emoji{width:44px;height:44px;font-size:22px}
+  .lk-nm{font-family:var(--cute);font-size:15.5px;color:var(--ink)}
+  .lk-mt{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:1px}
+  .lk-note{font-family:var(--sans);font-size:13.5px;line-height:1.85;color:var(--ink);
+    background:var(--surface-2);border-radius:var(--r-xs);padding:var(--s3);margin-top:var(--s3)}
+  .lk-note.lk-old{color:var(--ink-faint)}
+  .lk-acts{display:flex;gap:var(--s2);margin-top:var(--s3)}
+
+  /* ---------- 注册向导 (REQ-005) ---------- */
+  .ob-head{margin-bottom:var(--s5)}
+  .ob-bar{height:6px;border-radius:var(--pill);background:var(--surface-2);
+    border:1.5px solid var(--outline);overflow:hidden}
+  .ob-fill{height:100%;background:var(--accent);width:20%;
+    transition:width var(--dur) var(--ease)}
+  .ob-meta{display:flex;justify-content:space-between;gap:var(--s3);margin-top:var(--s2);
+    font-size:12px;color:var(--ink-soft);font-family:var(--sans)}
+  .ob-meta span:first-child{font-family:var(--cute);font-size:13.5px;color:var(--ink);
+    white-space:nowrap}
+  .ob-meta span:last-child{text-align:right;min-width:0}
+  .ob-step{display:none}
+  .ob-step.on{display:block;animation:obIn var(--dur) var(--ease)}
+  @keyframes obIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .ob-nav{display:flex;gap:var(--s2);margin-top:var(--s5)}
+  .ob-nav .btn{flex:1}
+  .ob-nav #obNext,.ob-nav #f-save{flex:2}
+  .ob-draft{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;
+    font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);
+    background:var(--butter-soft);border:1.5px solid var(--outline);
+    border-radius:var(--r-xs);padding:var(--s2) var(--s3);margin-bottom:var(--s4)}
+  .ob-draft button{font-family:var(--cute);font-size:12px;color:var(--ink);cursor:pointer;
+    background:var(--surface);border:1.5px solid var(--outline);
+    border-radius:var(--pill);padding:2px 10px}
+
   /* ---------- 换头像 ---------- */
   .av-row{display:flex;align-items:center;gap:14px;margin-bottom:18px}
   .av-row .ava,.av-row .ava-emoji{width:64px;height:64px;font-size:31px}
@@ -894,7 +982,9 @@
 <!-- ============ 启动中(默认可见,避免模块加载失败时白屏) ============ -->
 <div id="view-boot" class="login">
   <div class="logo">Code<em>Love</em></div>
-  <div class="loading" id="bootSpin"><div class="spinner"></div>正在连接…</div>
+  <div class="loading" id="bootSpin"><div class="spinner"></div>
+    <div class="wt-what">正在连接 Firebase</div>
+    <div class="wt-why">在确认你是不是已经登录过</div></div>
   <div class="tip hidden" id="bootErr"></div>
 </div>
 
@@ -1140,7 +1230,11 @@
         <span class="match-note" id="aiMatchNote"></span>
       </div>
       <div id="feedFilter" class="hidden"></div>
-      <div id="feedList"><div class="loading"><div class="spinner"></div>加载中…</div></div>
+      <!-- 今天的三位 (REQ-006):当天固定,不刷新、不无限翻 -->
+      <div id="dailyBox"></div>
+      <div id="feedList"><div class="loading"><div class="spinner"></div>
+        <div class="wt-what">在拉广场上的人</div>
+        <div class="wt-why">一次最多 80 位,按最近活跃排</div></div></div>
     </div>
     <!-- 匹配 -->
     <div id="page-matches" class="hidden">
@@ -1148,6 +1242,9 @@
       <div class="form-sub">互相心动的人,可以直接开聊了,主动一点 :)</div>
       <div class="twin-card" id="twinCard"></div>
       <div id="matchList"></div>
+      <div class="form-title" style="font-size:17px;margin-top:26px">谁心动了你</div>
+      <div class="form-sub">每一条都带着对方写的一句话。心动回去就是匹配。</div>
+      <div id="inboxList"></div>
       <div class="form-title" style="font-size:17px;margin-top:26px">我发出的心动</div>
       <div id="likeList"></div>
     </div>
@@ -1162,7 +1259,9 @@
           <button class="btn btn-coral btn-pill" id="boardSend">发布</button>
         </div>
       </div>
-      <div id="boardList"><div class="loading"><div class="spinner"></div>加载中…</div></div>
+      <div id="boardList"><div class="loading"><div class="spinner"></div>
+        <div class="wt-what">在读留言板</div>
+        <div class="wt-why">显示最新 50 条</div></div></div>
     </div>
     <!-- 我的 -->
     <div id="page-me" class="hidden">
@@ -1341,6 +1440,8 @@ let myProfile = null;   // firestore profile
 let myLikes = new Set();// uids I liked
 let likedMe = new Set();// uids who liked me
 let allUsers = [];      // cached users
+let likedMeNote = new Map();   // 谁心动我时写的那句话 (REQ-007)
+let myLikeNote  = new Map();   // 我心动别人时写的那句话
 const matchNotified = new Set(); // 已弹过「匹配成功」的人,防止重复弹窗
 let myCard = null;      // 自己在广场里的那张卡(用于预览,不参与心动)
 
@@ -1732,86 +1833,173 @@ function dot(parts){ return parts.filter(x => x !== undefined && x !== null && x
 // 选择器:第一项是「未填」,老用户不会被强行按上一个不属于他的标签
 const optList = (arr, cur) => ['<option value="">未填</option>']
   .concat(arr.map(x => `<option ${cur === x ? "selected" : ""}>${x}</option>`)).join("");
+/* ================= 注册向导 (REQ-005) =================
+   原来是一屏 18 个字段。文档自己写着「超过 5 分钟完成率断崖下跌」,
+   而一整屏必填 + 选填 + 可见性档位混在一起,第一眼就劝退。
+
+   拆成五步,每步只问一类事,顶上有进度。**改资料的时候不分步** ——
+   那时候人是奔着改某一项去的,分步反而要来回翻。所以向导只在注册时出现。
+
+   草稿存本地,按 uid 隔离(见 uidKey 的注释:同一台设备换账号不能串)。
+   存草稿不是为了「防止丢失」这种场面话:填到第三步去查一下学校全称,
+   回来发现前两步白填了,人就不会再填第二次了。                        */
+const OB_STEPS = [
+  { t:"你是谁",     s:"先把称呼和基本信息定下来" },
+  { t:"在哪儿",     s:"城市决定了你会被推荐给谁" },
+  { t:"做什么",     s:"同行之间有共同语言,这一项权重不低" },
+  { t:"让人记住你", s:"这两栏是别人决定要不要点开你的理由" },
+  { t:"谁能看到",   s:"逐项决定给谁看。选了不公开的字段根本不会上传" },
+];
+const OB_DRAFT = "cl_onboard_draft";
+let obStep = 0;
+
+function obDraftRead(){ return readJson(uidKey(OB_DRAFT), null); }
+function obDraftSave(host){
+  const g = id => { const e = host.querySelector("#"+id); return e ? e.value : ""; };
+  const vis = {};
+  host.querySelectorAll(".vis-seg").forEach(seg=>{
+    const on = seg.querySelector("button.on");
+    if(on) vis[seg.dataset.f] = on.dataset.t;
+  });
+  const inv = host.querySelector("#f-invisible");
+  try{
+    localStorage.setItem(uidKey(OB_DRAFT), JSON.stringify({
+      photo:g("f-photo"), name:g("f-name"), gender:g("f-gender"), age:g("f-age"),
+      edu:g("f-edu"), city:g("f-city"), school:g("f-school"),
+      industry:g("f-industry"), level:g("f-level"), org:g("f-org"),
+      role:g("f-role"), marital:g("f-marital"),
+      stack:g("f-stack"), bio:g("f-bio"),
+      invisible: !!(inv && inv.checked), vis, at: Date.now()
+    }));
+  }catch(e){ /* 隐私模式下写不进去,不是错误,不打扰用户 */ }
+}
+function obDraftClear(){ try{ localStorage.removeItem(uidKey(OB_DRAFT)); }catch(e){} }
+
+/* 每一步的必填项。缺什么就说缺什么,不说「请填写所有必填项」——
+   那句话等于让人自己去一个个找。 */
+const OB_REQUIRED = [
+  [["f-name","昵称"], ["f-age","年龄"]],
+  [["f-city","城市"]],
+  [["f-role","具体职位"]],
+  [],
+  [],
+];
+
 function renderProfileForm(host, data, isNew){
-  const d = data || {};
+  // 注册时:没有服务端资料就看本地草稿。改资料时永远用线上那份,
+  // 草稿是注册专用的,别拿它盖掉已经保存好的资料。
+  const draft = isNew ? obDraftRead() : null;
+  const d = data || draft || {};
+  if(isNew) obStep = 0;
   const curPhoto = d.photo !== undefined ? d.photo : (me.photoURL || "");
+  const stepAttr = n => isNew ? ` class="ob-step" data-step="${n}"` : "";
   host.innerHTML = `
-    <div class="av-row">
-      <div id="avatarPreview">${avatarHtml({photo:curPhoto, gender:d.gender})}</div>
-      <div>
-        <button type="button" class="btn btn-ghost" id="f-avatar">换头像</button>
-        <div class="hint" style="margin-top:6px">可以选 emoji,或贴自己的图片链接</div>
+    ${isNew ? `
+    <div class="ob-head">
+      <div class="ob-bar"><div class="ob-fill" id="obFill"></div></div>
+      <div class="ob-meta"><span id="obNum"></span><span id="obName"></span></div>
+    </div>
+    ${draft ? `<div class="ob-draft" id="obDraftNote">接着上次没填完的继续。
+      <button type="button" id="obDraftDrop">重新填</button></div>` : ""}` : ""}
+
+    <div${stepAttr(0)}>
+      <div class="av-row">
+        <div id="avatarPreview">${avatarHtml({photo:curPhoto, gender:d.gender})}</div>
+        <div>
+          <button type="button" class="btn btn-ghost" id="f-avatar">换头像</button>
+          <div class="hint" style="margin-top:6px">可以选 emoji,或贴自己的图片链接</div>
+        </div>
+      </div>
+      <input type="hidden" id="f-photo" value="${esc(curPhoto)}">
+      <div class="field"><label>昵称 *</label>
+        <input id="f-name" maxlength="16" value="${esc(d.name||me.displayName||"")}" placeholder="怎么称呼你?"></div>
+      <div class="row2">
+        <div class="field"><label>性别 *</label>
+          <select id="f-gender">${GENDERS.map(g=>`<option ${d.gender===g?"selected":""}>${g}</option>`).join("")}</select></div>
+        <div class="field"><label>年龄 *</label>
+          <input id="f-age" type="number" min="18" max="60" value="${esc(d.age||"")}" placeholder="18-60"></div>
       </div>
     </div>
-    <input type="hidden" id="f-photo" value="${esc(curPhoto)}">
-    <div class="field"><label>昵称 *</label>
-      <input id="f-name" maxlength="16" value="${esc(d.name||me.displayName||"")}" placeholder="怎么称呼你?"></div>
-    <div class="row2">
-      <div class="field"><label>性别 *</label>
-        <select id="f-gender">${GENDERS.map(g=>`<option ${d.gender===g?"selected":""}>${g}</option>`).join("")}</select></div>
-      <div class="field"><label>年龄 *</label>
-        <input id="f-age" type="number" min="18" max="60" value="${esc(d.age||"")}" placeholder="18-60"></div>
+
+    <div${stepAttr(1)}>
+      <div class="row2">
+        <div class="field"><label>学历 *</label>
+          <select id="f-edu">${EDU.map(e=>`<option ${d.edu===e?"selected":""}>${e}</option>`).join("")}</select></div>
+        <div class="field"><label>城市 *</label>
+          <input id="f-city" maxlength="12" value="${esc(d.city||"")}" placeholder="如:上海">
+          <div class="hint">最多 12 个字</div></div>
+      </div>
+      <div class="field"><label>学校</label>
+        <input id="f-school" maxlength="20" value="${esc(d.school||"")}" placeholder="如:上海交通大学">
+        <div class="hint">谁能看到,在最后一步逐项选。</div></div>
     </div>
-    <div class="row2">
-      <div class="field"><label>学历 *</label>
-        <select id="f-edu">${EDU.map(e=>`<option ${d.edu===e?"selected":""}>${e}</option>`).join("")}</select></div>
-      <div class="field"><label>城市 *</label>
-        <input id="f-city" maxlength="12" value="${esc(d.city||"")}" placeholder="如:上海">
-        <div class="hint">最多 12 个字</div></div>
+
+    <div${stepAttr(2)}>
+      <div class="row2">
+        <div class="field"><label>行业</label>
+          <select id="f-industry">${optList(INDUSTRY, d.industry)}</select></div>
+        <div class="field"><label>职级</label>
+          <select id="f-level">${optList(LEVEL, d.level)}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>单位类型</label>
+          <select id="f-org">${optList(ORG, d.org)}</select></div>
+        <div class="field"><label>具体职位 *</label>
+          <input id="f-role" maxlength="20" value="${esc(d.role||"")}" placeholder="如:后端工程师"></div>
+      </div>
+      <div class="field"><label>婚姻状态</label>
+        <select id="f-marital">${optList(MARITAL, d.marital)}</select>
+        <div class="hint">自己填,不需要证明。谁能看到在最后一步选。</div></div>
     </div>
-    <div class="field"><label>学校</label>
-      <input id="f-school" maxlength="20" value="${esc(d.school||"")}" placeholder="如:上海交通大学">
-      <div class="hint">谁能看到,在下面「谁能看到我的资料」里逐项选。</div></div>
-    <div class="row2">
-      <div class="field"><label>行业</label>
-        <select id="f-industry">${optList(INDUSTRY, d.industry)}</select></div>
-      <div class="field"><label>职级</label>
-        <select id="f-level">${optList(LEVEL, d.level)}</select></div>
+
+    <div${stepAttr(3)}>
+      <div class="field"><label>技术栈 & 兴趣标签</label>
+        <input id="f-stack" maxlength="60" value="${esc((d.stack&&d.stack.join?d.stack.join(" "):d.stack)||"")}" placeholder="用空格分隔,如:Python 攀岩 咖啡 INTJ">
+        <div class="hint">最多 8 个。标签是契合度里权重最高的一维 —— 写具体一点。</div></div>
+      <div class="field"><label>自我介绍</label>
+        <textarea id="f-bio" maxlength="140" placeholder="一句话让别人认识你(140字内)">${esc(d.bio||"")}</textarea></div>
     </div>
-    <div class="row2">
-      <div class="field"><label>单位类型</label>
-        <select id="f-org">${optList(ORG, d.org)}</select></div>
-      <div class="field"><label>具体职位 *</label>
-        <input id="f-role" maxlength="20" value="${esc(d.role||"")}" placeholder="如:后端工程师"></div>
+
+    <div${stepAttr(4)}>
+      <label class="chk vis-inv">
+        <input type="checkbox" id="f-invisible" ${d.invisible?"checked":""}>
+        <span>隐身:不出现在广场</span></label>
+      <div class="hint" style="margin:-2px 0 10px">
+        开了之后你的资料<b>整份</b>不写进公开库,广场上拉不到你 —— 不是拉到了不显示。
+        已经互相心动的人仍然看得到你(资料走「匹配后」那一档),红娘推荐也不受影响。</div>
+      <details class="vis-box"${(isNew || (d.vis && Object.values(d.vis).some(x=>x!=="pub"))) ? " open" : ""}>
+        <summary>谁能看到我的资料 <span class="vis-sum">${
+          (()=>{ const n = VIS_FIELDS.filter(([k])=>visOf(d.vis,k)!=="pub").length;
+                 return n ? `${n} 项不公开` : "全部公开"; })()
+        }</span></summary>
+        <div class="hint" style="margin:8px 0 10px">
+          选了非公开的字段<b>根本不会写进公开资料</b>,不是写进去再不显示 ——
+          广场是一次性拉取所有人资料的,写进去就等于下发到每台客户端。</div>
+        ${VIS_FIELDS.map(([k,label])=>`
+          <div class="vis-row">
+            <span class="vis-k">${esc(label)}</span>
+            <div class="ai-seg vis-seg" data-f="${k}">${VIS_TIERS.map(([t,tl])=>
+              `<button type="button" data-t="${t}"${visOf(d.vis,k)===t?' class="on"':""}>${tl}</button>`
+            ).join("")}</div>
+          </div>`).join("")}
+      </details>
+      ${isNew ? `
+      <label class="chk" style="margin-top:16px">
+        <input type="checkbox" id="f-agree">
+        <span>我已阅读并同意
+          <a href="terms.html" target="_blank" rel="noopener">用户协议</a>与
+          <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a></span>
+      </label>` : ""}
     </div>
-    <div class="field"><label>婚姻状态</label>
-      <select id="f-marital">${optList(MARITAL, d.marital)}</select>
-      <div class="hint">自己填,不需要证明。谁能看到在下面逐项选。</div></div>
-    <div class="field"><label>技术栈 & 兴趣标签</label>
-      <input id="f-stack" maxlength="60" value="${esc((d.stack||[]).join(" "))}" placeholder="用空格分隔,如:Python 攀岩 咖啡 INTJ">
-      <div class="hint">最多 8 个</div></div>
-    <div class="field"><label>自我介绍</label>
-      <textarea id="f-bio" maxlength="140" placeholder="一句话让别人认识你(140字内)">${esc(d.bio||"")}</textarea></div>
-    <label class="chk vis-inv">
-      <input type="checkbox" id="f-invisible" ${d.invisible?"checked":""}>
-      <span>隐身:不出现在广场</span></label>
-    <div class="hint" style="margin:-2px 0 10px">
-      开了之后你的资料<b>整份</b>不写进公开库,广场上拉不到你 —— 不是拉到了不显示。
-      已经互相心动的人仍然看得到你(资料走「匹配后」那一档),红娘推荐也不受影响。</div>
-    <details class="vis-box"${(d.vis && Object.values(d.vis).some(x=>x!=="pub")) ? " open" : ""}>
-      <summary>谁能看到我的资料 <span class="vis-sum">${
-        (()=>{ const n = VIS_FIELDS.filter(([k])=>visOf(d.vis,k)!=="pub").length;
-               return n ? `${n} 项不公开` : "全部公开"; })()
-      }</span></summary>
-      <div class="hint" style="margin:8px 0 10px">
-        选了非公开的字段<b>根本不会写进公开资料</b>,不是写进去再不显示 ——
-        广场是一次性拉取所有人资料的,写进去就等于下发到每台客户端。</div>
-      ${VIS_FIELDS.map(([k,label])=>`
-        <div class="vis-row">
-          <span class="vis-k">${esc(label)}</span>
-          <div class="ai-seg vis-seg" data-f="${k}">${VIS_TIERS.map(([t,tl])=>
-            `<button type="button" data-t="${t}"${visOf(d.vis,k)===t?' class="on"':""}>${tl}</button>`
-          ).join("")}</div>
-        </div>`).join("")}
-    </details>
+
     ${isNew ? `
-    <label class="chk" style="margin-top:16px">
-      <input type="checkbox" id="f-agree">
-      <span>我已阅读并同意
-        <a href="terms.html" target="_blank" rel="noopener">用户协议</a>与
-        <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a></span>
-    </label>` : ""}
-    <button class="btn btn-coral" style="width:100%;margin-top:12px" id="f-save">${isNew?"完成注册,进入广场":"保存修改"}</button>`;
+    <div class="ob-nav">
+      <button type="button" class="btn btn-ghost" id="obPrev">上一步</button>
+      <button type="button" class="btn btn-coral" id="obNext">下一步</button>
+      <button class="btn btn-coral" id="f-save" style="display:none">完成注册,进入广场</button>
+    </div>`
+    : `<button class="btn btn-coral" style="width:100%;margin-top:12px" id="f-save">保存修改</button>`}`;
+
   // 分档选择器:点一下换一档,选中态就地更新
   host.querySelectorAll(".vis-seg").forEach(seg=>{
     seg.addEventListener("click", e=>{
@@ -1824,11 +2012,48 @@ function renderProfileForm(host, data, isNew){
           .filter(sg => sg.querySelector("button.on")?.dataset.t !== "pub").length;
         box.textContent = n ? `${n} 项不公开` : "全部公开";
       }
+      if(isNew) obDraftSave(host);
     });
   });
   host.querySelector("#f-save").addEventListener("click", ()=>saveProfile(host,isNew));
   host.querySelector("#f-avatar").addEventListener("click", ()=>openAvatarPicker(host));
+
+  if(!isNew) return;
+
+  // 每次改动都存草稿。input 事件已经覆盖打字和选择,不另外挂 change。
+  host.addEventListener("input", ()=>obDraftSave(host));
+  host.addEventListener("change", ()=>obDraftSave(host));
+
+  const drop = host.querySelector("#obDraftDrop");
+  if(drop) drop.addEventListener("click", ()=>{
+    if(!confirm("清掉上次填的内容,从头开始?")) return;
+    obDraftClear(); renderProfileForm(host, null, true);
+  });
+  host.querySelector("#obPrev").addEventListener("click", ()=>obGo(host, obStep-1));
+  host.querySelector("#obNext").addEventListener("click", ()=>{
+    const miss = OB_REQUIRED[obStep].find(([id])=>!host.querySelector("#"+id).value.trim());
+    if(miss){ toast(`还差「${miss[1]}」`); host.querySelector("#"+miss[0]).focus(); return; }
+    obGo(host, obStep+1);
+  });
+  obGo(host, 0);
 }
+
+/* 走到第 n 步。进度、按钮、滚动位置都在这里定 ——
+   分散到各处会有一处忘记更新,那时候进度条就在说谎。 */
+function obGo(host, n){
+  obStep = Math.max(0, Math.min(OB_STEPS.length-1, n));
+  host.querySelectorAll(".ob-step").forEach(el=>
+    el.classList.toggle("on", +el.dataset.step === obStep));
+  const last = obStep === OB_STEPS.length - 1;
+  host.querySelector("#obFill").style.width = `${(obStep+1)/OB_STEPS.length*100}%`;
+  host.querySelector("#obNum").textContent = `第 ${obStep+1} / ${OB_STEPS.length} 步 · ${OB_STEPS[obStep].t}`;
+  host.querySelector("#obName").textContent = OB_STEPS[obStep].s;
+  host.querySelector("#obPrev").style.visibility = obStep ? "visible" : "hidden";
+  host.querySelector("#obNext").style.display = last ? "none" : "";
+  host.querySelector("#f-save").style.display  = last ? "" : "none";
+  host.scrollIntoView({ block:"start", behavior:"smooth" });
+}
+
 async function saveProfile(host,isNew){
   const v = id => host.querySelector("#"+id).value.trim();
   const name=v("f-name"), age=parseInt(v("f-age")), city=v("f-city"), role=v("f-role");
@@ -1920,7 +2145,8 @@ async function saveProfile(host,isNew){
                               twin:twinString(), uid:me.uid}, vis,
                   hidden: data.hidden };
     toast(isNew ? "资料已提交,我们会看一遍" : "已保存");
-    if(isNew){ enterApp(); setTimeout(openWelcomeQuizzes, 700); }
+    // 存上了才清草稿。写失败还清掉的话,人就要从第一步重填一遍。
+    if(isNew){ obDraftClear(); enterApp(); setTimeout(openWelcomeQuizzes, 700); }
   }catch(e){ toast("保存失败: "+fbError(e)); console.error(e); }
   btn.disabled = false; btn.textContent = isNew?"完成注册,进入广场":"保存修改";
 }
@@ -2013,21 +2239,27 @@ function startListeners(){
   // --- 我发出的心动 ---
   unsubs.push(onSnapshot(
     query(collection(db,"likes"), where("from","==",me.uid)),
-    snap=>{ myLikes = new Set(); snap.forEach(d=>myLikes.add(d.data().to)); refreshViews(); },
+    snap=>{ myLikes = new Set(); myLikeNote = new Map();
+      snap.forEach(d=>{ const v = d.data(); myLikes.add(v.to);
+        if(v.note) myLikeNote.set(v.to, v.note); });
+      refreshViews(); },
     err=>console.error(err)
   ));
 
   // --- 收到的心动:对方心动我时,如果我早就心动过 TA,立刻就是匹配 ---
+  // 顺手把对方写的那句话存下来 (REQ-007) —— 「匹配」页要按 uid 读它
   unsubs.push(onSnapshot(
     query(collection(db,"likes"), where("to","==",me.uid)),
     snap=>{
-      likedMe = new Set(); snap.forEach(d=>likedMe.add(d.data().from));
+      likedMe = new Set(); likedMeNote = new Map();
+      snap.forEach(d=>{ const v = d.data(); likedMe.add(v.from);
+        if(v.note) likedMeNote.set(v.from, v.note); });
       if(likesReady){
         for(const uid of likedMe){
           if(myLikes.has(uid) && !matchNotified.has(uid)){
             matchNotified.add(uid);
             const u = allUsers.find(x=>x.uid===uid);
-            showMatchModal(u ? u.name : "对方");
+            showMatchModal(u ? u.name : "对方", uid);
           }
         }
       }else{
@@ -2187,12 +2419,188 @@ function renderTopAva(){
   });
 }
 
+/* ================= 每天三位 (REQ-006) =================
+
+   广场是可以一直往下翻的,这本身没问题 —— 但「一直翻」和「认真看」是
+   两种状态,负向清单里明写着不做无限滑卡。所以每天先给三位,当天固定:
+   **今天看过了就是看过了**,刷新、重开、换设备都是同样三位。
+
+   为什么是三位:这个数字要小到能一个一个读完。给十位等于没给。
+
+   当天固定怎么做到的:先按契合度取前若干位,再用 hash(uid + 日期) 决定
+   从中拿哪三位 —— 同一个人同一天算出来的顺序一定一样,不依赖存储。
+   本地再存一份,是为了让当天新注册的人不会把你已经看到的三位挤掉。
+
+   为什么不是服务端的 recommendations/ 集合:那要 Worker 拿服务账号定时
+   跑一遍,见 REQ-010。客户端算的代价是换台设备可能重算 —— 但因为算法是
+   确定的,重算出来通常还是同样三位。这一点写在界面上,不含糊。      */
+const DAILY_N = 3, DAILY_POOL = 12, DAILY_KEY = "cl_daily";
+
+function todayKey(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+/* 名字不能叫 hash32:下面 AI 缓存那里已经有一个同名函数,而且它返回的是
+   36 进制**字符串**。函数声明会提升,后声明的那个会赢 —— 于是这里拿到的是
+   字符串,`(seed + i*2654435761) % n` 直接变成 NaN,每天的三位会全空。 */
+function dayHash(str){
+  let h = 5381;
+  for(let i=0;i<str.length;i++) h = ((h*33) ^ str.charCodeAt(i)) >>> 0;
+  return h >>> 0;
+}
+
+function dailyPicks(){
+  if(!myProfile) return [];
+  const day = todayKey();
+  const cached = readJson(uidKey(DAILY_KEY), null);
+  if(cached && cached.d === day && Array.isArray(cached.uids)){
+    const found = cached.uids.map(u=>allUsers.find(x=>x.uid === u)).filter(Boolean);
+    // 缓存里的人可能注销了或者隐身了,少了就照少的显示,不偷偷补人
+    if(found.length) return found;
+  }
+  const pool = allUsers
+    .filter(u=>u.uid !== me.uid && !myLikes.has(u.uid) && !myBlocks.has(u.uid))
+    .map(u=>({u, s:ruleScore(u)}))
+    .sort((a,b)=>b.s - a.s)
+    .slice(0, DAILY_POOL)
+    .map(x=>x.u);
+  // 从前 12 位里按 hash 挑 3 位 —— 只取前 3 的话,这三个人会连续出现很多天
+  const seed = dayHash(me.uid + day);
+  const idx = [];
+  for(let i=0;i<pool.length && idx.length<DAILY_N;i++){
+    const j = (seed + i*2654435761) % pool.length;
+    if(!idx.includes(j)) idx.push(j);
+  }
+  const picks = idx.map(i=>pool[i]).filter(Boolean);
+  try{ localStorage.setItem(uidKey(DAILY_KEY),
+        JSON.stringify({d:day, uids:picks.map(u=>u.uid)})); }catch(e){}
+  return picks;
+}
+
+/* 匹配理由:拿得分最高的那一维的 note。不编新话 ——
+   理由必须是算分时真的用上的东西,否则就是编给用户听的。 */
+function dailyReason(u){
+  const parts = ruleParts(u);
+  if(!parts.length) return "把自己的资料填完,才算得出你们合不合适";
+  const best = parts.slice().sort((a,b)=>(b.got/b.max||0)-(a.got/a.max||0))[0];
+  return `${best.label}:${best.note}`;
+}
+
+function renderDaily(){
+  const host = $("#dailyBox"); if(!host) return;
+  if(!myProfile || !allUsers.length){ host.innerHTML = ""; return; }
+  const picks = dailyPicks();
+  if(!picks.length){ host.innerHTML = ""; return; }
+  host.innerHTML = `
+    <div class="dl-head">
+      <div class="dl-t">今天的${picks.length === DAILY_N ? "三位" : `${picks.length}位`}</div>
+      <div class="dl-s">当天固定。明天换一批 —— 刷新不会换,这是有意的。</div>
+    </div>
+    ${picks.map(u=>`
+      <div class="dl-card">
+        <div class="dl-top">
+          <span class="ava-tap" data-dlopen="${esc(u.uid)}">${avatarHtml(u)}</span>
+          <div style="flex:1;min-width:0">
+            <div class="dl-nm">${esc(u.name)}${u.age?` · ${u.age}`:""}</div>
+            <div class="dl-mt">${esc(dot([u.role, u.city, u.edu])) || "未公开更多信息"}</div>
+          </div>
+          <div class="dl-sc">${compat(u)}<span>%</span></div>
+        </div>
+        <div class="dl-why">${esc(dailyReason(u))}</div>
+        <div class="lk-acts">
+          <button class="mm-btn" data-dlopen2="${esc(u.uid)}">${ICON_FILE}看资料</button>
+          <button class="mm-btn go" data-dllike="${esc(u.uid)}">心动</button>
+        </div>
+      </div>`).join("")}
+    <div class="dl-foot">看完这三位再往下翻广场 —— 慢一点通常更准。</div>`;
+
+  const open = uid => { const u = picks.find(x=>x.uid === uid); if(u) openTwinPortrait(u); };
+  host.querySelectorAll("[data-dlopen]").forEach(b=>
+    b.addEventListener("click", ()=>open(b.dataset.dlopen)));
+  host.querySelectorAll("[data-dlopen2]").forEach(b=>
+    b.addEventListener("click", ()=>open(b.dataset.dlopen2)));
+  host.querySelectorAll("[data-dllike]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = picks.find(x=>x.uid === b.dataset.dllike); if(u) openLikeCompose(u);
+    }));
+}
+
+/* ================= 等待态一律说明在等什么 (REQ-009) =================
+
+   「加载中…」等于什么都没说。人卡在一个转圈上的时候想知道的是两件事:
+   在等什么、要不要管。所以每一处等待都写清楚在读哪一批数据,
+   慢过 6 秒再补一句能动手的话 —— 这台机器上就有真实案例:校园网到
+   Firebase 不通,页面会一直转,而转圈本身不会告诉你这一点。
+
+   注意这不是给转圈加装饰。文档里那条「消灭无说明的 loading」和
+   牵线流程里的「在等什么」是同一条原则:任何等待态都要说明在等什么。 */
+const SLOW_AFTER = 6000;
+function waiting(what, why){
+  const id = "wt" + Math.random().toString(36).slice(2, 8);
+  setTimeout(()=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = "比平时慢。多半是网络连不上 Firebase —— 检查一下网络,或者刷新重试。";
+  }, SLOW_AFTER);
+  return `<div class="loading"><div class="spinner"></div>
+    <div class="wt-what">${esc(what)}</div>
+    ${why ? `<div class="wt-why">${esc(why)}</div>` : ""}
+    <div class="wt-slow" id="${id}"></div></div>`;
+}
+
 /* ---------- likes ---------- */
-async function likeUser(uid, name){
+
+/* 心动必须写一句话 (REQ-007)。
+
+   这是整个产品里唯一一处**刻意加的摩擦**。一次点击的成本太低,收到一串
+   没有内容的心动等于没收到 —— 收到的人无从判断对方是认真看过资料,还是
+   一路点下来的。写一句话筛掉的正是后者。
+
+   下限 20 字是算过的:「你好」「在吗」「交个朋友」都达不到。规则里也卡着
+   同一个数,前端这层只是为了给一句能看懂的话,而不是「权限不足」。       */
+const LIKE_MIN = 20, LIKE_MAX = 200;
+
+function openLikeCompose(u){
+  const name = u.name || "TA";
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()">
+      <div class="qz-head"><div class="qz-title">跟 ${esc(name)} 说一句</div>
+        <div class="qz-sub">心动要带一句话。${esc(name)} 会先看到这句,再决定要不要回。</div></div>
+      <div class="rp-lead"><span class="rp-k">写什么都行,但要是你看了资料之后想说的</span>
+        比如 TA 简介里哪一句让你想聊,或者你们哪个标签重合了。</div>
+      <div class="field" style="margin-top:12px">
+        <textarea id="lkNote" maxlength="${LIKE_MAX}" rows="4"
+          placeholder="例如:看到你也在做编译器,我最近在折腾 LLVM 的 pass,想请教一下…"></textarea>
+        <div class="hint"><span id="lkCount">0</span> / ${LIKE_MAX} · 至少 ${LIKE_MIN} 字</div></div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">再想想</button>
+        <button class="btn btn-coral" id="lkGo" disabled>发出心动</button>
+      </div>
+    </div>
+  </div>`;
+  const ta = $("#lkNote"), go = $("#lkGo"), cnt = $("#lkCount");
+  ta.addEventListener("input", ()=>{
+    const n = ta.value.trim().length;
+    cnt.textContent = n;
+    go.disabled = n < LIKE_MIN;
+  });
+  ta.focus();
+  go.addEventListener("click", ()=>{
+    const note = ta.value.trim();
+    const why = contentRejection(note);
+    if(why){ toast(why); return; }
+    $("#modalHost").innerHTML = "";
+    likeUser(u.uid, name, note);
+  });
+}
+
+async function likeUser(uid, name, note){
   if(myLikes.has(uid)) return;
+  if(!note || note.trim().length < LIKE_MIN){ toast("心动要带一句话"); return; }
   myLikes.add(uid); renderFeed();
   try{
-    await setDoc(doc(db,"likes",`${me.uid}_${uid}`), {from:me.uid,to:uid,createdAt:serverTimestamp()});
+    await setDoc(doc(db,"likes",`${me.uid}_${uid}`),
+      {from:me.uid, to:uid, note:note.trim(), createdAt:serverTimestamp()});
     // 对方有没有心动过我,直接看订阅维护的 likedMe。
     //
     // 这里以前是 getDoc 反向那条 likes 文档,但对方没心动过时那个文档根本不存在 ——
@@ -2203,7 +2611,7 @@ async function likeUser(uid, name){
     if(likedMe.has(uid)){
       likedMe.add(uid);
       renderFeed();
-      if(!matchNotified.has(uid)){ matchNotified.add(uid); showMatchModal(name); }
+      if(!matchNotified.has(uid)){ matchNotified.add(uid); showMatchModal(name, uid); }
     }else{
       toast(`已向 ${name} 发送心动 ♥`);
     }
@@ -2214,16 +2622,45 @@ async function unlikeUser(uid){
   try{ await deleteDoc(doc(db,"likes",`${me.uid}_${uid}`)); toast("已取消心动"); }
   catch(e){ myLikes.add(uid); renderFeed(); toast("操作失败"); }
 }
-function showMatchModal(name){
+/* 匹配成功的那一刻 (REQ-008)。
+
+   **不撒花、不放音效、不放大字号的感叹号。** 这一刻对当事人是真的重要,
+   而正因为重要,才不该用游戏里开宝箱那一套去演它 —— 那会把一件真事
+   演成一个奖励动画,人会本能地觉得被操纵。
+
+   克制不等于冷淡:给它一整屏(不是一个小弹窗)、给两个人的头像和名字、
+   给彼此写的那句话、给一个明确的下一步。信息本身就够有分量。
+
+   全屏但可以随手关掉:一个关不掉的庆祝弹窗是在替用户决定他此刻该有多高兴。 */
+function showMatchModal(name, uid){
+  const u = uid ? (allUsers.find(x=>x.uid === uid) || {name}) : {name};
+  const mine  = uid ? myLikeNote.get(uid) : "";
+  const yours = uid ? likedMeNote.get(uid) : "";
   $("#modalHost").innerHTML = `
-  <div class="modal-mask" onclick="this.remove()">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="hearts">💘</div>
-      <h2>匹配成功!</h2>
-      <p>你和 <b>${esc(name)}</b> 互相心动了!<br>现在可以直接发私信,<br>「匹配」页也能看到 TA 的邮箱。</p>
-      <button class="btn btn-coral" style="width:100%" onclick="this.closest('.modal-mask').remove()">太好了</button>
+  <div class="mt-mask" onclick="this.remove()">
+    <div class="mt-in" onclick="event.stopPropagation()">
+      <div class="mt-pair">
+        <div class="mt-ava">${avatarHtml(myProfile || {})}</div>
+        <span class="mt-link">${ICON_LINK}</span>
+        <div class="mt-ava">${avatarHtml(u)}</div>
+      </div>
+      <div class="mt-t">你和 ${esc(u.name || name)} 互相心动了</div>
+      <div class="mt-s">私信已经开了。「匹配」页随时能找到 TA。</div>
+      ${(mine || yours) ? `<div class="mt-notes">
+        ${yours ? `<div class="mt-note"><span class="mt-who">${esc(u.name||name)} 写的</span>${esc(yours)}</div>` : ""}
+        ${mine  ? `<div class="mt-note"><span class="mt-who">你写的</span>${esc(mine)}</div>` : ""}
+      </div>` : ""}
+      <div class="mt-acts">
+        <button class="btn btn-ghost" onclick="this.closest('.mt-mask').remove()">回广场</button>
+        ${uid ? `<button class="btn btn-coral" id="mtChat">给 TA 发消息</button>` : ""}
+      </div>
     </div>
   </div>`;
+  const go = $("#mtChat");
+  if(go) go.addEventListener("click", ()=>{
+    $("#modalHost").innerHTML = "";
+    openChat(uid, u.name || name, u.photo || "", u.gender || "");
+  });
 }
 
 /* ================= 契合度 =================
@@ -2986,7 +3423,9 @@ async function openSimulate(u){
     <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
       <div class="qz-head"><div class="qz-title">让分身先聊一段</div>
         <div class="qz-sub">正在模拟十轮对话,再请另一个模型如实点评。大约十几秒。</div></div>
-      <div class="empty" style="padding:26px 10px"><div class="spin"></div>生成中…</div>
+      <div class="empty" style="padding:26px 10px"><div class="spin"></div>
+        <div class="wt-what">在让两个分身聊十轮</div>
+        <div class="wt-why">要生成再单独点评一次,大约二三十秒</div></div>
     </div>
   </div>`;
 
@@ -4371,6 +4810,7 @@ function isNew(u){
   return ms > 0 && (Date.now() - ms) < 24*60*60*1000;
 }
 function renderFeed(){
+  renderDaily();
   const self = selfCardHtml(myCard);
   if(!allUsers.length){
     $("#feedList").innerHTML = self + `<div class="empty"><div class="big">🌱</div>
@@ -4433,7 +4873,10 @@ function renderFeed(){
       if(u) openMatchReport(u);
     }));
   $("#feedList").querySelectorAll("[data-like]").forEach(b=>
-    b.addEventListener("click",()=>likeUser(b.dataset.like,b.dataset.name)));
+    b.addEventListener("click",()=>{
+      const u = allUsers.find(x=>x.uid === b.dataset.like) || {uid:b.dataset.like, name:b.dataset.name};
+      openLikeCompose(u);
+    }));
   $("#feedList").querySelectorAll("[data-unlike]").forEach(b=>
     b.addEventListener("click",()=>unlikeUser(b.dataset.unlike)));
   $("#feedList").querySelectorAll("[data-wall]").forEach(b=>
@@ -4459,7 +4902,7 @@ function openChat(uid, name, photo, gender, sub){
   const subEl = $("#view-chat").querySelector(".chat-head .sub");
   if(subEl) subEl.textContent = sub || "💘 已匹配";
   $("#chatAva").innerHTML = avatarHtml({photo, gender});
-  $("#chatMsgs").innerHTML = `<div class="loading"><div class="spinner"></div>加载中…</div>`;
+  $("#chatMsgs").innerHTML = waiting("在读你们的私信", "只有你们两个人看得到");
   $("#chatInput").value = "";
   toggleEmoji(false);
   curChatMsgs = [];
@@ -5252,7 +5695,7 @@ function toggleReplies(id, host, opts){
   if(unsubReplies){ try{ unsubReplies(); }catch(e){} unsubReplies=null; }
   openReplyId = id;
   box.classList.remove("hidden");
-  box.innerHTML = `<div class="loading" style="padding:18px 0">加载中…</div>`;
+  box.innerHTML = `<div class="loading" style="padding:18px 0">在读这条下面的回复…</div>`;
 
   unsubReplies = onSnapshot(
     query(collection(db, ...replyPath(id, opts)), orderBy("createdAt","asc"), limit(100)),
@@ -5348,7 +5791,7 @@ function openWall(uid, name, photo, gender){
   $("#wallAva").innerHTML = avatarHtml({photo, gender});
   $("#wallInput").value = "";
   $("#wallInput").placeholder = `给 ${name} 留句话…`;
-  $("#wallList").innerHTML = `<div class="loading"><div class="spinner"></div>加载中…</div>`;
+  $("#wallList").innerHTML = waiting("在读 TA 的留言墙", "显示最新 50 条");
   show("view-wall");
 
   if(unsubWall){ try{ unsubWall(); }catch(e){} }
@@ -5610,6 +6053,8 @@ let unsubDesk = null;
    SLA 也做了:提交超过 24 小时还没受理的标红,顶部还会汇总一条。      */
 const ICON_CHAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3.5V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg>';
 const ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3.5V8h4.5M8.5 12.5h7M8.5 16h4"/></svg>';
+// 两个人连上了。画一条链子而不是用爱心 emoji —— 负向清单里明写着 emoji 不当功能图标
+const ICON_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9.5 14.5l5-5"/><path d="M13 7.5l1.6-1.6a3.6 3.6 0 0 1 5.1 5.1L18 12.6"/><path d="M11 16.5l-1.6 1.6a3.6 3.6 0 0 1-5.1-5.1L6 11.4"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>';
 const ICON_SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.9 5.1L19 11l-5.1 1.9L12 18l-1.9-5.1L5 11l5.1-1.9z"/></svg>';
 const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
@@ -5721,7 +6166,9 @@ async function openClientFile(uid){
           <div class="twin-name">${esc(u.name||"未知用户")}</div>
           <div class="mr-meta">${esc(dot([u.age && u.age+"岁", u.role, u.city, u.edu]))}</div>
         </div></div>
-      <div class="empty" style="padding:20px"><div class="spin"></div>读档案…</div>
+      <div class="empty" style="padding:20px"><div class="spin"></div>
+        <div class="wt-what">在读 TA 的档案</div>
+        <div class="wt-why">资料、徽章、测评要分别读</div></div>
     </div>
   </div>`;
 
@@ -5988,7 +6435,7 @@ function maskEmail(e){
 async function renderMatches(){
   // 只在首次打开时显示 spinner;实时刷新时保持原内容,避免闪烁
   if(!$("#matchList").innerHTML.trim())
-    $("#matchList").innerHTML = `<div class="loading"><div class="spinner"></div>加载中…</div>`;
+    $("#matchList").innerHTML = waiting("在读你的匹配", "互相心动的人才会出现在这里");
   const matchIds  = [...myLikes].filter(u=>likedMe.has(u) && !myBlocks.has(u));
   const pendingIds= [...myLikes].filter(u=>!likedMe.has(u) && !myBlocks.has(u));
 
@@ -6018,6 +6465,42 @@ async function renderMatches(){
     }));
   $("#matchList").querySelectorAll("[data-chat]").forEach(b=>
     b.addEventListener("click", ()=>openChat(b.dataset.chat, b.dataset.nm, b.dataset.ph, b.dataset.gd)));
+
+  // 谁心动了你 (REQ-007)。这一栏是那句话存在的意义 ——
+  // 写了没人看得到,就只是一道白加的门槛。
+  const inboxIds = [...likedMe].filter(u=>!myLikes.has(u) && !myBlocks.has(u));
+  const inbox = (await Promise.all(inboxIds.map(fetchProfile))).filter(Boolean);
+  $("#inboxList").innerHTML = inbox.length ? inbox.map(u=>`
+    <div class="lk-card">
+      <div class="lk-top">
+        <span class="ava-tap" data-twin="${esc(u.uid)}">${avatarHtml(u)}</span>
+        <div style="flex:1;min-width:0">
+          <div class="lk-nm">${esc(u.name)}</div>
+          <div class="lk-mt">${esc(dot([u.age && u.age+"岁", u.role, u.city, u.edu])) || "未公开更多信息"}</div>
+        </div>
+      </div>
+      ${likedMeNote.get(u.uid)
+        ? `<div class="lk-note">${esc(likedMeNote.get(u.uid))}</div>`
+        : `<div class="lk-note lk-old">TA 心动的时候还没有「写一句话」这一步。</div>`}
+      <div class="lk-acts">
+        <button class="mm-btn" data-lkopen="${esc(u.uid)}">${ICON_FILE}看资料</button>
+        <button class="mm-btn go" data-lkback="${esc(u.uid)}">心动回去</button>
+      </div>
+    </div>`).join("")
+    : `<div class="empty" style="padding:24px">还没有人心动你。<br>
+         资料填得具体一点会有帮助 —— 别人是照着资料写那句话的。</div>`;
+  $("#inboxList").querySelectorAll("[data-lkopen]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = inbox.find(x=>x.uid === b.dataset.lkopen); if(u) openTwinPortrait(u);
+    }));
+  $("#inboxList").querySelectorAll("[data-lkback]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = inbox.find(x=>x.uid === b.dataset.lkback); if(u) openLikeCompose(u);
+    }));
+  $("#inboxList").querySelectorAll("[data-twin]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = inbox.find(x=>x.uid === b.dataset.twin); if(u) openTwinPortrait(u);
+    }));
 
   $("#likeList").innerHTML = pending.length ? pending.map(u=>`
     <div class="match-card">
