@@ -206,6 +206,13 @@
     margin-bottom:3px}
   .del-i span{flex:0 0 auto;color:var(--ink-faint)}
 
+  .rd-wrap{display:flex;justify-content:center;margin:4px 0 2px}
+  .rd{width:190px;height:190px;overflow:visible}
+  .rd-g{fill:none;stroke:var(--line);stroke-width:1.2}
+  .rd-f{fill:var(--accent);fill-opacity:.28;stroke:var(--accent);stroke-width:2;
+    stroke-linejoin:round}
+  .rd-l{font-family:var(--cute);font-size:11px;fill:var(--ink-soft)}
+
   .sim-m{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:12.5px;
     color:var(--ink-soft)}
   .sim-m > span{flex:0 0 96px}
@@ -2991,6 +2998,114 @@ const LANG = {
 const FISH_MATCH = { explorer:"explorer", builder:"builder",
                      negotiator:"director", director:"negotiator" };
 
+/* ---------- 四个相处维度 (REQ-024) ----------
+   前面十五题查的是依恋类型、Fisher 气质、爱的语言 —— 那三样是有文献基础的
+   框架,匹配算法(REQ-025)也在用。这八题补的是需求文档要的四个相处维度,
+   五级李克特,画成雷达图。
+
+   和文档的出入记一笔:文档要每维 6 题、共 24 题。这里是每维 2 题、共 8 题
+   (加上原有 15 题 = 23 题)。6 题/维是做**可发表量表**的标准;这里的用途是
+   给人排序,2 题足够把人放到轴上。而文档自己写着「超过 5 分钟完成率断崖
+   下跌」—— 39 题的问卷没人做得完,做得完的样本也严重偏向闲人。
+
+   轴的方向统一成「左低右高」:分数越高越靠右边那个词。                */
+const LOVE_AXES = [
+  { k:"A", left:"独立", right:"黏人",   label:"亲密节奏",
+    lo:"你需要不少自己的时间", hi:"你希望多待在一起" },
+  { k:"B", left:"回避", right:"直面",   label:"冲突处理",
+    lo:"吵架时你先退开", hi:"你倾向当场说清楚" },
+  { k:"C", left:"随性", right:"计划",   label:"生活规划",
+    lo:"到了再看,不爱定死", hi:"你喜欢提前排好" },
+  { k:"D", left:"家庭", right:"事业",   label:"价值排序",
+    lo:"重大取舍时先顾家", hi:"重大取舍时先顾事业" }
+];
+const LOVE_SCALE = ["很不像我","不太像","说不好","有点像","很像我"];
+const LOVE_Q = [
+  { ax:"A", q:"一周里有三四天各忙各的,我完全没问题",  rev:true  },
+  { ax:"A", q:"没跟对方说上话的一天,我会觉得少了点什么", rev:false },
+  { ax:"B", q:"有意见分歧我会当场讲出来,不憋着",       rev:false },
+  { ax:"B", q:"吵起来的时候我更想先离开这个话题",       rev:true  },
+  { ax:"C", q:"出去玩我习惯提前把行程排好",             rev:false },
+  { ax:"C", q:"周末怎么过,我更喜欢到时候再说",         rev:true  },
+  { ax:"D", q:"如果工作和陪伴冲突,我大概率先顾工作",   rev:false },
+  { ax:"D", q:"再好的机会,要长期两地我也不会去",       rev:true  }
+];
+
+/* 打成 "A3B4C2D5":每维 1–5,压成一个短字符串跟着公开资料走。
+   完整答案不进 users —— 广场会一次性拉全部用户资料,原始答案写进去等于
+   下发到每台客户端。这是 contacts 那条教训的直接复用,文档里也写明了。 */
+function scoreLoveAxes(picks){
+  const sum = {}, cnt = {};
+  LOVE_Q.forEach((q, i)=>{
+    const raw = picks[i];
+    if(typeof raw !== "number") return;
+    const v = q.rev ? 4 - raw : raw;          // 0…4
+    sum[q.ax] = (sum[q.ax]||0) + v; cnt[q.ax] = (cnt[q.ax]||0) + 1;
+  });
+  const out = {};
+  for(const ax of LOVE_AXES)
+    out[ax.k] = cnt[ax.k] ? Math.round(sum[ax.k]/cnt[ax.k]) + 1 : 3;   // 1…5,没答就居中
+  return out;
+}
+function loveString(ax){ return LOVE_AXES.map(a => a.k + (ax[a.k]||3)).join(""); }
+function parseLove(s){
+  if(typeof s !== "string") return null;
+  const out = {}; let ok = false;
+  for(const a of LOVE_AXES){
+    const m = s.match(new RegExp(a.k + "([1-5])"));
+    if(m){ out[a.k] = +m[1]; ok = true; }
+  }
+  return ok ? out : null;
+}
+
+/* 雷达图。内联 SVG 手绘,不引图表库 —— 保持零构建、无外链。 */
+function radarSvg(ax, size = 190){
+  const c = size/2, r = size/2 - 26, n = LOVE_AXES.length;
+  const pt = (i, frac) => {
+    const a = -Math.PI/2 + i * 2*Math.PI/n;
+    return [c + Math.cos(a)*r*frac, c + Math.sin(a)*r*frac];
+  };
+  const ring = f => LOVE_AXES.map((_,i)=>pt(i,f).map(v=>v.toFixed(1)).join(",")).join(" ");
+  const shape = LOVE_AXES.map((a,i)=>{
+    // 1…5 映射到 0.15…1,别让最低分缩成一个点
+    const frac = 0.15 + ((ax[a.k]||3) - 1) / 4 * 0.85;
+    return pt(i, frac).map(v=>v.toFixed(1)).join(",");
+  }).join(" ");
+  const labels = LOVE_AXES.map((a,i)=>{
+    const [x,y] = pt(i, 1.28);
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle"
+      dominant-baseline="middle" class="rd-l">${esc(a.label)}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${size} ${size}" class="rd" role="img"
+      aria-label="${esc(LOVE_AXES.map(a=>`${a.label} ${ax[a.k]||3} 分`).join(","))}">
+    ${[1,.75,.5,.25].map(f=>`<polygon points="${ring(f)}" class="rd-g"/>`).join("")}
+    ${LOVE_AXES.map((_,i)=>{ const [x,y]=pt(i,1);
+      return `<line x1="${c}" y1="${c}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rd-g"/>`; }).join("")}
+    <polygon points="${shape}" class="rd-f"/>
+    ${labels}
+  </svg>`;
+}
+
+/* 「你适合的恋人」三条。用倾向表述,不做星座式的绝对断言 ——
+   文档明确禁止「你注定和 XXXX 不合」那种话。 */
+function loveAdvice(ax){
+  const out = [];
+  const A = ax.A||3, B = ax.B||3, C = ax.C||3, D = ax.D||3;
+  out.push(A >= 4 ? "希望常联系的人 —— 对方也得享受这种密度,不然你会一直觉得在追人"
+        : A <= 2 ? "同样需要独处的人 —— 一方需要更多陪伴的话,你容易被当成冷淡"
+        : "节奏中等的人 —— 你在这一维上比较好搭");
+  out.push(B >= 4 ? "愿意当场把话说开的人 —— 遇到回避冲突的人,你会觉得一拳打在棉花上"
+        : B <= 2 ? "不逼你立刻表态的人 —— 你需要时间消化,被追问反而更想退"
+        : "吵架能收得住的人");
+  out.push(C >= 4 ? "同样习惯提前安排的人,或者至少不介意被安排"
+        : C <= 2 ? "不把行程排太死的人 —— 计划性很强的人可能会让你有点喘不过气"
+        : "计划和随性都能接受的人");
+  if(Math.abs(D - 3) >= 1)
+    out.push(D >= 4 ? "理解你把事业放前面的人 —— 这一条不说清楚,后面很容易变成积怨"
+                    : "同样把生活放前面的人 —— 对方一心扑在工作上的话,你会常常等");
+  return out.slice(0, 3);
+}
+
 const LOVER_Q = [
   // —— 依恋 ——
   { q:"对方几小时没回消息,你第一反应是…",
@@ -3251,12 +3366,18 @@ function openWelcomeQuizzes(){
 
 /* ---------- 测评界面 ---------- */
 function openLoverQuiz(onDone){
-  let step = 0; const answers = [];
+  // 两段:前面是选项题(依恋/气质/爱的语言),后面是五级量表(四个相处维度)。
+  // 合成一份问卷,进度条按总数走 —— 分成两次做的话第二段基本没人会点。
+  const TOTAL = LOVER_Q.length + LOVE_Q.length;
+  let step = 0; const answers = [], picks = [];
   const host = $("#modalHost");
   const draw = ()=>{
-    if(step >= LOVER_Q.length){
+    if(step >= TOTAL){
       const res = scoreLover(answers);
+      res.ax = scoreLoveAxes(picks);
+      res.picks = picks.slice();
       localStorage.setItem(uidKey(LOVER_KEY), JSON.stringify(res));
+      publishLove(res);
       renderTwinCard();
       host.innerHTML = `
       <div class="modal-mask" onclick="this.remove()">
@@ -3271,31 +3392,56 @@ function openLoverQuiz(onDone){
         </div>
       </div>`;
       bindLoverVis(host);
-      $("#lvRedo").addEventListener("click", ()=>{ step=0; answers.length=0; draw(); });
+      $("#lvRedo").addEventListener("click", ()=>{
+        step=0; answers.length=0; picks.length=0; draw(); });
       $("#lvDone").addEventListener("click", ()=>{
         host.innerHTML = "";
         if(typeof onDone === "function") onDone();
       });
       return;
     }
-    const q = LOVER_Q[step];
+    const inScale = step >= LOVER_Q.length;
+    const li = step - LOVER_Q.length;
+    const q = inScale ? LOVE_Q[li] : LOVER_Q[step];
+    const opts = inScale
+      ? LOVE_SCALE.map((t,i)=>`<button type="button" data-i="${i}">${esc(t)}</button>`).join("")
+      : q.a.map((o,i)=>`<button type="button" data-i="${i}">${esc(o.t)}</button>`).join("");
     host.innerHTML = `
     <div class="modal-mask" onclick="this.remove()">
       <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
-        <div class="quiz-bar"><div class="quiz-fill" style="width:${step/LOVER_Q.length*100}%"></div></div>
-        <div class="quiz-step">${step+1} / ${LOVER_Q.length}</div>
+        <div class="quiz-bar"><div class="quiz-fill" style="width:${step/TOTAL*100}%"></div></div>
+        <div class="quiz-step">${step+1} / ${TOTAL}${inScale?" · 这几题选最像你的":""}</div>
         <div class="quiz-q">${esc(q.q)}</div>
-        <div class="quiz-opts">${q.a.map((o,i)=>
-          `<button type="button" data-i="${i}">${esc(o.t)}</button>`).join("")}</div>
+        <div class="quiz-opts">${opts}</div>
         ${step>0?`<button class="btn btn-ghost" style="width:100%;margin-top:14px" id="lvBack">← 上一题</button>`:""}
       </div>
     </div>`;
     host.querySelectorAll(".quiz-opts button").forEach(b=>
-      b.addEventListener("click", ()=>{ answers[step] = +b.dataset.i; step++; draw(); }));
+      b.addEventListener("click", ()=>{
+        if(inScale) picks[li] = +b.dataset.i; else answers[step] = +b.dataset.i;
+        step++; draw();
+      }));
     const back = $("#lvBack");
     if(back) back.addEventListener("click", ()=>{ step--; draw(); });
   };
   draw();
+}
+
+/* 短串跟着公开资料走,完整答案存私密集合。
+   原始答案**不能**进 users —— 广场会一次性拉全部用户资料,写进去等于下发到
+   每台客户端。这是 contacts 那条教训的直接复用,文档里也专门写了。 */
+async function publishLove(res){
+  if(!me || !res || !res.ax) return;
+  try{
+    await Promise.all([
+      setDoc(doc(db,"users",me.uid), { love: loveString(res.ax) }, {merge:true}),
+      setDoc(doc(db,"assessments",me.uid,"private","love"), {
+        uid: me.uid, picks: res.picks || [], answers: res.answers || [],
+        att: res.att, fisher: res.fisher, updatedAt: serverTimestamp()
+      })
+    ]);
+    if(myProfile) myProfile.love = loveString(res.ax);
+  }catch(e){ toast("测评结果没能同步:" + fbError(e)); console.error(e); }
 }
 
 /* ---------- 报告界面(REQ-066)----------
@@ -3328,7 +3474,16 @@ function loverSectionHtml(l, own, name){
                                  : "TA 没有公开这份报告"}</div>`);
   const id = loverIdeal(l);
   const who = own ? "你" : esc(name || "TA");
+  const ax = l.ax || null;
   return reportSection(LOVE_ICON, own ? "我适合什么样的恋人" : `${who}想找的恋人`, `
+    ${ax ? `<div class="rd-wrap">${radarSvg(ax)}</div>
+      <div class="rp-grid" style="margin-top:2px">${LOVE_AXES.map(a=>{
+        const v = ax[a.k] || 3;
+        return `<div><span class="rp-k">${esc(a.label)} · ${esc(v >= 4 ? a.right : v <= 2 ? a.left : "居中")}</span>${
+          esc(v >= 4 ? a.hi : v <= 2 ? a.lo : "这一维你比较中间,两头的人都能处")}</div>`;
+      }).join("")}</div>
+      ${own ? `<div class="rp-k" style="margin-top:12px">你适合的恋人</div>
+        <div class="rp-grid">${loveAdvice(ax).map(x=>`<div>· ${esc(x)}</div>`).join("")}</div>` : ""}` : ""}
     <div class="rp-lead"><b>${esc(id.att.want)} · ${esc(id.fisher.n)}</b>
       <span class="rp-why">${esc(id.fisher.d)}</span></div>
     <div class="rp-grid">
