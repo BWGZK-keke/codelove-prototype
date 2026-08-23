@@ -237,6 +237,38 @@
   .sim-t.me .sim-w{color:var(--accent)}
   .sim-x{color:var(--ink)}
 
+  /* 红娘看板。手机上五列拖拽塞不下,改成筹码 + 卡片列 */
+  .mm-sla{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);
+    background:var(--rose-soft);border:1.5px solid var(--outline);border-radius:var(--r-sm);
+    padding:9px 12px;margin-bottom:10px}
+  .mm-sla svg{width:15px;height:15px;flex:0 0 auto}
+  .mm-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .mm-tab{font-family:var(--cute);font-size:12.5px;cursor:pointer;color:var(--ink-soft);
+    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
+    padding:5px 12px}
+  .mm-tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .mm-card{background:var(--surface);border:var(--bw) solid var(--outline);
+    border-radius:var(--r-sm);padding:13px 14px;box-shadow:var(--sh);margin-bottom:10px}
+  .mm-card.done{opacity:.6}
+  .mm-card.late{border-color:var(--rose)}
+  .mm-top{display:flex;align-items:flex-start;gap:11px}
+  .mm-nm{font-family:var(--cute);font-size:15px;color:var(--ink);display:flex;
+    align-items:center;gap:6px;flex-wrap:wrap}
+  .mm-mt{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+  .mm-age{font-size:11.5px;color:var(--ink-faint);flex:0 0 auto}
+  .mm-note{margin-top:9px;font-size:13.5px;line-height:1.85;color:var(--ink);
+    background:var(--surface-2);border-radius:var(--r-xs);padding:9px 11px}
+  .mm-late{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--rose)}
+  .mm-late svg{width:13px;height:13px}
+  .mm-picked{margin-top:8px;font-size:12.5px;color:var(--ink-soft)}
+  .mm-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .mm-btn{display:inline-flex;align-items:center;gap:5px;font-family:var(--cute);font-size:12.5px;
+    cursor:pointer;color:var(--ink);background:var(--surface-2);
+    border:1.5px solid var(--line);border-radius:var(--pill);padding:6px 12px}
+  .mm-btn svg{width:14px;height:14px}
+  .mm-btn.go{background:var(--accent-soft);border-color:var(--outline)}
+  .mm-btn:active{transform:translateY(1px)}
+
   .rep-list{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
     border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);
@@ -5524,6 +5556,190 @@ async function cancelConcierge(){
    不在前端硬编码红娘名单:直接试着列 concierge 集合,
    规则允许就显示工作台,拒绝就保持隐藏。名单只有 firestore.rules 一处,不会两边不同步。 */
 let unsubDesk = null;
+/* ---------- 红娘看板 (REQ-029) ----------
+   文档写的是「五列拖拽」。这是手机优先的界面 —— 拖拽在手机上很难用,五列
+   并排更是塞不下。改成:顶上一排状态筹码(带数量、点一下只看那一摊),
+   下面是卡片列。同一件事,一眼看清每摊各有多少。
+
+   SLA 也做了:提交超过 24 小时还没受理的标红,顶部还会汇总一条。      */
+const ICON_CHAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3.5V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg>';
+const ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3.5V8h4.5M8.5 12.5h7M8.5 16h4"/></svg>';
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>';
+const ICON_SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.9 5.1L19 11l-5.1 1.9L12 18l-1.9-5.1L5 11l5.1-1.9z"/></svg>';
+const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
+
+let deskData = { list: [], profs: {}, mails: {}, known: false };
+let mmStage = -1;              // 看板上选中的那一摊,-1 = 全部
+const SLA_MS = 24*3600*1000;
+
+function deskLate(r){
+  return r.status === "pending" && r.createdAt
+      && typeof r.createdAt.toMillis === "function"
+      && Date.now() - r.createdAt.toMillis() > SLA_MS;
+}
+
+function renderDesk(){
+  const { list, profs, mails, known } = deskData;
+  const host = $("#mmDesk"); if(!host) return;
+
+  if(!list.length){
+    host.innerHTML = `<div class="empty" style="padding:26px">${known
+      ? "还没有人呼叫你"
+      : "认不出你是哪位红娘 —— 请把你的 ID 填进前端 MATCHMAKERS 里对应那一项的 uid"}</div>`;
+    return;
+  }
+
+  const stageOf = r => flowIndex(r.status);
+  const counts = FLOW.map((_,i)=>list.filter(r=>stageOf(r)===i).length);
+  const shown = mmStage < 0 ? list : list.filter(r=>stageOf(r)===mmStage);
+  const late = list.filter(deskLate).length;
+
+  host.innerHTML = `
+    ${late ? `<div class="mm-sla">${ICON_CLOCK}
+      <span>有 <b>${late}</b> 单超过 24 小时没受理</span></div>` : ""}
+    <div class="mm-tabs">
+      <button class="mm-tab${mmStage<0?" on":""}" data-stage="-1">全部 ${list.length}</button>
+      ${FLOW.map((f,i)=>`<button class="mm-tab${mmStage===i?" on":""}" data-stage="${i}">${
+        esc(f.t)} ${counts[i]}</button>`).join("")}
+    </div>
+    ${shown.length ? shown.map(r=>{
+      const u = profs[r.uid] || {name:"未知用户",gender:"",photo:""};
+      const st = stageOf(r), done = r.status === "matched";
+      return `
+      <div class="mm-card${done?" done":""}${deskLate(r)?" late":""}">
+        <div class="mm-top">
+          ${avatarHtml(u)}
+          <div style="flex:1;min-width:0">
+            <div class="mm-nm">${esc(dot([u.name, u.age]))}
+              <span class="badge ${done?"b-green":"b-amber"}">${esc(FLOW[st].t)}</span>${
+              r.round > 1 ? `<span class="badge">第 ${r.round} 轮</span>` : ""}</div>
+            <div class="mm-mt">${esc(dot([u.role, u.city, u.edu])) || "资料没公开多少"}</div>
+          </div>
+          <div class="mm-age">${timeAgo(r.createdAt)}</div>
+        </div>
+        ${r.note ? `<div class="mm-note">${esc(r.note)}</div>` : ""}
+        ${deskLate(r) ? `<div class="mm-late">${ICON_CLOCK}<span>超过 24 小时没受理</span></div>` : ""}
+        ${r.picked ? `<div class="mm-picked">已选 ${esc((profs[r.picked]||{}).name||"某位")}</div>` : ""}
+        <div class="mm-acts">
+          <button class="mm-btn" data-mmfile="${esc(r.uid)}">${ICON_FILE}档案</button>
+          <button class="mm-btn" data-mmchat="${esc(r.uid)}" data-nm="${esc(u.name||"申请人")}"
+            data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">${ICON_CHAT}对话</button>
+          ${r.status === "pending" ? `<button class="mm-btn go" data-acc="${esc(r.id)}">${ICON_CHECK}受理</button>` : ""}
+          <button class="mm-btn go" data-rec="${esc(r.id)}">${ICON_SPARK}${
+            (r.status==="recommended"||r.status==="retry") ? "换一批" : "推荐"}</button>
+        </div>
+      </div>`;
+    }).join("") : `<div class="empty" style="padding:22px">这一摊现在是空的</div>`}`;
+
+  host.querySelectorAll("[data-stage]").forEach(b=>
+    b.addEventListener("click", ()=>{ mmStage = +b.dataset.stage; renderDesk(); }));
+  host.querySelectorAll("[data-mmfile]").forEach(b=>
+    b.addEventListener("click", ()=>openClientFile(b.dataset.mmfile)));
+  host.querySelectorAll("[data-mmchat]").forEach(b=>
+        b.addEventListener("click", ()=>openChat(b.dataset.mmchat, b.dataset.nm,
+          b.dataset.ph, b.dataset.gd, "✦ 红娘服务")));
+  host.querySelectorAll("[data-mail]").forEach(b=>
+        b.addEventListener("click", ()=>{
+          if(b.dataset.shown) return;
+          b.dataset.shown = "1";
+          b.innerHTML = `📧 ${esc(b.dataset.mail)}`;
+          navigator.clipboard?.writeText(b.dataset.mail).then(()=>toast("邮箱已复制")).catch(()=>{});
+        }));
+  host.querySelectorAll("[data-acc]").forEach(b=>
+        b.addEventListener("click", async ()=>{
+          try{ await setDoc(doc(db,"concierge",b.dataset.acc), {status:"accepted"}, {merge:true});
+               toast("已受理,接下来给 TA 推荐人选"); }
+          catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
+        }));
+  host.querySelectorAll("[data-rec]").forEach(b=>
+        b.addEventListener("click", ()=>{
+          const req = list.find(x=>x.id===b.dataset.rec);
+          if(req) openRecPicker(req);
+        }));
+}
+
+/* 客户档案:一页看全 —— 资料、测评、验证徽章、私人备注。
+   有几样看不到,如实标出来而不是留白:测评原始答案只有本人能读,
+   恋人画像要 TA 设成公开或和你匹配了才读得到。红娘不是管理员。 */
+async function openClientFile(uid){
+  const { profs, mails, list } = deskData;
+  const u = profs[uid] || {name:"未知用户"};
+  const r = (list||[]).find(x=>x.uid === uid) || {};
+  const mail = mails[uid];
+  const host = $("#modalHost");
+  host.innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="twin-top">${avatarHtml(u)}
+        <div style="flex:1;min-width:0">
+          <div class="twin-name">${esc(u.name||"未知用户")}</div>
+          <div class="mr-meta">${esc(dot([u.age && u.age+"岁", u.role, u.city, u.edu]))}</div>
+        </div></div>
+      <div class="empty" style="padding:20px"><div class="spin"></div>读档案…</div>
+    </div>
+  </div>`;
+
+  const [badges, lover, note] = await Promise.all([
+    fetchVerified(uid),
+    fetchLover(uid),
+    getDoc(doc(db,"mmNotes",`${me.uid}_${uid}`)).then(d=>d.exists()?d.data().text:"").catch(()=>"")
+  ]);
+  logMmView(uid);
+  const twin = parseTwin(u.twin);
+
+  host.querySelector(".modal").innerHTML = `
+    <div class="twin-top">${avatarHtml(u)}
+      <div style="flex:1;min-width:0">
+        <div class="twin-name">${esc(u.name||"未知用户")}</div>
+        <div class="mr-meta">${esc(dot([u.age && u.age+"岁", u.role, u.industry, u.level,
+                                        u.org, u.city, u.edu, u.school]))}</div>
+        ${verifyBadgesHtml(badges)}
+      </div></div>
+
+    ${reportSection(ICON_FILE, "牵线进度", `
+      <div class="rp-lead"><b>${esc(FLOW[flowIndex(r.status||"pending")].t)}</b>${
+        r.round > 1 ? ` · 第 ${r.round} 轮` : ""}
+        <span class="rp-why">${esc(ConciergeWaiting(r.status))}</span></div>
+      ${r.note ? `<div class="rp-grid"><div><span class="rp-k">TA 的备注</span>${esc(r.note)}</div></div>` : ""}
+      ${mail ? `<div class="rp-grid"><div><span class="rp-k">邮箱</span>${esc(mail)}</div></div>` : ""}`)}
+
+    ${twinSectionHtml(twin, false)}
+    ${lover ? loverSectionHtml(lover, false, u.name)
+            : reportSection(LOVE_ICON, "恋人画像",
+                `<div class="rp-empty">读不到 —— TA 没做,或者设成了不公开。
+                  红娘不是管理员,看不到的就是看不到。</div>`)}
+
+    ${reportSection(ICON_CHAT, "我的备注", `
+      <div class="rp-why" style="margin-bottom:8px">只有你看得到。客户看不到,别的红娘也看不到 ——
+        写实话,写场面话就没用了。</div>
+      <div class="field"><textarea id="mmNoteText" maxlength="1000"
+        placeholder="例如:聊起来有点急,下次推稳一点的">${esc(note)}</textarea></div>
+      <button class="btn btn-ghost btn-pill" style="width:100%" id="mmNoteSave">保存备注</button>`)}
+
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-coral" style="width:100%"
+        onclick="this.closest('.modal-mask').remove()">知道了</button>
+    </div>`;
+
+  $("#mmNoteSave").addEventListener("click", async ()=>{
+    const btn = $("#mmNoteSave"); btn.disabled = true; btn.textContent = "保存中…";
+    try{
+      await setDoc(doc(db,"mmNotes",`${me.uid}_${uid}`), {
+        matchmakerUid: me.uid, clientUid: uid,
+        text: $("#mmNoteText").value.trim(), updatedAt: serverTimestamp() });
+      toast("备注已保存");
+    }catch(e){ toast("保存失败:" + fbError(e)); console.error(e); }
+    btn.disabled = false; btn.textContent = "保存备注";
+  });
+}
+// 每一步「在等什么」——任何等待态都要说明在等什么,这不是可选项
+function ConciergeWaiting(st){
+  return { pending:"你还没受理。申请人正在等第一个回应。",
+           accepted:"你已受理,还没推人。",
+           recommended:"已推给 TA,等 TA 挑。",
+           matched:"已经牵上了。" }[st] || "你还没受理。申请人正在等第一个回应。";
+}
+
 function subscribeMatchmakerDesk(){
   if(unsubDesk) return;
   unsubDesk = onSnapshot(
@@ -5547,60 +5763,10 @@ function subscribeMatchmakerDesk(){
         mails[r.uid] = await fetchContact(r.uid);
         if(r.picked) profs[r.picked] = await fetchProfile(r.picked);
       }));
-      $("#mmDesk").innerHTML = list.length ? list.map(r=>{
-        const u = profs[r.uid] || {name:"未知用户",gender:"",photo:""};
-        const done = r.status==="matched";
-        return `
-        <div class="note" style="${done?"opacity:.6":""}">
-          <div class="note-top">
-            ${avatarHtml(u)}
-            <div class="note-who">
-              <div class="note-name">${esc(u.name||"未知用户")}
-                <span class="badge ${done?"b-green":"b-amber"}">${esc(FLOW[flowIndex(r.status)].t)}</span>${
-                  r.round?`<span class="badge">第 ${r.round} 轮</span>`:""}</div>
-              <div class="note-meta">${esc(u.role||"")}${u.city?" · "+esc(u.city):""}${u.edu?" · "+esc(u.edu):""}</div>
-            </div>
-            <div class="note-time">${timeAgo(r.createdAt)}</div>
-          </div>
-          <div class="note-body">${r.note?esc(r.note):"<i style='color:var(--ink-faint)'>(没有填写备注)</i>"}</div>
-          ${mails[r.uid]
-            ? `<div class="contact-box reveal" data-mail="${esc(mails[r.uid])}"
-                  title="点一下显示完整邮箱">📧 ${esc(maskEmail(mails[r.uid]))}<span class="reveal-hint">显示</span></div>`
-            : `<div class="contact-box">📧 读不到邮箱</div>`}
-          <div class="note-foot">
-            <button class="reply-btn" data-mmchat="${esc(r.uid)}" data-nm="${esc(u.name||"申请人")}"
-              data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 直接对话</button>
-            ${r.status==="pending"?`<button class="reply-btn" data-acc="${esc(r.id)}">✓ 受理</button>`:""}
-            <button class="reply-btn" data-rec="${esc(r.id)}">${
-              (r.status==="recommended"||r.status==="retry") ? "🔄 换一批推荐" : "✦ 推荐候选人"}</button>
-            ${r.picked?`<span class="badge b-green">已选 ${esc((profs[r.picked]||{}).name||"某位")}</span>`:""}
-          </div>
-        </div>`;
-      }).join("") : `<div class="empty" style="padding:26px">${known
-          ? "还没有人呼叫你"
-          : "认不出你是哪位红娘 —— 请把你的 ID 填进前端 MATCHMAKERS 里对应那一项的 uid"}</div>`;
+      // 数据存下来,渲染单独一个函数 —— 切换筛选不该重新查一次库
+      deskData = { list, profs, mails, known };
+      renderDesk();
 
-      $("#mmDesk").querySelectorAll("[data-mmchat]").forEach(b=>
-        b.addEventListener("click", ()=>openChat(b.dataset.mmchat, b.dataset.nm,
-          b.dataset.ph, b.dataset.gd, "✦ 红娘服务")));
-      $("#mmDesk").querySelectorAll("[data-mail]").forEach(b=>
-        b.addEventListener("click", ()=>{
-          if(b.dataset.shown) return;
-          b.dataset.shown = "1";
-          b.innerHTML = `📧 ${esc(b.dataset.mail)}`;
-          navigator.clipboard?.writeText(b.dataset.mail).then(()=>toast("邮箱已复制")).catch(()=>{});
-        }));
-      $("#mmDesk").querySelectorAll("[data-acc]").forEach(b=>
-        b.addEventListener("click", async ()=>{
-          try{ await setDoc(doc(db,"concierge",b.dataset.acc), {status:"accepted"}, {merge:true});
-               toast("已受理,接下来给 TA 推荐人选"); }
-          catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
-        }));
-      $("#mmDesk").querySelectorAll("[data-rec]").forEach(b=>
-        b.addEventListener("click", ()=>{
-          const req = list.find(x=>x.id===b.dataset.rec);
-          if(req) openRecPicker(req);
-        }));
     },
     err=>{ $("#mmDeskWrap").classList.add("hidden"); }   // 不是红娘,静默隐藏
   );
