@@ -186,6 +186,7 @@
   .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
 
   /* 可见性面板。默认折起来 —— 大多数人不会改,不该让它占掉半屏 */
+  .vis-inv{margin-top:16px}
   .vis-box{margin-top:14px;border:1.5px solid var(--line);border-radius:var(--r-sm);
     padding:12px 14px;background:var(--surface-2)}
   .vis-box summary{font-family:var(--cute);font-size:13.5px;color:var(--ink);
@@ -1609,6 +1610,12 @@ function renderProfileForm(host, data, isNew){
       <div class="hint">最多 8 个</div></div>
     <div class="field"><label>自我介绍</label>
       <textarea id="f-bio" maxlength="140" placeholder="一句话让别人认识你(140字内)">${esc(d.bio||"")}</textarea></div>
+    <label class="chk vis-inv">
+      <input type="checkbox" id="f-invisible" ${d.invisible?"checked":""}>
+      <span>隐身:不出现在广场</span></label>
+    <div class="hint" style="margin:-2px 0 10px">
+      开了之后你的资料<b>整份</b>不写进公开库,广场上拉不到你 —— 不是拉到了不显示。
+      已经互相心动的人仍然看得到你(资料走「匹配后」那一档),红娘推荐也不受影响。</div>
     <details class="vis-box"${(d.vis && Object.values(d.vis).some(x=>x!=="pub")) ? " open" : ""}>
       <summary>谁能看到我的资料 <span class="vis-sum">${
         (()=>{ const n = VIS_FIELDS.filter(([k])=>visOf(d.vis,k)!=="pub").length;
@@ -1694,23 +1701,31 @@ async function saveProfile(host,isNew){
   };
   // 三个不公开的档各写各的文档 —— 读权限是按文档判的,同一份文档做不到
   // 「这个字段给匹配的人看、那个字段只给红娘看」。
+  // 隐身时,原本设成「公开」的字段落到「匹配后」那一档 —— 否则一开隐身,
+  // 已经匹配的人那边也跟着一片空白,那不是隐身,是消失。
+  const tierOf = k => (invisible && vis[k] === "pub") ? "matched" : vis[k];
   const bucket = t => {
     const o = { uid: me.uid, updatedAt: serverTimestamp() };
-    for(const [k] of VIS_FIELDS) if(vis[k] === t && all[k] !== "" ) o[k] = all[k];
+    for(const [k] of VIS_FIELDS) if(tierOf(k) === t && all[k] !== "" ) o[k] = all[k];
     return o;
   };
 
   // 公开资料:只放选了「公开」的。非公开的要显式 deleteField ——
   // merge 写入不会因为本地没这个字段就删掉它,界面看不见、DevTools 看得见,
   // 那不叫隐藏。
+  // 隐身不是「前端不画」。开了之后公开文档里除了名字头像什么都不剩 ——
+  // 广场是一次性拉全量的,靠前端过滤的话资料照样下发到了每台客户端,
+  // 拉一次原始数据就穿帮。真隐身就得让那份文档里没东西可拉。
+  const invisible = host.querySelector("#f-invisible").checked;
   const data = {
     name, gender: v("f-gender"),
-    photo: v("f-photo"), twin: twinString(),
-    hidden: VIS_FIELDS.filter(([k])=>vis[k] !== "pub").map(([k])=>k),
+    photo: v("f-photo"), twin: invisible ? "" : twinString(),
+    invisible, vis,
+    hidden: VIS_FIELDS.filter(([k])=>invisible || vis[k] !== "pub").map(([k])=>k),
     uid: me.uid, updatedAt: serverTimestamp()
   };
   for(const [k] of VIS_FIELDS){
-    if(vis[k] === "pub" && all[k] !== "") data[k] = all[k];
+    if(!invisible && vis[k] === "pub" && all[k] !== "") data[k] = all[k];
     else if(myProfile && myProfile[k] !== undefined) data[k] = deleteField();
   }
   try{
@@ -1785,7 +1800,8 @@ function startListeners(){
       allUsers = []; myCard = null;
       snap.forEach(d=>{
         if(d.id===me.uid) myCard = d.data();
-        else if(!myBlocks.has(d.id)) allUsers.push(d.data());   // 拉黑的人不出现在广场
+        else if(!myBlocks.has(d.id) && !d.data().invisible)
+          allUsers.push(d.data());   // 拉黑的人和隐身的人都不出现在广场
       });
       sortFeed();
       renderFeed();
