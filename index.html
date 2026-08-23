@@ -1789,6 +1789,7 @@ function startListeners(){
       });
       sortFeed();
       renderFeed();
+      prefetchLovers();
     },
     err=>{
       $("#feedList").innerHTML = `<div class="empty"><div class="big">⚠️</div>${esc(fbError(err))}</div>`;
@@ -1962,39 +1963,157 @@ function bioOverlap(a, b){
 
 // 每个维度单独算,总分只是把它们加起来 ——
 // 报告直接读这份数据,所以「报告里写的」和「卡片上显示的」不可能对不上。
-function ruleParts(u){
-  if(!myProfile) return [];
-  const mine = new Set((myProfile.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
-  const th   = new Set((u.stack||[]).map(s=>s.toLowerCase().trim()).filter(Boolean));
-  const uni  = new Set([...mine, ...th]).size;
-  const both = [...th].filter(t=>mine.has(t));
-  const ad   = Math.abs((+u.age||0) - (+myProfile.age||0));
-  const bo   = bioOverlap(myProfile.bio, u.bio);
-  const sameCity = !!(u.city && u.city === myProfile.city);
-  const sameRole = !!(u.role && myProfile.role && u.role === myProfile.role);
-  const sameInd  = !!(u.industry && myProfile.industry && u.industry === myProfile.industry);
+/* ---------- 契合度的权重 (REQ-025) ----------
+   写成配置对象是需求文档明确要求的:调参不用翻代码。
 
-  return [
-    { label:"共同标签", max:30, got: 30 * (uni ? both.length/uni : 0),
-      note: both.length ? both.join(" · ") : "没有重合的标签" },
-    { label:"城市",     max:18, got: sameCity ? 18 : (u.city ? 4 : 0),
-      note: sameCity ? `都在${u.city}` : (u.city ? `你在${myProfile.city||"—"},TA 在${u.city}` : "对方没填城市") },
-    { label:"年龄",     max:14, got: 14 * Math.max(0, 1 - ad/12),
-      note: u.age ? (ad===0 ? "同岁" : `相差 ${ad} 岁`) : "对方没填年龄" },
-    { label:"自我介绍", max:14, got: 14 * bo,
-      note: bo > .18 ? "描述里有不少共同的词" : (bo > 0 ? "描述里有一点点重合" : "两段介绍几乎没有交集") },
-    { label:"职业",     max:12, got: (sameInd || sameRole) ? 12 : (u.role && myProfile.role ? 6 : 0),
+   和文档里那组数字(标签30 / MBTI25 / 恋爱倾向30 / 地域年龄15)有出入,
+   原因写在这里:那组数字把**学历**整个丢掉了,而你之前明确要求过学历要
+   影响分数。所以保留了学历、职业、自我介绍三个补充维,把四个主维按比例
+   压了一点 —— 排序仍然是「标签 ≈ 恋爱倾向 > MBTI > 地域年龄」。
+
+   另一件更要紧的事:**不是每一维都算得出来**。对方没做 MBTI、恋人报告设成
+   仅自己可见、资料里没填城市 —— 这些都很常见。缺的维直接给 0 分是错的,
+   那等于因为「我们看不到」去惩罚用户,而且所有人的分数会一起塌下去。
+   所以算完之后按**实际可用的维**重新归一到 100。                      */
+const MATCH_W = {
+  tags:  26,   // 共同标签
+  lover: 24,   // 恋爱倾向匹配
+  mbti:  20,   // MBTI 互补度
+  geo:   12,   // 城市 + 年龄
+  edu:    8,   // 学历
+  job:    6,   // 行业 / 职位
+  bio:    4    // 自我介绍用词
+};
+
+/* MBTI 互补度。四个轴各有各的道理,不是「越像越好」也不是「越反越好」:
+     S/N  最影响日常沟通 —— 一个说具体的、一个说抽象的,聊不到一起去
+     J/P  影响一起生活的摩擦(要不要提前订票)
+     E/I  互补往往更省力:一个开话题、一个接得住
+     T/F  差异不大,略偏同类                                            */
+const MBTI_AXES = [
+  { i:1, w:.40, same:1.0, diff:.40, sameNote:"看世界的方式接近", diffNote:"一个具体一个抽象,要多解释几句" },
+  { i:3, w:.25, same:1.0, diff:.60, sameNote:"生活节奏对得上",   diffNote:"一个爱计划一个爱随性" },
+  { i:0, w:.20, same:.75, diff:1.0, sameNote:"都偏同一头,得有人先开口", diffNote:"一个开话题一个接得住" },
+  { i:2, w:.15, same:1.0, diff:.90, sameNote:"决定事情的方式一致", diffNote:"一个讲道理一个讲感受" }
+];
+function mbtiFit(a, b){
+  if(!a || !b) return null;
+  let score = 0; const notes = [];
+  for(const ax of MBTI_AXES){
+    const same = a.type[ax.i] === b.type[ax.i];
+    score += ax.w * (same ? ax.same : ax.diff);
+    if(ax.w >= .25) notes.push(same ? ax.sameNote : ax.diffNote);
+  }
+  return { score, note: `${a.type} × ${b.type} —— ${notes.join(",")}` };
+}
+
+/* 恋爱倾向匹配。拿「我想找的」去比「对方实际是的」,不是比两个人像不像 ——
+   依恋理论的结论恰恰是焦虑型和回避型很像地互相吸引,然后互相消耗。        */
+function loverFit(mine, theirs){
+  if(!mine || !theirs) return null;
+  const want = loverIdeal(mine);
+  let score = 0; const notes = [];
+  // 依恋(0.45):对方是不是我该找的那型
+  const attOk = theirs.att === "secure" || want.att.want.includes(ATT[theirs.att]);
+  score += .45 * (attOk ? 1 : (theirs.att === mine.att ? .35 : .2));
+  notes.push(attOk ? `TA 是${ATT[theirs.att]},正是你该找的` : `TA 是${ATT[theirs.att]},和你想找的不太一样`);
+  // 气质(0.35):Fisher 自己的配对结论
+  const fitFisher = FISH_MATCH[mine.fisher] === theirs.fisher;
+  score += .35 * (fitFisher ? 1 : .45);
+  if(fitFisher) notes.push(`气质上是${FISH[theirs.fisher].n},和你配`);
+  // 爱的语言(0.20):我需要的,TA 是不是也看重
+  const overlap = (mine.langs||[]).filter(k => (theirs.langs||[]).includes(k));
+  score += .20 * (mine.langs && mine.langs.length ? overlap.length / mine.langs.length : .5);
+  if(overlap.length) notes.push(`都看重${overlap.map(k=>LANG[k]).join("、")}`);
+  return { score, note: notes.join(";") };
+}
+
+/* 每一维返回 {label, w, got01, note},got01 是 0…1 的达成度。
+   返回 null 表示这一维**算不出来**(缺数据),会被排除在归一之外。      */
+function ruleDims(u){
+  if(!myProfile) return [];
+  const norm = a => new Set((a||[]).map(x=>String(x).toLowerCase().trim()).filter(Boolean));
+  const mine = norm(myProfile.stack), th = norm(u.stack);
+  const uni = new Set([...mine, ...th]).size;
+  const both = [...th].filter(t=>mine.has(t));
+
+  const dims = [];
+  dims.push({ key:"tags", label:"共同标签", got01: uni ? both.length/uni : 0,
+    note: both.length ? both.join(" · ") : "没有重合的标签" });
+
+  const lv = loverFit(loverData(), loverCache.get(u.uid));
+  if(lv) dims.push({ key:"lover", label:"恋爱倾向", got01: lv.score, note: lv.note });
+
+  const mb = mbtiFit(parseTwin(twinString()), parseTwin(u.twin));
+  if(mb) dims.push({ key:"mbti", label:"MBTI 互补", got01: mb.score, note: mb.note });
+
+  // 城市和年龄合成一维:文档把它们算一档,而且单独看年龄意义不大
+  if(u.city || u.age){
+    const sameCity = !!(u.city && u.city === myProfile.city);
+    const ad = (u.age && myProfile.age) ? Math.abs(u.age - myProfile.age) : null;
+    const cityPart = u.city ? (sameCity ? 1 : .22) : .5;
+    const agePart  = ad === null ? .5 : Math.max(0, 1 - ad/12);
+    dims.push({ key:"geo", label:"地域与年龄", got01: cityPart*.6 + agePart*.4,
+      note: [sameCity ? `都在${u.city}` : (u.city ? `你在${myProfile.city||"—"},TA 在${u.city}` : ""),
+             ad === null ? "" : (ad === 0 ? "同岁" : `相差 ${ad} 岁`)].filter(Boolean).join(" · ") });
+  }
+
+  if(myProfile.edu && u.edu)
+    dims.push({ key:"edu", label:"学历", got01: eduScore(myProfile.edu, u.edu)/12,
+      note: `${myProfile.edu} × ${u.edu}` });
+
+  if(u.role || u.industry){
+    const sameInd  = !!(u.industry && myProfile.industry && u.industry === myProfile.industry);
+    const sameRole = !!(u.role && myProfile.role && u.role === myProfile.role);
+    dims.push({ key:"job", label:"职业", got01: (sameInd||sameRole) ? 1 : .5,
       note: sameInd ? `同在${u.industry}` : sameRole ? "同一个岗位方向"
-          : (u.role ? `${myProfile.role||"—"} × ${u.role}` : "对方没填职业") },
-    { label:"学历",     max:12, got: eduScore(myProfile.edu, u.edu),
-      note: (myProfile.edu && u.edu) ? `${myProfile.edu} × ${u.edu}` : "有一方没填学历" }
-  ];
+          : `${myProfile.role||"—"} × ${u.role||u.industry}` });
+  }
+
+  if(myProfile.bio && u.bio){
+    const bo = bioOverlap(myProfile.bio, u.bio);
+    dims.push({ key:"bio", label:"自我介绍", got01: bo,
+      note: bo > .18 ? "描述里有不少共同的词" : (bo > 0 ? "有一点点重合" : "两段介绍几乎没有交集") });
+  }
+  return dims;
+}
+
+/* 匹配报告读的就是这个 —— 分数和解释必须出自同一次计算,
+   分开写两套迟早对不上,那时候用户看到的解释就是假的。 */
+function ruleParts(u){
+  const dims = ruleDims(u);
+  if(!dims.length) return [];
+  // 只按**算得出来的**维归一。缺的维不给 0 分 —— 那是因为看不到就惩罚用户。
+  const total = dims.reduce((a,d)=>a + MATCH_W[d.key], 0) || 1;
+  return dims.map(d=>{
+    const max = 100 * MATCH_W[d.key] / total;
+    return { label:d.label, max, got: max * Math.max(0, Math.min(1, d.got01)), note:d.note };
+  });
 }
 
 function ruleScore(u){
   const parts = ruleParts(u);
   if(!parts.length) return 50;
   return Math.max(25, Math.min(97, Math.round(parts.reduce((s,x)=>s+x.got, 0))));
+}
+
+/* 恋爱倾向这一维要读对方的 lover 文档。规则只放行「公开」和「互相心动可见」
+   两档,所以大多数人会读不到 —— 读不到就是这一维算不出来,权重会重新归一,
+   不是给 0 分。
+
+   后台悄悄拉,拉到了再重画一次。不阻塞首屏:契合度先按能算的维显示,
+   恋爱倾向到了会自己变。一次最多 30 个,广场再大也不至于打爆读配额。 */
+let loverPrefetching = false;
+async function prefetchLovers(){
+  if(loverPrefetching || !loverData()) return;   // 自己没做测评,这一维本来就算不出来
+  const todo = allUsers.filter(u => !loverCache.has(u.uid)).slice(0, 30);
+  if(!todo.length) return;
+  loverPrefetching = true;
+  try{
+    await Promise.all(todo.map(u => fetchLover(u.uid)));
+    // 拿到新数据,分数会变,重画一次
+    sortFeed(); renderFeed();
+  }finally{ loverPrefetching = false; }
 }
 
 /* ---------- AI 批量打分 ---------- */
@@ -2009,6 +2128,7 @@ function hash32(s){
 // 我的资料或候选人集合变了,缓存就该失效
 function matchFingerprint(){
   const meSig = [myProfile.city, myProfile.age, myProfile.role, myProfile.edu, myProfile.industry,
+                 twinString(), JSON.stringify(loverData()||""),
                  (myProfile.stack||[]).join(","), myProfile.bio].join("|");
   const cand = allUsers.map(u=>u.uid).sort().join(",");
   return hash32(meSig + "#" + cand);
