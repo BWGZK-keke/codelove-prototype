@@ -206,12 +206,24 @@
     margin-bottom:3px}
   .del-i span{flex:0 0 auto;color:var(--ink-faint)}
 
+  /* 结论放最前面:先说「你是什么」再说「适合什么」,后面才是怎么得出来的。
+     原来这两句埋在雷达图和四维说明后面,得往下翻才看得到结论。 */
+  .lv-verdict{background:var(--surface-2);border:1.5px solid var(--outline);
+    border-radius:var(--r-sm);padding:13px 15px;margin-bottom:12px}
+  .lv-v-row{display:flex;align-items:baseline;gap:10px;font-size:15px;color:var(--ink);
+    line-height:1.9}
+  .lv-v-row b{font-family:var(--cute);font-weight:400}
+  .lv-v-k{flex:0 0 34px;font-size:12px;color:var(--ink-faint)}
+  .lv-verdict .rp-why{margin-top:4px}
+
   .rd-wrap{display:flex;justify-content:center;margin:4px 0 2px}
   .rd{width:190px;height:190px;overflow:visible}
   .rd-g{fill:none;stroke:var(--line);stroke-width:1.2}
   .rd-f{fill:var(--accent);fill-opacity:.28;stroke:var(--accent);stroke-width:2;
     stroke-linejoin:round}
   .rd-l{font-family:var(--cute);font-size:11px;fill:var(--ink-soft)}
+
+  .vf-badge{background:var(--mint-soft)!important;font-weight:600}
 
   .sim-m{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:12.5px;
     color:var(--ink-soft)}
@@ -1051,6 +1063,9 @@
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">谁看过我</div></div>
       <div class="card" id="mmSeen"></div>
 
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">验资</div></div>
+      <div class="card" id="myVerify"></div>
+
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">账号</div></div>
       <div class="card">
         <button class="btn btn-ghost btn-pill" style="width:100%" id="btnDelAccount">注销账号</button>
@@ -1787,6 +1802,7 @@ async function enterApp(){
   syncAutoWatchers();
   renderTwinCard();
   renderMmSeen();
+  renderMyVerify();
   $("#uidText").textContent = me.uid;
   startListeners();
   subscribeBoard();
@@ -2362,6 +2378,130 @@ function openAvatarPicker(host){
   });
 }
 
+/* ================= 验资徽章 (REQ-027) =================
+   只存结论,不存材料。徽章要所有人看得见,否则起不到作用;但用户自己写不了,
+   否则等于没有徽章。取舍的代价是「隐藏」只能做成「删掉」—— 删了就没了,
+   想要回来得重审。这一点写在界面上,不含糊。
+
+   资产那一档只显示区间(「500万+」),不显示数字 —— 文档的原话是
+   「展示精确数字会把平台变成杀猪盘的猎场」。
+
+   徽章按需拉,不在广场上批量拉:广场一屏最多 80 个人,每人一次子集合查询
+   就是 80 次读,而绝大多数人根本不会点进去看。真要在卡片上显示,得有个
+   服务端写的公开字段(用户改不了的那种),那需要 Worker 拿服务账号写 —— 见
+   REQ-010。                                                            */
+const VERIFY_TYPES = {
+  edu:   { label:"学历认证", hint:"学位真实性" },
+  work:  { label:"职业认证", hint:"在职公司与职级" },
+  asset: { label:"资产认证", hint:"收入或资产区间,只显示区间不显示数字" }
+};
+const verifyCache = new Map();
+
+async function fetchVerified(uid){
+  if(verifyCache.has(uid)) return verifyCache.get(uid);
+  try{
+    const snap = await getDocs(collection(db,"verifications",uid,"types"));
+    const out = [];
+    snap.forEach(d=>out.push(d.data()));
+    verifyCache.set(uid, out);
+    return out;
+  }catch(e){ verifyCache.set(uid, []); return []; }
+}
+
+function verifyBadgesHtml(list){
+  if(!list || !list.length) return "";
+  return `<div class="twin-tags" style="margin-top:8px">${list.map(v=>{
+    const t = VERIFY_TYPES[v.type];
+    return `<span class="vf-badge">${esc(t ? t.label : v.type)}${
+      v.level ? " · " + esc(v.level) : ""}</span>`;
+  }).join("")}</div>`;
+}
+
+// 红娘给别人发徽章。规则那边卡死了:不能给自己发、不能给自己指名的客户发、
+// 资产那一档要两位红娘各自投过票。
+function openVerifySheet(u){
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="qz-head"><div class="qz-title">给 ${esc(u.name||"TA")} 发验资徽章</div>
+        <div class="qz-sub">只填结论,不要在这里记任何证明材料的内容。
+          材料看完就该删掉。</div></div>
+      <div class="field"><label>类型</label>
+        <div class="ai-seg vf-seg">${Object.entries(VERIFY_TYPES).map(([k,v],i)=>
+          `<button type="button" data-v="${k}"${i===0?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div>
+        <div class="hint vf-hint">${esc(VERIFY_TYPES.edu.hint)}</div></div>
+      <div class="field"><label>结论</label>
+        <input id="vfLevel" maxlength="20" placeholder="如:博士 / 高级工程师 / 500万+">
+        <div class="hint">资产只写区间。写具体金额等于把人挂出去当靶子。</div></div>
+      <div class="hint" style="line-height:1.9">
+        <b>资产认证需要两位红娘各自审一遍</b>,你这一票投完之后,
+        要另一位也投了才会真正生成徽章 —— 单人审核挡不住收买。</div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">算了</button>
+        <button class="btn btn-coral" id="vfGo">提交</button>
+      </div>
+    </div>
+  </div>`;
+  const host = $("#modalHost");
+  host.querySelectorAll(".vf-seg button").forEach(b=>b.addEventListener("click", ()=>{
+    host.querySelectorAll(".vf-seg button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    host.querySelector(".vf-hint").textContent = VERIFY_TYPES[b.dataset.v].hint;
+  }));
+  $("#vfGo").addEventListener("click", async ()=>{
+    const type = host.querySelector(".vf-seg .on").dataset.v;
+    const level = $("#vfLevel").value.trim();
+    if(!level){ toast("填一下结论"); return; }
+    const btn = $("#vfGo"); btn.disabled = true; btn.textContent = "提交中…";
+    const mmId = (MATCHMAKERS.find(m=>m.uid === me.uid)||{}).id;
+    try{
+      // 先投票 —— 资产那一档规则会检查两票都在
+      await setDoc(doc(db,"verifyVotes",`${u.uid}_${type}_${mmId}`), {
+        targetUid:u.uid, type, mmId, level, pass:true, at:serverTimestamp() });
+      await setDoc(doc(db,"verifications",u.uid,"types",type), {
+        uid:u.uid, type, level,
+        verifiedAt: serverTimestamp(),
+        // 认证有效期 12 个月 —— 职业和资产都会变
+        expiresAt: new Date(Date.now() + 365*24*3600*1000)
+      });
+      verifyCache.delete(u.uid);
+      host.innerHTML = ""; toast("徽章已发放");
+    }catch(e){
+      // 资产那一档第一票写完、徽章写不进去是**预期行为**,不是错误
+      if(type === "asset"){
+        host.innerHTML = ""; toast("你这一票记下了。等另一位红娘也审过,徽章才会生成。");
+      }else{
+        toast("发放失败:" + fbError(e)); console.error(e);
+        btn.disabled = false; btn.textContent = "提交";
+      }
+    }
+  });
+}
+
+// 「我的」页:我有哪些徽章,以及怎么撤下来
+async function renderMyVerify(){
+  const host = $("#myVerify"); if(!host || !me) return;
+  const list = await fetchVerified(me.uid);
+  host.innerHTML = list.length ? `
+    ${verifyBadgesHtml(list)}
+    <div class="hint" style="margin-top:10px;line-height:1.9">
+      徽章是别人看得见的,你自己改不了 —— 能自己写的徽章等于没有徽章。
+      <b>不想展示只能删掉</b>,删了就没了,想要回来得重新审一次。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${list.map(v=>
+      `<button class="btn btn-ghost btn-pill" data-vdel="${esc(v.type)}"
+        style="flex:1">撤下${esc((VERIFY_TYPES[v.type]||{}).label || v.type)}</button>`).join("")}</div>`
+  : `<div class="hint" style="line-height:1.9">还没有验资徽章。
+      验资是加分项,不是门槛 —— 不验也能正常用。
+      想验的话在「红娘」那一栏呼叫红娘,由人工审核。</div>`;
+  host.querySelectorAll("[data-vdel]").forEach(b=>b.addEventListener("click", async ()=>{
+    if(!confirm("撤下之后徽章就没了,想要回来得重新审一次。继续?")) return;
+    try{
+      await delDoc(doc(db,"verifications",me.uid,"types",b.dataset.vdel));
+      verifyCache.delete(me.uid); renderMyVerify(); toast("已撤下");
+    }catch(e){ toast("撤不下来:" + fbError(e)); }
+  }));
+}
+
 /* ================= 红娘查看留痕 (REQ-015 / REQ-023) =================
    需求文档把「红娘能看到全站资料」列为全系统最大的隐私风险点。留痕是唯一的
    约束手段,而且**用户自己要看得到** —— 只有红娘和平台看得到的日志约束不了谁。
@@ -2818,17 +2958,22 @@ async function publishTwin(){
 // 点头像看对方的分身
 async function openTwinPortrait(u){
   logMmView(u.uid);   // 红娘看谁的资料都留痕;不是红娘的话这里直接返回
+  const badges = await fetchVerified(u.uid);
   openReport({
+    badges,
     user: u, twin: parseTwin(u.twin), lover: await fetchLover(u.uid), own: false,
     title: `${u.name || "TA"} 的测评报告`,
     sub: [u.age && u.age+"岁", u.role, u.city].filter(Boolean).join(" · "),
     actions: `<button class="btn btn-ghost" id="rpReport">举报</button>
+              ${iAmMatchmaker() ? `<button class="btn btn-ghost" id="rpVerify">发徽章</button>` : ""}
               <button class="btn btn-coral" style="flex:1" id="rpSim">让分身先聊一段</button>`
   });
   const rb = $("#rpReport");
   if(rb) rb.addEventListener("click", ()=> openReportSheet({ target:u.uid, name:u.name }));
   const sb = $("#rpSim");
   if(sb) sb.addEventListener("click", ()=> openSimulate(u));
+  const vb = $("#rpVerify");
+  if(vb) vb.addEventListener("click", ()=> openVerifySheet(u));
 }
 
 // 自己的报告:两份测评在同一页,可以就地重测、就地改可见性
@@ -3476,6 +3621,13 @@ function loverSectionHtml(l, own, name){
   const who = own ? "你" : esc(name || "TA");
   const ax = l.ax || null;
   return reportSection(LOVE_ICON, own ? "我适合什么样的恋人" : `${who}想找的恋人`, `
+    <div class="lv-verdict">
+      <div class="lv-v-row"><span class="lv-v-k">${who}是</span>
+        <b>${esc(ATT[l.att])} · ${esc(FISH[l.fisher].n)}</b></div>
+      <div class="lv-v-row"><span class="lv-v-k">适合</span>
+        <b>${esc(id.att.want)} · ${esc(id.fisher.n)}</b></div>
+      <div class="rp-why">${esc(id.fisher.d)}</div>
+    </div>
     ${ax ? `<div class="rd-wrap">${radarSvg(ax)}</div>
       <div class="rp-grid" style="margin-top:2px">${LOVE_AXES.map(a=>{
         const v = ax[a.k] || 3;
@@ -3484,8 +3636,6 @@ function loverSectionHtml(l, own, name){
       }).join("")}</div>
       ${own ? `<div class="rp-k" style="margin-top:12px">你适合的恋人</div>
         <div class="rp-grid">${loveAdvice(ax).map(x=>`<div>· ${esc(x)}</div>`).join("")}</div>` : ""}` : ""}
-    <div class="rp-lead"><b>${esc(id.att.want)} · ${esc(id.fisher.n)}</b>
-      <span class="rp-why">${esc(id.fisher.d)}</span></div>
     <div class="rp-grid">
       <div><span class="rp-k">依恋</span>${esc(id.att.why)}
         <span class="rp-why">${who}自己是${esc(ATT[l.att])}</span></div>
@@ -3505,7 +3655,7 @@ function loverSectionHtml(l, own, name){
 }
 
 /// 报告弹窗。own=true 时是自己的,可以改可见性、可以重测。
-function openReport({ user, twin, lover, own, title, sub, actions }){
+function openReport({ user, twin, lover, own, title, sub, actions, badges }){
   $("#modalHost").innerHTML = `
   <div class="modal-mask" onclick="this.remove()">
     <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
@@ -3514,6 +3664,7 @@ function openReport({ user, twin, lover, own, title, sub, actions }){
         <div style="flex:1;min-width:0">
           <div class="twin-name">${esc(title)}</div>
           <div class="mr-meta">${esc(sub || "")}</div>
+          ${verifyBadgesHtml(badges)}
         </div>
       </div>
       ${twinSectionHtml(twin, own)}
