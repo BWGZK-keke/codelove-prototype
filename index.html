@@ -1241,7 +1241,7 @@ async function saveProfile(host,isNew){
     ]);
     myProfile = data;
     toast(isNew ? "注册成功,欢迎加入!" : "已保存");
-    if(isNew){ enterApp(); if(!hasTwin()) setTimeout(openTwinQuiz, 700); }
+    if(isNew){ enterApp(); setTimeout(openWelcomeQuizzes, 700); }
   }catch(e){ toast("保存失败: "+fbError(e)); console.error(e); }
   btn.disabled = false; btn.textContent = isNew?"完成注册,进入广场":"保存修改";
 }
@@ -1736,8 +1736,9 @@ async function publishTwin(){
 }
 
 // 点头像看对方的分身
-function openTwinPortrait(u){
+async function openTwinPortrait(u){
   const t = parseTwin(u.twin);
+  const lv = await fetchLover(u.uid);
   $("#modalHost").innerHTML = `
   <div class="modal-mask" onclick="this.remove()">
     <div class="modal wide" onclick="event.stopPropagation()">
@@ -1759,6 +1760,7 @@ function openTwinPortrait(u){
           这是 TA 自己做的性格测验结果,TA 的 AI 分身会按这个性格说话。</div>`
       : `<div class="empty" style="padding:30px 10px">
            <div class="big">🪞</div>TA 还没有创建 AI 分身</div>`}
+      ${loverBriefHtml(lv, u.name)}
       <div class="modal-actions" style="margin-top:16px">
         <button class="btn btn-coral" style="width:100%"
           onclick="this.closest('.modal-mask').remove()">知道了</button>
@@ -2048,8 +2050,136 @@ function loverPrompt(){
   ].filter(Boolean).join("");
 }
 
+/* ---------- 报告的可见性 ----------
+   三档:仅自己 / 互相心动可见 / 公开。
+   「仅自己」不是一种取值,而是干脆不写 lover 文档 —— 删掉最干净,
+   不用担心哪天规则改错了把私密的东西漏出去。                       */
+const LOVER_VIS = { self:"仅自己", matched:"互相心动可见", public:"公开" };
+
+function loverReportString(l){
+  if(!l || !l.att) return "";
+  return [l.att, l.fisher, (l.langs||[]).join(","), (l.needs||[]).join(",")].join("|").slice(0,300);
+}
+function parseLoverReport(s){
+  if(!s || typeof s !== "string") return null;
+  const [att, fisher, langs, needs] = s.split("|");
+  if(!ATT[att] || !FISH[fisher]) return null;
+  return { att, fisher,
+           langs:(langs||"").split(",").filter(Boolean),
+           needs:(needs||"").split(",").filter(Boolean) };
+}
+
+async function setLoverVis(vis){
+  const l = loverData();
+  if(!l) return;
+  l.vis = vis;
+  localStorage.setItem(LOVER_KEY, JSON.stringify(l));
+  try{
+    if(vis === "self") await delDoc(doc(db,"lover",me.uid));
+    else await setDoc(doc(db,"lover",me.uid),
+      {uid:me.uid, vis, report:loverReportString(l), updatedAt:serverTimestamp()});
+    toast(vis === "self" ? "已改为仅自己可见" : `已设为「${LOVER_VIS[vis]}」`);
+  }catch(e){ toast("设置失败:" + fbError(e)); console.error(e); }
+}
+
+// 别人的报告 —— 读得到就说明对方允许你看,读不到静默当作没有
+const loverCache = new Map();
+async function fetchLover(uid){
+  if(loverCache.has(uid)) return loverCache.get(uid);
+  try{
+    const s = await getDoc(doc(db,"lover",uid));
+    const r = s.exists() ? parseLoverReport(s.data().report) : null;
+    loverCache.set(uid, r);
+    return r;
+  }catch(e){ loverCache.set(uid, null); return null; }
+}
+
+function loverBriefHtml(r, name){
+  if(!r) return "";
+  const id = loverIdeal(r);
+  return `
+    <h4 class="lv-h">${esc(name||"TA")}想找的恋人</h4>
+    <div class="lv-box"><b>${esc(id.att.want)} · ${esc(id.fisher.n)}</b>
+      <div class="lv-why">${esc(name||"TA")}是${esc(ATT[r.att])} · ${esc(FISH[r.fisher].n)}</div></div>
+    ${id.langs.length?`<div class="twin-tags" style="margin-top:9px">${
+      id.langs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
+    ${(r.needs||[]).length?`<div class="twin-tags">${
+      r.needs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}`;
+}
+
+// 把自己的报告作为一条普通消息发给正在聊的人
+async function shareLoverToChat(){
+  const l = loverData();
+  if(!l){ toast("先做一次测评"); return; }
+  if(!curChatPeer) return;
+  const id = loverIdeal(l);
+  const text = `【我的恋人画像】我是${ATT[l.att]}·${FISH[l.fisher].n},`
+    + `比较合得来的是${id.att.want}·${id.fisher.n}`
+    + (id.langs.length ? `,我需要${id.langs.join("、")}` : "")
+    + ((l.needs||[]).length ? `。偏好:${l.needs.join("、")}` : "。");
+  try{ await postMsg(text.slice(0,1000), false); toast("已发给对方"); }
+  catch(e){ toast("发送失败:" + fbError(e)); console.error(e); }
+}
+
+// 结果页那排可见性按钮
+function bindLoverVis(root){
+  const seg = root.querySelector(".lv-vis"); if(!seg) return;
+  seg.querySelectorAll("button").forEach(b=>b.addEventListener("click", ()=>{
+    seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    setLoverVis(b.dataset.v);
+  }));
+}
+
+/* ---------- 新用户引导 ----------
+   注册完接着做这两个测验:先「AI 分身」(你是谁),再「恋人画像」(谁适合你)。
+   做完一个自动接下一个。给「以后再说」留了出口 —— 刚注册就被两个问卷拦住
+   容易直接劝退,两个入口在匹配页一直都在。                                */
+function quizzesLeft(){
+  return (hasTwin() ? 0 : 1) + (hasLover() ? 0 : 1);
+}
+
+function runQuizChain(){
+  if(!hasTwin())
+    return openTwinQuiz(()=>{ if(!hasLover()) setTimeout(()=>openLoverQuiz(), 300); });
+  if(!hasLover()) return openLoverQuiz();
+}
+
+function openWelcomeQuizzes(){
+  if(!quizzesLeft()) return;
+  const row = (done, ico, t, s) => `
+    <div class="lv-row" style="cursor:default;background:${done?"var(--mint-soft)":"var(--rose-soft)"}">
+      <div class="lv-ico">${done ? "✓" : ico}</div>
+      <div style="flex:1;min-width:0">
+        <div class="lv-t">${esc(t)}</div>
+        <div class="lv-s">${esc(s)}</div>
+      </div>
+      ${done ? `<span class="lv-go">已完成</span>` : ""}
+    </div>`;
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask">
+    <div class="modal wide" onclick="event.stopPropagation()">
+      <div style="text-align:center;margin-bottom:14px">
+        <div class="twin-ava" style="margin:0 auto 12px;width:60px;height:60px;font-size:30px">🎉</div>
+        <div class="twin-name">欢迎加入 CodeLove</div>
+        <div class="twin-sub">还有两个小测验,做完匹配会准很多</div>
+      </div>
+      ${row(hasTwin(), "🪞", "AI 分身", "10 题,约 1 分钟 · 决定 AI 替你说话的性格")}
+      ${row(hasLover(), "💞", "恋人画像", "15 题,约 2 分钟 · 决定 AI 优先给你推谁")}
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn btn-ghost" id="wcLater">以后再说</button>
+        <button class="btn btn-coral" id="wcStart">开始</button>
+      </div>
+      <div class="hint" style="margin-top:10px;text-align:center">
+        跳过也没关系,「匹配」页里随时能做</div>
+    </div>
+  </div>`;
+  $("#wcLater").addEventListener("click", ()=>{ $("#modalHost").innerHTML = ""; });
+  $("#wcStart").addEventListener("click", ()=>{ $("#modalHost").innerHTML = ""; runQuizChain(); });
+}
+
 /* ---------- 测评界面 ---------- */
-function openLoverQuiz(){
+function openLoverQuiz(onDone){
   let step = 0; const answers = [];
   const host = $("#modalHost");
   const draw = ()=>{
@@ -2063,11 +2193,16 @@ function openLoverQuiz(){
           ${loverPortraitHtml(res)}
           <div class="modal-actions" style="margin-top:16px">
             <button class="btn btn-ghost" id="lvRedo">重测</button>
-            <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">好了</button>
+            <button class="btn btn-coral" id="lvDone">好了</button>
           </div>
         </div>
       </div>`;
+      bindLoverVis(host);
       $("#lvRedo").addEventListener("click", ()=>{ step=0; answers.length=0; draw(); });
+      $("#lvDone").addEventListener("click", ()=>{
+        host.innerHTML = "";
+        if(typeof onDone === "function") onDone();
+      });
       return;
     }
     const q = LOVER_Q[step];
@@ -2108,9 +2243,11 @@ function loverPortraitHtml(l){
       <div class="twin-tags">${id.langs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
     ${(l.needs||[]).length?`<h4 class="lv-h">你的硬性偏好</h4>
       <div class="twin-tags">${l.needs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
-    <div class="hint" style="margin-top:14px;line-height:1.8">
-      这份结果只存在你自己的设备上,不会出现在你的公开资料里。<br>
-      它的用途是让 AI 匹配时知道该优先给你排谁。</div>`;
+    <h4 class="lv-h">谁能看到这份报告</h4>
+    <div class="ai-seg lv-vis">${Object.entries(LOVER_VIS).map(([k,v])=>
+      `<button type="button" data-v="${k}"${(l.vis||"self")===k?' class="on"':""}>${esc(v)}</button>`).join("")}</div>
+    <div class="hint" style="margin-top:10px;line-height:1.8">
+      默认仅自己可见。无论选哪档,AI 匹配都会用它来给你排序。</div>`;
 }
 
 /* ================= AI 分身 =================
@@ -2181,7 +2318,7 @@ function twinPrompt(){
   ].filter(Boolean).join("");
 }
 
-function openTwinQuiz(){
+function openTwinQuiz(onDone){
   let step = 0; const answers = [];
   const host = $("#modalHost");
   const draw = ()=>{
@@ -2204,11 +2341,15 @@ function openTwinQuiz(){
             AI 分身会按这个性格替你说话。随时可以在「匹配」页重新测。</div>
           <div class="modal-actions" style="margin-top:16px">
             <button class="btn btn-ghost" id="twinRedo">重测</button>
-            <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">好了</button>
+            <button class="btn btn-coral" id="twinDone">好了</button>
           </div>
         </div>
       </div>`;
       $("#twinRedo").addEventListener("click", ()=>{ step=0; answers.length=0; draw(); });
+      $("#twinDone").addEventListener("click", ()=>{
+        host.innerHTML = "";
+        if(typeof onDone === "function") onDone();
+      });
       return;
     }
     const q = PERSONA_Q[step];
@@ -2272,7 +2413,8 @@ function renderTwinCard(){
           </div>
         </div>
       </div>`;
-    $("#lvAgain").addEventListener("click", openLoverQuiz);
+    bindLoverVis($("#modalHost"));
+    $("#lvAgain").addEventListener("click", ()=>openLoverQuiz());
   });
 }
 
@@ -2965,6 +3107,9 @@ function renderAiForm(box, inChat){
     <div class="field"><label>回复长度</label>
       <div class="ai-seg f-lenseg">${Object.entries(AI_LENGTHS).map(([k,v])=>
         `<button type="button" data-l="${k}"${(c.length||"medium")===k?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div></div>
+    ${inChat ? `<div class="field"><label>分享</label>
+      <button class="btn btn-ghost" style="width:100%" type="button" id="lvShare">💞 把我的恋人画像发给 TA</button>
+      <div class="hint">作为一条普通消息发出去,不受可见性设置影响</div></div>` : ""}
     <div class="field"><label>补充设定(可选)</label>
       <textarea class="f-persona" maxlength="500" placeholder="例如:别问对方工作,聊到爬山可以多说两句">${esc(c.persona||"")}</textarea>
       <div class="hint">这条优先级最高,会盖过上面的语气建议</div></div>
@@ -3000,6 +3145,9 @@ function renderAiForm(box, inChat){
     q(".f-models").innerHTML = np.models.map(m=>`<option value="${esc(m)}">`).join("");
     save();
   }));
+
+  const shareBtn = q("#lvShare");
+  if(shareBtn) shareBtn.addEventListener("click", shareLoverToChat);
 
   [[".f-toneseg","t"],[".f-lenseg","l"]].forEach(([sel])=>{
     box.querySelectorAll(sel+" button").forEach(b=>b.addEventListener("click", ()=>{
