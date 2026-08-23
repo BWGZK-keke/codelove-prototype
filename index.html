@@ -847,6 +847,25 @@
   <div class="tip">登录即表示同意平台服务条款。你的邮箱仅在双方互相心动(匹配成功)后,才会展示给对方。</div>
 </div>
 
+<!-- ============ 邮箱验证 ============
+     邮箱注册的人在这里停一下,点完邮件里的链接才进得去。Google 登录的
+     邮箱天然已验证,不会走到这一页。                                  -->
+<div id="view-verify" class="login hidden">
+  <div class="logo" style="margin-bottom:18px">Code<em>Love</em></div>
+  <div class="form-title" style="text-align:center">先验证一下邮箱</div>
+  <div class="form-sub" style="text-align:center;max-width:340px;margin:10px auto 0">
+    验证链接已经发到 <b id="verifyMail"></b>。点开那封邮件里的链接,再回来点下面的按钮。
+    <br><br>没收到就看看垃圾邮件箱 —— 发件人是 noreply@codelove-7b495.firebaseapp.com。
+  </div>
+  <div class="mail-form" style="margin-top:22px">
+    <button class="btn btn-coral btn-pill" style="width:100%" id="verifyDone">我已经点过链接了</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="verifyResend">重新发一封</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="verifyOut">换个账号</button>
+  </div>
+  <div class="tip">为什么要这一步:验证过的邮箱才能证明这个地址是你的。
+    这也是「我们审核资料,不是注册即入场」的第一道 —— 没有它,任何人都能拿别人的邮箱注册。</div>
+</div>
+
 <!-- ============ 主应用 ============ -->
 <div id="view-app" class="hidden">
   <div class="topbar">
@@ -996,7 +1015,8 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
-         createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail }
+         createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
+         sendEmailVerification, reload }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -1019,7 +1039,7 @@ const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replac
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");
   clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2000);}
 function show(id){window.__clBooted=true;
-  ["view-boot","view-landing","view-login","view-app","view-onboard","view-chat","view-wall"].forEach(v=>$("#"+v).classList.add("hidden"));
+  ["view-boot","view-landing","view-login","view-verify","view-app","view-onboard","view-chat","view-wall"].forEach(v=>$("#"+v).classList.add("hidden"));
   $("#"+id).classList.remove("hidden");}
 
 let me = null;          // firebase user
@@ -1204,8 +1224,15 @@ async function doEmailAuth(){
   if(authMode === "up" && pass.length < 6){ toast("密码至少 6 位"); return; }
   const btn = $("#authGo"); btn.disabled = true; btn.textContent = "处理中…";
   try{
-    if(authMode === "up") await createUserWithEmailAndPassword(auth, email, pass);
-    else                  await signInWithEmailAndPassword(auth, email, pass);
+    if(authMode === "up"){
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      // 立刻发验证信。发不出去不该把注册也回滚 —— 账号已经建好了,
+      // 验证页上还有「重新发一封」可以补救。
+      try{ await sendEmailVerification(cred.user); }
+      catch(e){ console.error("验证信没发出去", e); }
+    }else{
+      await signInWithEmailAndPassword(auth, email, pass);
+    }
     clearAuthNote();
     // 成功后 onAuthStateChanged 会接管,这里不用再做什么
   }catch(e){ reportAuthError(e, "email"); }
@@ -1245,19 +1272,54 @@ function reportAuthError(e, how){
 }
 $("#btnLogout").addEventListener("click", async ()=>{ await signOut(auth); });
 
+// 邮箱密码注册的账号必须先验证。Google 登录的邮箱由 Google 担保,天然算已验证。
+// 判断看的是「有没有 password 这个 provider」,而不是 user.emailVerified 单看 ——
+// 同一个邮箱先用 Google 登录、后来又设了密码的情况下,前者已经是可信的了。
+function needsVerify(user){
+  if(!user || user.emailVerified) return false;
+  return (user.providerData || []).some(p => p.providerId === "password");
+}
+async function refreshVerify(){
+  await reload(auth.currentUser);
+  // 强制换一张新的 ID token:email_verified 是写在 token 里的,不刷新的话
+  // 服务端规则看到的还是旧值,人明明点过链接了还是被拒。
+  await auth.currentUser.getIdToken(true);
+  return !needsVerify(auth.currentUser);
+}
+$("#verifyDone").addEventListener("click", async ()=>{
+  const btn = $("#verifyDone"); btn.disabled = true; btn.textContent = "检查中…";
+  try{
+    if(await refreshVerify()){ me = auth.currentUser; await routeAfterAuth(me); }
+    else toast("还没看到验证记录。点完邮件里的链接再试一次");
+  }catch(e){ toast(fbError(e, "email")); }
+  btn.disabled = false; btn.textContent = "我已经点过链接了";
+});
+$("#verifyResend").addEventListener("click", async ()=>{
+  const btn = $("#verifyResend"); btn.disabled = true;
+  try{ await sendEmailVerification(auth.currentUser); toast("又发了一封,去邮箱看看"); }
+  catch(e){ toast(fbError(e, "email")); }
+  setTimeout(()=>{ btn.disabled = false; }, 30000);   // 别让人连点,发信是有配额的
+});
+$("#verifyOut").addEventListener("click", ()=> signOut(auth));
+
+// 登录之后往哪走:没验证 → 验证页;没资料 → 填资料;都有 → 进广场
+async function routeAfterAuth(user){
+  if(needsVerify(user)){
+    $("#verifyMail").textContent = user.email || "你的邮箱";
+    show("view-verify");
+    return;
+  }
+  const snap = await getDoc(doc(db,"users",user.uid));
+  if(snap.exists()){ myProfile = snap.data(); enterApp(); }
+  else { renderProfileForm($("#onboardFormCard"), null, true); show("view-onboard"); }
+}
+
 onAuthStateChanged(auth, async user=>{
   me = user;
   if(!user){ stopListeners(); allUsers=[]; myLikes=new Set(); likedMe=new Set();
              profileCache.clear(); contactCache.clear(); matchNotified.clear(); show("view-landing"); return; }
   try{
-    const snap = await getDoc(doc(db,"users",user.uid));
-    if(snap.exists()){
-      myProfile = snap.data();
-      enterApp();
-    }else{
-      renderProfileForm($("#onboardFormCard"), null, true);
-      show("view-onboard");
-    }
+    await routeAfterAuth(user);
   }catch(e){
     toast("数据读取失败: "+fbError(e)); console.error(e);
     show("view-login");
@@ -1299,7 +1361,8 @@ function renderProfileForm(host, data, isNew){
       <div class="field"><label>学历 *</label>
         <select id="f-edu">${EDU.map(e=>`<option ${d.edu===e?"selected":""}>${e}</option>`).join("")}</select></div>
       <div class="field"><label>城市 *</label>
-        <input id="f-city" maxlength="12" value="${esc(d.city||"")}" placeholder="如:上海"></div>
+        <input id="f-city" maxlength="12" value="${esc(d.city||"")}" placeholder="如:上海">
+        <div class="hint">最多 12 个字</div></div>
     </div>
     <div class="field"><label>学校</label>
       <input id="f-school" maxlength="20" value="${esc(d.school||"")}" placeholder="如:上海交通大学">
@@ -1336,7 +1399,19 @@ async function saveProfile(host,isNew){
   const btn = host.querySelector("#f-save"); btn.disabled = true; btn.textContent = "保存中…";
   // 公开资料:绝不含邮箱。广场会拉取全部 users,任何写进这里的东西都等同于公开。
   const showSchool = host.querySelector("#f-school-show").checked;
-  const school = showSchool ? v("f-school").slice(0,20) : "";
+  const school = showSchool ? v("f-school") : "";
+  // 长度上限要和 firestore.rules 数出来的完全一致。规则里的 size() 数的是
+  // **UTF-16 码元**(实测:70 个 emoji 就顶满 140),恰好和 JS 的 .length、
+  // HTML 的 maxlength 一样 —— 所以这里用 .length,不用 [...s].length。
+  // 不在这儿判的话,超限会被服务端拒掉,而前端只能报一句莫名其妙的「权限不足」。
+  const LIMITS = [["昵称",name,16], ["城市",city,12], ["具体职位",role,20],
+                  ["学校",school,20], ["自我介绍",v("f-bio"),140]];
+  for(const [label, val, max] of LIMITS){
+    if(val.length > max){
+      toast(`${label}最多 ${max} 个字符(emoji 算 2 个),现在 ${val.length} 个`);
+      return;
+    }
+  }
   const data = {
     name, age, city, role,
     gender: v("f-gender"), edu: v("f-edu"),
