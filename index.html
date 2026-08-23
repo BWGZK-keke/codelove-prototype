@@ -1063,7 +1063,8 @@
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">谁看过我</div></div>
       <div class="card" id="mmSeen"></div>
 
-      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">验资</div></div>
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">验证</div></div>
+      <div class="form-sub">学历、工作、资产证明。验了是加分,不验也能正常用</div>
       <div class="card" id="myVerify"></div>
 
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">账号</div></div>
@@ -1580,6 +1581,9 @@ const GENDERS = ["男","女"];
 const INDUSTRY = ["软件研发","算法与数据","硬件与芯片","学术科研","产品与设计","金融量化","医疗生物","创业","其他"];
 const LEVEL    = ["在读学生","应届","初级","中级","高级","资深/专家","管理","创始人","教职","其他"];
 const ORG      = ["大厂","独角兽","初创","外企","国企/央企","高校/院所","自由职业","其他"];
+// 婚姻状态是自述的,不是验证项 —— 它本来就没有能核验的凭证,要人交证明是冒犯。
+// 「不想说」是一个正经选项,不是缺省值。
+const MARITAL  = ["未婚","离异","丧偶","不想说"];
 
 /* ---------- 字段级可见性 (REQ-020) ----------
    Firestore 的读权限是按**文档**判的,没法在一个文档里对不同字段给不同的
@@ -1594,7 +1598,7 @@ const ORG      = ["大厂","独角兽","初创","外企","国企/央企","高校
 const VIS_FIELDS = [
   ["age","年龄"], ["edu","学历"], ["city","城市"], ["role","具体职位"],
   ["industry","行业"], ["level","职级"], ["org","单位类型"], ["school","学校"],
-  ["stack","标签"], ["bio","自我介绍"]
+  ["marital","婚姻状态"], ["stack","标签"], ["bio","自我介绍"]
 ];
 const VIS_TIERS = [["pub","公开"], ["matched","匹配后"], ["mm","仅红娘"], ["off","不给看"]];
 const VIS_DEFAULT = "pub";
@@ -1646,6 +1650,9 @@ function renderProfileForm(host, data, isNew){
       <div class="field"><label>具体职位 *</label>
         <input id="f-role" maxlength="20" value="${esc(d.role||"")}" placeholder="如:后端工程师"></div>
     </div>
+    <div class="field"><label>婚姻状态</label>
+      <select id="f-marital">${optList(MARITAL, d.marital)}</select>
+      <div class="hint">自己填,不需要证明。谁能看到在下面逐项选。</div></div>
     <div class="field"><label>技术栈 & 兴趣标签</label>
       <input id="f-stack" maxlength="60" value="${esc((d.stack||[]).join(" "))}" placeholder="用空格分隔,如:Python 攀岩 咖啡 INTJ">
       <div class="hint">最多 8 个</div></div>
@@ -1734,7 +1741,7 @@ async function saveProfile(host,isNew){
   // 字段的**完整**值。底稿留一份,免得「隐藏」变成「删除」——
   // 今天把城市藏起来、明天想公开,不用重新再填一遍。
   const all = {
-    age, city, role, edu: v("f-edu"),
+    age, city, role, edu: v("f-edu"), marital: v("f-marital"),
     industry: v("f-industry"), level: v("f-level"), org: v("f-org"),
     school: v("f-school"),
     stack: v("f-stack").split(/\s+/).filter(Boolean).slice(0,8),
@@ -2519,10 +2526,14 @@ function renderMmSearch(){
    就是 80 次读,而绝大多数人根本不会点进去看。真要在卡片上显示,得有个
    服务端写的公开字段(用户改不了的那种),那需要 Worker 拿服务账号写 —— 见
    REQ-010。                                                            */
+/* 「验资」两个字把气氛带偏了 —— 听起来像在查户口、像相亲角。改成「验证」
+   加上具体验什么,同一件事读起来不冒犯。婚姻状态**不在这里**:它在多数地方
+   本来就没有能核验的凭证,要人交证明是冒犯,所以它是资料里一个普通的
+   自述字段。                                                          */
 const VERIFY_TYPES = {
-  edu:   { label:"学历认证", hint:"学位真实性" },
-  work:  { label:"职业认证", hint:"在职公司与职级" },
-  asset: { label:"资产认证", hint:"收入或资产区间,只显示区间不显示数字" }
+  edu:   { label:"学历",     hint:"学位证 / 学信网截图 / 学校邮箱" },
+  work:  { label:"工作",     hint:"在职证明 / 工牌 / 公司邮箱" },
+  asset: { label:"资产证明", hint:"只写区间,不写具体数字" }
 };
 const verifyCache = new Map();
 
@@ -2546,79 +2557,103 @@ function verifyBadgesHtml(list){
   }).join("")}</div>`;
 }
 
-// 红娘给别人发徽章。规则那边卡死了:不能给自己发、不能给自己指名的客户发、
-// 资产那一档要两位红娘各自投过票。
-function openVerifySheet(u){
+/* 自助提交验证。**材料不进 Firestore** —— 原件要走 Storage 而且阅后即焚,
+   那部分还没开通。这里只记「我要验哪一项」和一句备注。
+
+   核发那一端客户端谁都写不了(见 firestore.rules)。所以现在提交完就是
+   等着,不会自动变成徽章。界面上如实说,不装作已经在处理了 ——
+   宁可没有徽章,也不要一个没人核过的徽章:用户看到「资产证明 · 500万+」
+   是会当真的,会拿它去决定要不要见面。                                */
+function openVerifyRequest(type){
+  const t = VERIFY_TYPES[type];
   $("#modalHost").innerHTML = `
   <div class="modal-mask" onclick="this.remove()">
     <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
-      <div class="qz-head"><div class="qz-title">给 ${esc(u.name||"TA")} 发验资徽章</div>
-        <div class="qz-sub">只填结论,不要在这里记任何证明材料的内容。
-          材料看完就该删掉。</div></div>
-      <div class="field"><label>类型</label>
-        <div class="ai-seg vf-seg">${Object.entries(VERIFY_TYPES).map(([k,v],i)=>
-          `<button type="button" data-v="${k}"${i===0?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div>
-        <div class="hint vf-hint">${esc(VERIFY_TYPES.edu.hint)}</div></div>
-      <div class="field"><label>结论</label>
-        <input id="vfLevel" maxlength="20" placeholder="如:博士 / 高级工程师 / 500万+">
-        <div class="hint">资产只写区间。写具体金额等于把人挂出去当靶子。</div></div>
+      <div class="qz-head"><div class="qz-title">验证${esc(t.label)}</div>
+        <div class="qz-sub">验证是加分项,不是门槛 —— 不验也能正常用。</div></div>
+      <div class="rp-lead"><span class="rp-k">可以用来证明的</span>${esc(t.hint)}</div>
+      <div class="field" style="margin-top:12px"><label>说明(可选)</label>
+        <textarea id="vrNote" maxlength="300"
+          placeholder="${type === "asset" ? "写区间就行,别写具体数字" : "例如:2019 年博士毕业"}"></textarea>
+        <div class="hint">${type === "asset"
+          ? "资产只登记区间。写具体金额等于把自己挂出去当靶子。"
+          : "先提交,我们会联系你走核验流程。"}</div></div>
       <div class="hint" style="line-height:1.9">
-        <b>谁发的徽章会记下来</b>,被审的人自己查得到,而且撤不回。
-        资产这一档尤其要稳:发出去的「500万+」会被人拿来当判断依据。</div>
+        <b>材料不要贴在这里。</b>上传通道还没开,开了之后是看完就删、只留结论。
+        现在提交的只是一条「我要验这一项」的记录,只有你自己看得到。</div>
       <div class="modal-actions" style="margin-top:14px">
         <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">算了</button>
-        <button class="btn btn-coral" id="vfGo">提交</button>
+        <button class="btn btn-coral" id="vrGo">提交</button>
       </div>
     </div>
   </div>`;
-  const host = $("#modalHost");
-  host.querySelectorAll(".vf-seg button").forEach(b=>b.addEventListener("click", ()=>{
-    host.querySelectorAll(".vf-seg button").forEach(x=>x.classList.remove("on"));
-    b.classList.add("on");
-    host.querySelector(".vf-hint").textContent = VERIFY_TYPES[b.dataset.v].hint;
-  }));
-  $("#vfGo").addEventListener("click", async ()=>{
-    const type = host.querySelector(".vf-seg .on").dataset.v;
-    const level = $("#vfLevel").value.trim();
-    if(!level){ toast("填一下结论"); return; }
-    const btn = $("#vfGo"); btn.disabled = true; btn.textContent = "提交中…";
-    const mmId = (MATCHMAKERS.find(m=>m.uid === me.uid)||{}).id;
+  $("#vrGo").addEventListener("click", async ()=>{
+    const btn = $("#vrGo"); btn.disabled = true; btn.textContent = "提交中…";
     try{
-      // 先投票 —— 资产那一档规则会检查两票都在
-      await setDoc(doc(db,"verifyVotes",`${u.uid}_${type}_${mmId}`), {
-        targetUid:u.uid, type, mmId, level, pass:true, at:serverTimestamp() });
-      await setDoc(doc(db,"verifications",u.uid,"types",type), {
-        uid:u.uid, type, level,
-        verifiedAt: serverTimestamp(),
-        // 认证有效期 12 个月 —— 职业和资产都会变
-        expiresAt: new Date(Date.now() + 365*24*3600*1000)
-      });
-      verifyCache.delete(u.uid);
-      host.innerHTML = ""; toast("徽章已发放");
+      await setDoc(doc(db,"verifyRequests",`${me.uid}_${type}`), {
+        uid: me.uid, type, note: $("#vrNote").value.trim(),
+        status: "pending", at: serverTimestamp() });
+      $("#modalHost").innerHTML = "";
+      toast("提交好了。核验通道开通后会处理。");
+      renderMyVerify();
     }catch(e){
-      toast("发放失败:" + fbError(e)); console.error(e);
+      toast("提交失败:" + fbError(e)); console.error(e);
       btn.disabled = false; btn.textContent = "提交";
     }
   });
 }
 
-// 「我的」页:我有哪些徽章,以及怎么撤下来
+// 「我的」页:已有的徽章、提交过的申请、还能验什么
 async function renderMyVerify(){
   const host = $("#myVerify"); if(!host || !me) return;
   const list = await fetchVerified(me.uid);
-  host.innerHTML = list.length ? `
-    ${verifyBadgesHtml(list)}
-    <div class="hint" style="margin-top:10px;line-height:1.9">
+  const have = new Set(list.map(v=>v.type));
+  let pending = new Set();
+  try{
+    for(const k of Object.keys(VERIFY_TYPES)){
+      if(have.has(k)) continue;
+      const d = await getDoc(doc(db,"verifyRequests",`${me.uid}_${k}`));
+      if(d.exists()) pending.add(k);
+    }
+  }catch(e){ console.error(e); }
+
+  host.innerHTML = `
+    ${list.length ? verifyBadgesHtml(list) : ""}
+    ${list.length ? `<div class="hint" style="margin:10px 0;line-height:1.9">
       徽章是别人看得见的,你自己改不了 —— 能自己写的徽章等于没有徽章。
-      <b>不想展示只能删掉</b>,删了就没了,想要回来得重新审一次。</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${list.map(v=>
-      `<button class="btn btn-ghost btn-pill" data-vdel="${esc(v.type)}"
-        style="flex:1">撤下${esc((VERIFY_TYPES[v.type]||{}).label || v.type)}</button>`).join("")}</div>`
-  : `<div class="hint" style="line-height:1.9">还没有验资徽章。
-      验资是加分项,不是门槛 —— 不验也能正常用。
-      想验的话在「红娘」那一栏呼叫红娘,由人工审核。</div>`;
+      <b>不想展示只能删掉</b>,删了想要回来得重新验一次。</div>` : ""}
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${Object.entries(VERIFY_TYPES).map(([k,t])=>{
+        if(have.has(k)) return `<div class="qz-row" style="cursor:default">
+          <span class="qz-ico">${LOVE_ICON}</span>
+          <div style="flex:1;min-width:0"><div class="qz-t">${esc(t.label)}</div>
+            <div class="qz-s">已验证</div></div>
+          <button class="qz-go" data-vdel="${esc(k)}">撤下</button></div>`;
+        if(pending.has(k)) return `<div class="qz-row" style="cursor:default">
+          <span class="qz-ico">${LOVE_ICON}</span>
+          <div style="flex:1;min-width:0"><div class="qz-t">${esc(t.label)}</div>
+            <div class="qz-s">已提交,等核验通道开通</div></div>
+          <button class="qz-go" data-vcancel="${esc(k)}">撤回</button></div>`;
+        return `<div class="qz-row" data-vreq="${esc(k)}">
+          <span class="qz-ico">${LOVE_ICON}</span>
+          <div style="flex:1;min-width:0"><div class="qz-t">${esc(t.label)}</div>
+            <div class="qz-s">${esc(t.hint)}</div></div>
+          <span class="qz-go">去验证</span></div>`;
+      }).join("")}
+    </div>
+    <div class="hint" style="margin-top:10px;line-height:1.9">
+      验证是加分项,不是门槛。<b>婚姻状态不在这里</b> —— 那一项没有能核验的凭证,
+      它在「我的资料」里,填不填、给谁看都由你定。</div>`;
+
+  host.querySelectorAll("[data-vreq]").forEach(b=>
+    b.addEventListener("click", ()=>openVerifyRequest(b.dataset.vreq)));
+  host.querySelectorAll("[data-vcancel]").forEach(b=>b.addEventListener("click", async ()=>{
+    try{ await delDoc(doc(db,"verifyRequests",`${me.uid}_${b.dataset.vcancel}`));
+         toast("已撤回"); renderMyVerify(); }
+    catch(e){ toast("撤不回:" + fbError(e)); }
+  }));
   host.querySelectorAll("[data-vdel]").forEach(b=>b.addEventListener("click", async ()=>{
-    if(!confirm("撤下之后徽章就没了,想要回来得重新审一次。继续?")) return;
+    if(!confirm("撤下之后徽章就没了,想要回来得重新验一次。继续?")) return;
     try{
       await delDoc(doc(db,"verifications",me.uid,"types",b.dataset.vdel));
       verifyCache.delete(me.uid); renderMyVerify(); toast("已撤下");
@@ -2717,7 +2752,10 @@ async function openSimulate(u){
     const myLover = loverData(), theirLover = loverCache.get(u.uid) || await fetchLover(u.uid);
     const out = await callProxy("/simulate", {
       a: personaLine(myProfile || {name:"我"}, myTwin, myLover),
-      b: personaLine(u, theirTwin, theirLover)
+      b: personaLine(u, theirTwin, theirLover),
+      // 名字要带上:点评里提到人的时候得用真名,不然会出现「甲过于跳跃」
+      aName: (myProfile && myProfile.name) || "我",
+      bName: u.name || "TA"
     });
     renderSimulate(u, out);
   }catch(e){
@@ -3089,15 +3127,12 @@ async function openTwinPortrait(u){
     title: `${u.name || "TA"} 的测评报告`,
     sub: [u.age && u.age+"岁", u.role, u.city].filter(Boolean).join(" · "),
     actions: `<button class="btn btn-ghost" id="rpReport">举报</button>
-              ${iAmMatchmaker() ? `<button class="btn btn-ghost" id="rpVerify">发徽章</button>` : ""}
               <button class="btn btn-coral" style="flex:1" id="rpSim">让分身先聊一段</button>`
   });
   const rb = $("#rpReport");
   if(rb) rb.addEventListener("click", ()=> openReportSheet({ target:u.uid, name:u.name }));
   const sb = $("#rpSim");
   if(sb) sb.addEventListener("click", ()=> openSimulate(u));
-  const vb = $("#rpVerify");
-  if(vb) vb.addEventListener("click", ()=> openVerifySheet(u));
 }
 
 // 自己的报告:两份测评在同一页,可以就地重测、就地改可见性
