@@ -586,6 +586,21 @@
   .quiz-opts button:hover{background:var(--butter-soft)}
   .quiz-step{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-bottom:8px}
 
+  /* ---------- 测评报告(自己的和别人的共用一套)---------- */
+  .rp-sec{margin-top:18px;padding-top:16px;border-top:1.5px solid var(--line)}
+  .rp-sec:first-of-type{border-top:0;padding-top:6px}
+  .rp-h{display:flex;align-items:center;gap:9px;font-family:var(--cute);font-size:14.5px;
+    color:var(--ink);margin-bottom:11px}
+  .rp-ico{display:flex;color:var(--ink-soft);flex:0 0 auto}
+  .rp-lead{background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 14px;font-size:14px;color:var(--ink);line-height:1.75}
+  .rp-type{font-family:var(--mono);font-size:17px;letter-spacing:.06em;margin-right:8px}
+  .rp-why{display:block;font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin-top:3px}
+  .rp-grid{display:flex;flex-direction:column;gap:11px;margin-top:11px;font-size:13.5px;
+    color:var(--ink);line-height:1.75}
+  .rp-k{display:block;font-size:11.5px;color:var(--ink-faint);letter-spacing:.06em;margin-bottom:3px}
+  .rp-empty{font-size:13px;color:var(--ink-soft);line-height:1.8;padding:4px 0}
+
   /* ---------- 匹配报告 ---------- */
   .modal.wide{max-width:400px;text-align:left;padding:26px 24px 22px}
   .mr-head{display:flex;align-items:center;gap:13px;margin-bottom:6px}
@@ -1310,8 +1325,9 @@ async function routeAfterAuth(user){
     return;
   }
   const snap = await getDoc(doc(db,"users",user.uid));
-  if(snap.exists()){ myProfile = snap.data(); enterApp(); }
-  else { renderProfileForm($("#onboardFormCard"), null, true); show("view-onboard"); }
+  if(snap.exists()){ myProfile = snap.data(); purgeLegacyLocalData(); enterApp(); }
+  else { purgeLegacyLocalData();
+         renderProfileForm($("#onboardFormCard"), null, true); show("view-onboard"); }
 }
 
 onAuthStateChanged(auth, async user=>{
@@ -1715,7 +1731,7 @@ function matchFingerprint(){
   return hash32(meSig + "#" + cand);
 }
 function aiScores(){
-  const c = readJson(AI_MATCH_KEY, null);
+  const c = readJson(uidKey(AI_MATCH_KEY), null);
   if(!c || c.fp !== matchFingerprint() || Date.now()-c.at > MATCH_TTL) return null;
   return c.scores || null;
 }
@@ -1774,7 +1790,7 @@ async function runAiMatch(){
                                                reason: String(r.reason||"").slice(0,40) };
     });
     if(!Object.keys(scores).length) throw new Error("模型没返回有效评分");
-    localStorage.setItem(AI_MATCH_KEY, JSON.stringify({
+    localStorage.setItem(uidKey(AI_MATCH_KEY), JSON.stringify({
       fp: matchFingerprint(), at: Date.now(), scores }));
     toast(`AI 已为 ${Object.keys(scores).length} 个人重新打分`);
     renderFeed();
@@ -1934,36 +1950,26 @@ async function publishTwin(){
 
 // 点头像看对方的分身
 async function openTwinPortrait(u){
-  const t = parseTwin(u.twin);
-  const lv = await fetchLover(u.uid);
-  $("#modalHost").innerHTML = `
-  <div class="modal-mask" onclick="this.remove()">
-    <div class="modal wide" onclick="event.stopPropagation()">
-      <div class="twin-top">
-        ${avatarHtml(u)}
-        <div style="flex:1;min-width:0">
-          <div class="twin-name">${esc(u.name||"TA")} 的 AI 分身</div>
-          <div class="mr-meta">${esc([u.age&&u.age+"岁",u.role,u.city].filter(Boolean).join(" · "))}</div>
-        </div>
-      </div>
-      ${t ? `
-        <div style="text-align:center;margin:18px 0 4px">
-          <div class="twin-type">${esc(t.type)}</div>
-          <div class="twin-sub" style="margin-top:9px">${esc(t.traits.join(" · "))}</div>
-        </div>
-        <div class="twin-tags" style="justify-content:center">${
-          t.tags.map(x=>`<span>${esc(x)}</span>`).join("")}</div>
-        <div class="hint" style="margin-top:16px;line-height:1.8">
-          这是 TA 自己做的性格测验结果,TA 的 AI 分身会按这个性格说话。</div>`
-      : `<div class="empty" style="padding:30px 10px">
-           <div class="big">🪞</div>TA 还没有创建 AI 分身</div>`}
-      ${loverBriefHtml(lv, u.name)}
-      <div class="modal-actions" style="margin-top:16px">
-        <button class="btn btn-coral" style="width:100%"
-          onclick="this.closest('.modal-mask').remove()">知道了</button>
-      </div>
-    </div>
-  </div>`;
+  openReport({
+    user: u, twin: parseTwin(u.twin), lover: await fetchLover(u.uid), own: false,
+    title: `${u.name || "TA"} 的测评报告`,
+    sub: [u.age && u.age+"岁", u.role, u.city].filter(Boolean).join(" · "),
+    actions: `<button class="btn btn-coral" style="width:100%"
+      onclick="this.closest('.modal-mask').remove()">知道了</button>`
+  });
+}
+
+// 自己的报告:两份测评在同一页,可以就地重测、就地改可见性
+function openMyReport(){
+  openReport({
+    user: myProfile, twin: twinData(), lover: loverData(), own: true,
+    title: "我的测评报告", sub: "只有恋人画像可以选择公开,AI 分身跟着资料一起可见",
+    actions: `<button class="btn btn-ghost" id="rpTwin">重测分身</button>
+              <button class="btn btn-ghost" id="rpLover">重测画像</button>
+              <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">知道了</button>`
+  });
+  $("#rpTwin").addEventListener("click", ()=>openTwinQuiz());
+  $("#rpLover").addEventListener("click", ()=>openLoverQuiz());
 }
 
 /* ================= 牵线流程 =================
@@ -2101,6 +2107,9 @@ function openRecPicker(req){
    结果只存在本机,不写进公开资料 —— 依恋类型这种东西不该挂在个人主页上,
    它的用途是让 AI 给你排序时知道该找谁。                                  */
 const LOVER_KEY = "cl_lover";
+// 线性 SVG,不用 emoji —— BRAND.md 的负向清单第四条
+const TWIN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><rect x="6" y="3" width="12" height="14" rx="6"/><path d="M12 17v4M9.5 21h5"/></svg>';
+const LOVE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M12 20s-7-4.3-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.8C19 15.7 12 20 12 20z"/></svg>';
 
 const ATT = { secure:"安全型", anxious:"焦虑型", avoidant:"回避型", fearful:"矛盾型" };
 const FISH = {
@@ -2192,7 +2201,7 @@ const LOVER_Q = [
        {t:"看准了就直接一点", d:{}, need:"节奏偏快"}] }
 ];
 
-function loverData(){ return readJson(LOVER_KEY, null); }
+function loverData(){ return readJson(uidKey(LOVER_KEY), null); }
 function hasLover(){ const l = loverData(); return !!(l && l.att); }
 
 function scoreLover(answers){
@@ -2270,7 +2279,7 @@ async function setLoverVis(vis){
   const l = loverData();
   if(!l) return;
   l.vis = vis;
-  localStorage.setItem(LOVER_KEY, JSON.stringify(l));
+  localStorage.setItem(uidKey(LOVER_KEY), JSON.stringify(l));
   try{
     if(vis === "self") await delDoc(doc(db,"lover",me.uid));
     else await setDoc(doc(db,"lover",me.uid),
@@ -2382,7 +2391,7 @@ function openLoverQuiz(onDone){
   const draw = ()=>{
     if(step >= LOVER_Q.length){
       const res = scoreLover(answers);
-      localStorage.setItem(LOVER_KEY, JSON.stringify(res));
+      localStorage.setItem(uidKey(LOVER_KEY), JSON.stringify(res));
       renderTwinCard();
       host.innerHTML = `
       <div class="modal-mask" onclick="this.remove()">
@@ -2422,29 +2431,85 @@ function openLoverQuiz(onDone){
   draw();
 }
 
+/* ---------- 报告界面(REQ-066)----------
+   MBTI 分身和恋人画像原来各画各的:一个居中大字、一个左对齐分节,
+   看着像两个产品。这里统一成一套外壳 + 两个分节,自己的报告和别人的
+   报告走同一段代码 —— 差别只在「能不能改可见性」和底部按钮。       */
+function reportSection(icon, title, body){
+  return `<section class="rp-sec">
+    <div class="rp-h"><span class="rp-ico">${icon}</span>${esc(title)}</div>
+    ${body}
+  </section>`;
+}
+
+function twinSectionHtml(t, own){
+  if(!t) return reportSection(TWIN_ICON, "AI 分身",
+    `<div class="rp-empty">${own ? "还没做 —— 10 道题,一分钟" : "TA 还没有创建 AI 分身"}</div>`);
+  return reportSection(TWIN_ICON, "AI 分身", `
+    <div class="rp-lead"><b class="rp-type">${esc(t.type)}</b>
+      <span class="rp-why">${esc((t.traits||[]).join(" · "))}</span></div>
+    ${(t.tags||[]).length ? `<div class="twin-tags">${
+      t.tags.map(x=>`<span>${esc(x)}</span>`).join("")}</div>` : ""}
+    <div class="rp-why" style="margin-top:10px">${own
+      ? "AI 替你说话时会按这个性格,而不是像个客服。"
+      : "这是 TA 自己做的性格测验,TA 的分身会按这个性格说话。"}</div>`);
+}
+
+function loverSectionHtml(l, own, name){
+  if(!l) return reportSection(LOVE_ICON, "恋人画像",
+    `<div class="rp-empty">${own ? "还没做 —— 15 题,基于依恋理论 · Fisher 气质 · 爱的语言"
+                                 : "TA 没有公开这份报告"}</div>`);
+  const id = loverIdeal(l);
+  const who = own ? "你" : esc(name || "TA");
+  return reportSection(LOVE_ICON, own ? "我适合什么样的恋人" : `${who}想找的恋人`, `
+    <div class="rp-lead"><b>${esc(id.att.want)} · ${esc(id.fisher.n)}</b>
+      <span class="rp-why">${esc(id.fisher.d)}</span></div>
+    <div class="rp-grid">
+      <div><span class="rp-k">依恋</span>${esc(id.att.why)}
+        <span class="rp-why">${who}自己是${esc(ATT[l.att])}</span></div>
+      <div><span class="rp-k">气质</span>${esc(id.fisher.why)}
+        <span class="rp-why">${who}是${esc(FISH[l.fisher].n)}</span></div>
+      ${id.langs.length ? `<div><span class="rp-k">最好擅长</span>
+        <div class="twin-tags">${id.langs.map(x=>`<span>${esc(x)}</span>`).join("")}</div></div>` : ""}
+      ${(l.needs||[]).length ? `<div><span class="rp-k">硬性偏好</span>
+        <div class="twin-tags">${l.needs.map(x=>`<span>${esc(x)}</span>`).join("")}</div></div>` : ""}
+    </div>
+    ${own ? `
+      <div class="rp-k" style="margin-top:14px">谁能看到这份报告</div>
+      <div class="ai-seg lv-vis">${Object.entries(LOVER_VIS).map(([k,v])=>
+        `<button type="button" data-v="${k}"${(l.vis||"self")===k?' class="on"':""}>${esc(v)}</button>`).join("")}</div>
+      <div class="rp-why" style="margin-top:8px">
+        默认仅自己可见。无论选哪档,AI 匹配都会用它来给你排序。</div>` : ""}`);
+}
+
+/// 报告弹窗。own=true 时是自己的,可以改可见性、可以重测。
+function openReport({ user, twin, lover, own, title, sub, actions }){
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="twin-top">
+        ${user ? avatarHtml(user) : ""}
+        <div style="flex:1;min-width:0">
+          <div class="twin-name">${esc(title)}</div>
+          <div class="mr-meta">${esc(sub || "")}</div>
+        </div>
+      </div>
+      ${twinSectionHtml(twin, own)}
+      ${loverSectionHtml(lover, own, user && user.name)}
+      <div class="modal-actions" style="margin-top:16px">${actions}</div>
+    </div>
+  </div>`;
+  if(own) bindLoverVis($("#modalHost"));
+}
+
+// 留着给测评做完那一屏用:只要恋人画像那一节
 function loverPortraitHtml(l){
   const id = loverIdeal(l);
   return `
     <div style="text-align:center;margin-bottom:6px">
-      <div class="twin-ava" style="margin:0 auto 12px;width:64px;height:64px;font-size:32px">💞</div>
       <div class="twin-name">你适合什么样的恋人</div>
     </div>
-    <h4 class="lv-h">对方的依恋类型</h4>
-    <div class="lv-box"><b>${esc(id.att.want)}</b>
-      <div class="lv-why">${esc(id.att.why)}</div>
-      <div class="lv-why">(你自己是${esc(ATT[l.att])})</div></div>
-    <h4 class="lv-h">对方的气质</h4>
-    <div class="lv-box"><b>${esc(id.fisher.n)}</b> —— ${esc(id.fisher.d)}
-      <div class="lv-why">${esc(id.fisher.why)};你是${esc(FISH[l.fisher].n)}</div></div>
-    ${id.langs.length?`<h4 class="lv-h">对方最好擅长</h4>
-      <div class="twin-tags">${id.langs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
-    ${(l.needs||[]).length?`<h4 class="lv-h">你的硬性偏好</h4>
-      <div class="twin-tags">${l.needs.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
-    <h4 class="lv-h">谁能看到这份报告</h4>
-    <div class="ai-seg lv-vis">${Object.entries(LOVER_VIS).map(([k,v])=>
-      `<button type="button" data-v="${k}"${(l.vis||"self")===k?' class="on"':""}>${esc(v)}</button>`).join("")}</div>
-    <div class="hint" style="margin-top:10px;line-height:1.8">
-      默认仅自己可见。无论选哪档,AI 匹配都会用它来给你排序。</div>`;
+    ${loverSectionHtml(l, true)}`;
 }
 
 /* ================= AI 分身 =================
@@ -2487,7 +2552,7 @@ const PERSONA_Q = [
 const TYPE_DESC = { E:"外向主动", I:"慢热内敛", S:"务实具体", N:"发散跳跃",
                     T:"理性权衡", F:"感受优先", J:"计划性强", P:"随性灵活" };
 
-function twinData(){ return readJson(TWIN_KEY, null); }
+function twinData(){ return readJson(uidKey(TWIN_KEY), null); }
 function hasTwin(){ const t = twinData(); return !!(t && t.type); }
 
 function scoreTwin(answers){
@@ -2521,7 +2586,7 @@ function openTwinQuiz(onDone){
   const draw = ()=>{
     if(step >= PERSONA_Q.length){
       const res = scoreTwin(answers);
-      localStorage.setItem(TWIN_KEY, JSON.stringify(res));
+      localStorage.setItem(uidKey(TWIN_KEY), JSON.stringify(res));
       renderTwinCard();
       publishTwin();      // 发到公开资料,别人点你的头像才看得到
       host.innerHTML = `
@@ -2594,25 +2659,11 @@ function renderTwinCard(){
     </div>
     <button class="btn btn-coral btn-pill" style="width:100%;margin-top:14px" id="twinStart">开始测试</button>
     ${loverRowHtml()}`;
+  // 两个入口都进同一份报告 —— 没做过的直接开测,做过的看合并后的报告
   const b = host.querySelector("#twinEdit") || host.querySelector("#twinStart");
-  if(b) b.addEventListener("click", openTwinQuiz);
+  if(b) b.addEventListener("click", ()=> hasTwin() ? openMyReport() : openTwinQuiz());
   const lb = host.querySelector("#lvOpen");
-  if(lb) lb.addEventListener("click", ()=>{
-    const l = loverData();
-    if(!l) return openLoverQuiz();
-    $("#modalHost").innerHTML = `
-      <div class="modal-mask" onclick="this.remove()">
-        <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
-          ${loverPortraitHtml(l)}
-          <div class="modal-actions" style="margin-top:16px">
-            <button class="btn btn-ghost" id="lvAgain">重新测试</button>
-            <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">知道了</button>
-          </div>
-        </div>
-      </div>`;
-    bindLoverVis($("#modalHost"));
-    $("#lvAgain").addEventListener("click", ()=>openLoverQuiz());
-  });
+  if(lb) lb.addEventListener("click", ()=> hasLover() ? openMyReport() : openLoverQuiz());
 }
 
 // 分身卡片下面那一行:进阶测评的入口
@@ -2634,14 +2685,14 @@ const AI_DEEP_KEY = "cl_ai_deep";
 const DEEP_TTL = 24*3600*1000;
 
 function deepCache(uid){
-  const all = readJson(AI_DEEP_KEY, {});
+  const all = readJson(uidKey(AI_DEEP_KEY), {});
   const c = all[uid];
   return (c && Date.now()-c.at < DEEP_TTL) ? c.data : null;
 }
 function saveDeep(uid, data){
-  const all = readJson(AI_DEEP_KEY, {});
+  const all = readJson(uidKey(AI_DEEP_KEY), {});
   all[uid] = { at: Date.now(), data };
-  localStorage.setItem(AI_DEEP_KEY, JSON.stringify(all));
+  localStorage.setItem(uidKey(AI_DEEP_KEY), JSON.stringify(all));
 }
 
 function deepHtml(d){
@@ -2962,8 +3013,44 @@ const AI_PROVIDERS = {
 };
 
 function readJson(k, d){ try{ return JSON.parse(localStorage.getItem(k)) || d; }catch(e){ return d; } }
+
+/* ---------- 按账号隔离的本地存储 ----------
+   localStorage 是**按设备**存的,不是按账号。同一台电脑上换个邮箱登录,
+   上一个人的 MBTI 报告、恋人测评、API Key、剩余额度全都还在 —— 这就是
+   REQ-068:用另一个邮箱注册,却看到了前一个账号的测评报告。合租、公司电脑、
+   网吧,这都不是假想场景。
+
+   凡是和「我是谁」有关的键一律带 uid。只有界面语言(cl_lang)是真正属于
+   设备的,不带 —— 换个账号也没理由把中文切回英文。                      */
+function uidKey(base){ return base + ":" + (me ? me.uid : "anon"); }
+
+/* 清掉不带 uid 的老键。
+   不做「迁移」是有意的:这台设备上可能已经有过好几个账号,谁都无法证明
+   那份 MBTI 报告是现在登录这个人的。心理测评结果错认到别人头上,
+   比让人重做一次十道题的测评严重得多。唯一的例外见下面的 twin。 */
+const LEGACY_KEYS = ["cl_ai_twin","cl_lover","cl_ai_match","cl_ai_deep",
+                     "cl_ai_cfg","cl_ai_auto","cl_ai_quota"];
+function purgeLegacyLocalData(){
+  let dropped = 0;
+  for(const k of LEGACY_KEYS){
+    if(localStorage.getItem(k) === null) continue;
+    // 唯一能证明归属的情况:这个账号的公开资料里已经发布过分身,
+    // 而且 MBTI 类型和本地那份对得上 —— 那它就是本人的,搬过来。
+    if(k === "cl_ai_twin" && myProfile && myProfile.twin){
+      const local = readJson(k, null), pub = parseTwin(myProfile.twin);
+      if(local && pub && local.type === pub.type){
+        if(localStorage.getItem(uidKey(k)) === null)
+          localStorage.setItem(uidKey(k), JSON.stringify(local));
+        localStorage.removeItem(k);
+        continue;
+      }
+    }
+    localStorage.removeItem(k); dropped++;
+  }
+  if(dropped) toast("这台设备上有上一个账号留下的测评记录,已经清掉了");
+}
 // 没配过的人默认落在 DeepSeek 上:国内直连最稳,价格也最低
-function aiCfg(){ return { provider:"deepseek", ...readJson(AI_CFG_KEY, {}) }; }
+function aiCfg(){ return { provider:"deepseek", ...readJson(uidKey(AI_CFG_KEY), {}) }; }
 // 自己没填 Key、又选着 DeepSeek 的登录用户,走本站的免费额度
 function usingFreeQuota(c){
   c = c || aiCfg();
@@ -2973,11 +3060,11 @@ function aiReady(){
   const c = aiCfg();
   return !!(AI_PROVIDERS[c.provider] && (c.key || usingFreeQuota(c)));
 }
-function autoOn(uid){ return !!readJson(AI_AUTO_KEY, {})[uid]; }
+function autoOn(uid){ return !!readJson(uidKey(AI_AUTO_KEY), {})[uid]; }
 function setAuto(uid, on){
-  const m = readJson(AI_AUTO_KEY, {});
+  const m = readJson(uidKey(AI_AUTO_KEY), {});
   if(on) m[uid] = true; else delete m[uid];
-  localStorage.setItem(AI_AUTO_KEY, JSON.stringify(m));
+  localStorage.setItem(uidKey(AI_AUTO_KEY), JSON.stringify(m));
 }
 
 /* ---------- 提示词 ---------- */
@@ -3069,7 +3156,7 @@ async function viaProxy(sys, userText, task){
   // 服务端每次都会回报剩余次数,记下来给设置面板显示 ——
   // 不然「还能用几次」全靠猜,出问题时也说不清是额度还是别的原因
   if(typeof j.__quota_left === "number")
-    localStorage.setItem("cl_ai_quota", JSON.stringify({left:j.__quota_left, at:Date.now()}));
+    localStorage.setItem(uidKey("cl_ai_quota"), JSON.stringify({left:j.__quota_left, at:Date.now()}));
   return j?.choices?.[0]?.message?.content || "";
 }
 
@@ -3202,7 +3289,7 @@ function maybeAutoReply(msgs){
 
 // 开了开关的会话,不管你在看哪一页都挂着监听
 function syncAutoWatchers(){
-  const want = new Set(Object.keys(readJson(AI_AUTO_KEY, {})));
+  const want = new Set(Object.keys(readJson(uidKey(AI_AUTO_KEY), {})));
   for(const [uid, un] of autoWatch){
     if(!want.has(uid)){ try{ un(); }catch(e){} autoWatch.delete(uid); }
   }
@@ -3269,7 +3356,7 @@ function keyHint(pk){
 function quotaNote(){
   const c = aiCfg();
   if(!usingFreeQuota(c)) return "";
-  const q = readJson("cl_ai_quota", null);
+  const q = readJson(uidKey("cl_ai_quota"), null);
   const sameDay = q && new Date(q.at).toDateString() === new Date().toDateString();
   return sameDay
     ? `📊 本站免费额度今天还剩 <b>${q.left}</b> 次。<br>`
@@ -3319,7 +3406,7 @@ function renderAiForm(box, inChat){
 
   const q = s => box.querySelector(s);
   const save = ()=>{
-    localStorage.setItem(AI_CFG_KEY, JSON.stringify({
+    localStorage.setItem(uidKey(AI_CFG_KEY), JSON.stringify({
       provider: q(".f-provseg .on").dataset.p,
       key:      q(".f-key").value.trim(),
       model:    q(".f-model").value.trim(),
@@ -3375,8 +3462,8 @@ function renderAiForm(box, inChat){
   });
 
   q(".f-clear").addEventListener("click", ()=>{
-    localStorage.removeItem(AI_CFG_KEY);
-    localStorage.removeItem(AI_AUTO_KEY);
+    localStorage.removeItem(uidKey(AI_CFG_KEY));
+    localStorage.removeItem(uidKey(AI_AUTO_KEY));
     renderAiForm(box, inChat);
     if(box !== $("#aiCard")) renderAiCard();      // 另一处也跟着刷新
     syncAiStrip();
