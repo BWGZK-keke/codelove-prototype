@@ -4173,7 +4173,8 @@ async function callProxy(path, payload){
     res = await fetch(AI_PROXY_URL.replace(/\/chat$/, "") + path, {
       method:"POST",
       headers:{ "content-type":"application/json", authorization:`Bearer ${await me.getIdToken()}` },
-      body: JSON.stringify({ model: aiCfg().proxyModel || "deepseek-chat", ...payload })
+      body: JSON.stringify({ model: aiCfg().proxyModel || "deepseek-chat",
+                             lang: curLang(), ...payload })
     });
   }catch(e){ throw new Error("连不上本站的 AI 服务,检查一下网络"); }
   const j = await res.json().catch(()=>({}));
@@ -4200,8 +4201,22 @@ async function viaProxy(sys, userText, task){
 
 // 拿模型原文。task 决定这次给多大的输出上限:
 // reply = 私信一句话,match = 一次给全场打分的 JSON。
+/* 输出语言的指令 (REQ-070)。
+   不写这一句,模型做「分析类」任务时会自己漂到英文 —— 中文提示词进去、
+   中英混杂的报告出来。分析、评分、总结这类任务尤其明显。
+
+   所有客户端提示词都从 aiCall 这一个口子走,所以加在这里就够了;
+   Worker 里的模拟和点评是服务端自己建的提示词,那边单独加了一份。 */
+function langDirective(){
+  return curLang() === "en"
+    ? "Write the entire response in English."
+    : "全程用中文回答。不要夹杂英文单词或英文句子 —— "
+    + "需要提到英文专有名词(Python、Raft 这类)时保留原文即可,其余一律中文。";
+}
+
 async function aiCall(sys, userText, task){
   task = task || "reply";
+  sys = sys + "\n" + langDirective();
   const c = aiCfg(), p = AI_PROVIDERS[c.provider];
   if(!p) throw new Error("还没选服务商");
 
