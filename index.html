@@ -600,6 +600,22 @@
   .quiz-opts button:hover{background:var(--butter-soft)}
   .quiz-step{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-bottom:8px}
 
+  /* 匹配页的「我的测评」:一张卡两行,不再是一张卡 + 一条挂件 */
+  .qz-head{margin-bottom:12px}
+  .qz-title{font-family:var(--cute);font-size:16px;color:var(--ink)}
+  .qz-sub{font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin-top:3px}
+  .qz-row{display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;
+    background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--r-sm)}
+  .qz-row + .qz-row{margin-top:8px}
+  .qz-row:active{transform:translateY(2px)}
+  .qz-ico{display:flex;color:var(--ink-soft);flex:0 0 auto}
+  .qz-t{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
+  .qz-s{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qz-go{font-size:12px;color:var(--ink-soft);flex:0 0 auto;
+    border:1.5px solid var(--outline);border-radius:var(--pill);padding:3px 11px;
+    background:var(--surface)}
+
   /* ---------- 测评报告(自己的和别人的共用一套)---------- */
   .rp-sec{margin-top:18px;padding-top:16px;border-top:1.5px solid var(--line)}
   .rp-sec:first-of-type{border-top:0;padding-top:6px}
@@ -2471,7 +2487,9 @@ function openLoverQuiz(onDone){
       host.innerHTML = `
       <div class="modal-mask" onclick="this.remove()">
         <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
-          ${loverPortraitHtml(res)}
+          <div class="qz-head"><div class="qz-title">测完了</div>
+            <div class="qz-sub">默认仅自己可见,下面可以改。</div></div>
+          ${loverSectionHtml(res, true)}
           <div class="modal-actions" style="margin-top:16px">
             <button class="btn btn-ghost" id="lvRedo">重测</button>
             <button class="btn btn-coral" id="lvDone">好了</button>
@@ -2577,16 +2595,6 @@ function openReport({ user, twin, lover, own, title, sub, actions }){
   if(own) bindLoverVis($("#modalHost"));
 }
 
-// 留着给测评做完那一屏用:只要恋人画像那一节
-function loverPortraitHtml(l){
-  const id = loverIdeal(l);
-  return `
-    <div style="text-align:center;margin-bottom:6px">
-      <div class="twin-name">你适合什么样的恋人</div>
-    </div>
-    ${loverSectionHtml(l, true)}`;
-}
-
 /* ================= AI 分身 =================
    让 AI 演的是「你」,不是一个通用助手。人格来自一份小测验:
    前 5 题走 MBTI 那四个维度,后 5 题是交友软件常问的相处偏好。
@@ -2664,18 +2672,13 @@ function openTwinQuiz(onDone){
       localStorage.setItem(uidKey(TWIN_KEY), JSON.stringify(res));
       renderTwinCard();
       publishTwin();      // 发到公开资料,别人点你的头像才看得到
+      // 结果页用和报告同一套分节渲染,两个测评做完长得一样(REQ-066)
       host.innerHTML = `
       <div class="modal-mask" onclick="this.remove()">
-        <div class="modal wide" onclick="event.stopPropagation()">
-          <div style="text-align:center">
-            <div class="twin-ava" style="margin:0 auto 12px;width:64px;height:64px;font-size:32px">🪞</div>
-            <div class="twin-type">${esc(res.type)}</div>
-            <div class="twin-sub" style="margin-top:10px">${esc(res.traits.join(" · "))}</div>
-          </div>
-          <div class="twin-tags" style="justify-content:center">${
-            res.tags.map(t=>`<span>${esc(t)}</span>`).join("")}</div>
-          <div class="hint" style="margin-top:16px;line-height:1.8">
-            AI 分身会按这个性格替你说话。随时可以在「匹配」页重新测。</div>
+        <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+          <div class="qz-head"><div class="qz-title">测完了</div>
+            <div class="qz-sub">AI 分身会按这个性格替你说话。随时可以在「匹配」页重测。</div></div>
+          ${twinSectionHtml(res, true)}
           <div class="modal-actions" style="margin-top:16px">
             <button class="btn btn-ghost" id="twinRedo">重测</button>
             <button class="btn btn-coral" id="twinDone">好了</button>
@@ -2709,51 +2712,50 @@ function openTwinQuiz(onDone){
   draw();
 }
 
-function renderTwinCard(){
-  const host = $("#twinCard"); if(!host) return;
-  const t = twinData();
-  host.innerHTML = (t && t.type) ? `
-    <div class="twin-top">
-      <div class="twin-ava">🪞</div>
-      <div style="flex:1;min-width:0">
-        <div class="twin-name">我的 AI 分身</div>
-        <div class="twin-type" style="font-size:13px">${esc(t.type)}</div>
-        <div class="twin-sub">${esc((t.traits||[]).join(" · "))}</div>
-      </div>
+/* 匹配页上的「我的测评」卡片。
+   原来这里是两块:上面一张 AI 分身卡、下面挂一行恋人测评,看着像两个功能。
+   现在是一张卡、两行,同一套图标和排版,点哪一行都进同一份报告(REQ-066)。 */
+function quizRowHtml(kind, icon, title, done, sub){
+  return `<div class="qz-row" data-quiz="${kind}">
+    <span class="qz-ico">${icon}</span>
+    <div style="flex:1;min-width:0">
+      <div class="qz-t">${esc(title)}</div>
+      <div class="qz-s">${esc(sub)}</div>
     </div>
-    <div class="twin-tags">${(t.tags||[]).map(x=>`<span>${esc(x)}</span>`).join("")}</div>
-    <button class="btn btn-ghost btn-pill" style="width:100%;margin-top:14px" id="twinEdit">查看 / 重新测试</button>
-    ${loverRowHtml()}`
-  : `
-    <div class="twin-top">
-      <div class="twin-ava">🪞</div>
-      <div style="flex:1;min-width:0">
-        <div class="twin-name">创建我的 AI 分身</div>
-        <div class="twin-sub">10 道题,一分钟。之后 AI 会按你的性格替你说话,而不是像个客服</div>
-      </div>
-    </div>
-    <button class="btn btn-coral btn-pill" style="width:100%;margin-top:14px" id="twinStart">开始测试</button>
-    ${loverRowHtml()}`;
-  // 两个入口都进同一份报告 —— 没做过的直接开测,做过的看合并后的报告
-  const b = host.querySelector("#twinEdit") || host.querySelector("#twinStart");
-  if(b) b.addEventListener("click", ()=> hasTwin() ? openMyReport() : openTwinQuiz());
-  const lb = host.querySelector("#lvOpen");
-  if(lb) lb.addEventListener("click", ()=> hasLover() ? openMyReport() : openLoverQuiz());
+    <span class="qz-go">${done ? "查看" : "开始"}</span>
+  </div>`;
 }
 
-// 分身卡片下面那一行:进阶测评的入口
-function loverRowHtml(){
-  const l = loverData();
-  return `<div class="lv-row" id="lvOpen">
-    <div class="lv-ico">💞</div>
-    <div style="flex:1;min-width:0">
-      <div class="lv-t">${l ? "我适合什么样的恋人" : "测测你适合什么样的恋人"}</div>
-      <div class="lv-s">${l
-        ? esc(`${ATT[l.att]} · 适合${FISH[FISH_MATCH[l.fisher]].n}`)
-        : "15 题,基于依恋理论 · Fisher 气质 · 爱的语言"}</div>
+function renderTwinCard(){
+  const host = $("#twinCard"); if(!host) return;
+  const t = twinData(), l = loverData();
+  const left = quizzesLeft();
+  host.innerHTML = `
+    <div class="qz-head">
+      <div class="qz-title">我的测评</div>
+      <div class="qz-sub">${left
+        ? `还有 ${left} 项没做。做完 AI 才知道该把谁排在前面。`
+        : "两项都做完了。点开可以查看、重测,或者改谁能看到。"}</div>
     </div>
-    <span class="lv-go">${l ? "查看" : "开始"}</span>
-  </div>`;
+    ${quizRowHtml("twin", TWIN_ICON, "AI 分身", !!(t && t.type),
+      (t && t.type) ? `${t.type} · ${(t.traits||[]).join(" · ")}`
+                    : "10 题,约 1 分钟 · 决定 AI 替你说话的性格")}
+    ${quizRowHtml("lover", LOVE_ICON, "恋人画像", !!l,
+      l ? `${ATT[l.att]} · 适合${FISH[FISH_MATCH[l.fisher]].n}`
+        : "15 题,约 2 分钟 · 决定 AI 优先给你推谁")}
+    ${(t && t.type) || l
+      ? `<button class="btn btn-ghost btn-pill" style="width:100%;margin-top:12px"
+           id="qzAll">看完整报告</button>` : ""}`;
+
+  host.querySelectorAll("[data-quiz]").forEach(row=>{
+    row.addEventListener("click", ()=>{
+      const k = row.dataset.quiz;
+      if(k === "twin")  return hasTwin()  ? openMyReport() : openTwinQuiz();
+      return hasLover() ? openMyReport() : openLoverQuiz();
+    });
+  });
+  const all = host.querySelector("#qzAll");
+  if(all) all.addEventListener("click", openMyReport);
 }
 
 const AI_DEEP_KEY = "cl_ai_deep";
