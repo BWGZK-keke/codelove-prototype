@@ -1659,6 +1659,10 @@ async function saveProfile(host,isNew){
   // 而且要留下时间戳。改资料时不再重复要求。
   const agree = host.querySelector("#f-agree");
   if(isNew && agree && !agree.checked){ toast("请先阅读并勾选用户协议与隐私政策"); return; }
+  for(const [label, val] of [["昵称",name],["具体职位",role],["自我介绍",v("f-bio")]]){
+    const why = contentRejection(val);
+    if(why){ toast(`${label}:${why}`); return; }
+  }
   const btn = host.querySelector("#f-save"); btn.disabled = true; btn.textContent = "保存中…";
   // 公开资料:绝不含邮箱。广场会拉取全部 users,任何写进这里的东西都等同于公开。
   const school = v("f-school");
@@ -2197,6 +2201,75 @@ function openAvatarPicker(host){
     $("#modalHost").innerHTML = "";
     toast("头像已选好,记得点下面的「保存资料」");
   });
+}
+
+/* ================= 发布前的内容过滤 (REQ-040) =================
+   审核指南 1.2 对 UGC 产品要四件事:发布前过滤、举报、拉黑、能联系到运营方。
+   后三件都有了,这里补第一件。
+
+   定位要清楚:这是**第一道闸,不是全部**。它拦的是一眼可见的辱骂、色情招嫖、
+   拉人去站外的诈骗话术。真正的兜底是举报 + 人工 —— 任何词表都能被绕过,
+   指望它拦住所有东西是自欺欺人。
+
+   为什么放在客户端:规则引擎没有正则,做不了这件事;而客户端能在**按下发送
+   之前**就给出提示,比发出去再删好得多。客户端能被绕过 ——
+   所以举报通道是必需的,不是可选的。                                   */
+const CF_SEXUAL = ["约炮","一夜情","包夜","援交","楼凤","空降","上门服务","出台",
+  "特殊服务","打炮","开房加","性交易","嫖娼","卖淫","裸聊","涩情","黄片","情色"];
+// 只收最直白的那些 —— 词表越长,误伤越多
+const CF_ABUSIVE = ["傻逼","煞笔","沙比","傻b","去死","死全家","全家死","草你妈",
+  "操你妈","日你妈","贱人","婊子","狗东西","杂种","智障东西","fuck you","bitch","asshole"];
+// 交友产品里这类最泛滥:先加微信,再拉去投资、刷单
+const CF_SCAM = ["刷单","返利","兼职日结","日入过千","躺赚","包教包会","内部消息",
+  "稳赚不赔","杀猪盘","投资导师","比特币交易","usdt","博彩","菠菜平台","赌球","六合彩",
+  "加我威信","加v信","薇信","威我","徵信"];
+// 隐私模型是「双向心动后才互看邮箱」,公开留言里贴微信号等于把这套设计整个绕开
+const CF_CONTACT = [
+  /(?:微信|weixin|wx|vx|v信|薇|威)\s*[:：=]?\s*[a-z0-9_-]{5,}/,
+  /(?:qq|扣扣|企鹅)\s*[:：=]?\s*[1-9][0-9]{4,}/,
+  /1[3-9][0-9]{9}/,
+  /(?:telegram|tg|电报)\s*[:：@=]?\s*[a-z0-9_]{5,}/
+];
+
+// 全角转半角 + 去零宽字符。给正则用 —— 数字和 @ 必须保持原样。
+function cfNormalize(t){
+  return String(t).toLowerCase()
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+    .replace(/[\uFF01-\uFF5E]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/\u3000/g, " ");
+}
+// 词表比对专用:在 cfNormalize 基础上再做形近折叠,并去掉空白标点。
+//
+// **形近折叠只能在这里做,不能塞进 cfNormalize。** iOS 那边踩过:
+// 把 0→o、@→a 放进 normalize,而联系方式是拿 normalize 的结果跑正则的 ——
+// 带 0 的手机号永远匹配不上 1[3-9][0-9]{9},telegram 的 @ 也被吃掉了。
+function cfFold(t){
+  let s = cfNormalize(t);
+  for(const [from, to] of [["0","o"],["1","i"],["3","e"],["4","a"],
+                           ["@","a"],["$","s"],["*",""],["+",""]])
+    s = s.split(from).join(to);
+  return s.replace(/[\s\p{P}\p{S}]/gu, "");
+}
+function cfLongRun(s, limit){
+  let last = null, run = 1;
+  for(const ch of s){
+    if(ch === last){ if(++run >= limit) return true; }
+    else { last = ch; run = 1; }
+  }
+  return false;
+}
+// 通过返回 null,拦下返回给用户看的原因。
+// isPublic=false 用于私信:那是双向心动之后才能发的,交换微信是正常需求,不拦。
+function contentRejection(text, isPublic = true){
+  const flat = cfFold(text), norm = cfNormalize(text);
+  for(const w of CF_SEXUAL)  if(flat.includes(cfFold(w))) return "这段话里有色情或性交易相关的内容,发不出去";
+  for(const w of CF_ABUSIVE) if(flat.includes(cfFold(w))) return "这段话里有辱骂内容,换个说法吧";
+  for(const w of CF_SCAM)    if(flat.includes(cfFold(w))) return "这段话看起来像站外引流或诈骗,发不出去";
+  if(isPublic)
+    for(const re of CF_CONTACT)
+      if(re.test(norm)) return "公开留言里不要贴联系方式 —— 双向心动之后对方就能看到你的邮箱";
+  if(cfLongRun(flat, 20)) return "别刷屏,好好说话";
+  return null;
 }
 
 /* ================= 注销账号 (REQ-016) =================
@@ -3411,6 +3484,10 @@ function fmtTime(t){
 
 // 真正写库的那一步。ai=true 时带上标记,收信方会看到「🤖 AI 代回复」角标。
 async function postMsgTo(uid, text, ai){
+  // 私信传 isPublic=false:这是双向心动之后才能发的,交换联系方式是正常需求。
+  // 辱骂和诈骗话术照拦。
+  const why = contentRejection(text, false);
+  if(why){ toast(why); throw new Error(why); }
   const d = {from: me.uid, text, createdAt: serverTimestamp()};
   if(ai) d.ai = true;
   await addDoc(collection(db,"chats",chatIdFor(uid),"messages"), d);
@@ -4132,6 +4209,7 @@ function toggleReplies(id, host, opts){
       const send = async ()=>{
         const text = inp.value.trim();
         if(!text) return;
+        const why = contentRejection(text); if(why){ toast(why); return; }
         inp.value="";
         try{ await addDoc(collection(db, ...replyPath(id, opts)),
               {from:me.uid, text, createdAt:serverTimestamp()}); }
@@ -4171,6 +4249,7 @@ function subscribeBoard(){
 async function postBoard(){
   const inp=$("#boardInput"), text=inp.value.trim();
   if(!text){ toast("写点什么再发布吧"); return; }
+  const why = contentRejection(text); if(why){ toast(why); return; }
   const btn=$("#boardSend"); btn.disabled=true;
   inp.value=""; updateBoardCount();
   try{
@@ -4218,6 +4297,7 @@ function openWall(uid, name, photo, gender){
 async function sendWall(){
   const inp=$("#wallInput"), text=inp.value.trim();
   if(!text || !curWallUid) return;
+  const why = contentRejection(text); if(why){ toast(why); return; }
   const btn=$("#wallSend"); btn.disabled=true;
   inp.value="";
   try{
