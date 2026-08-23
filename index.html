@@ -2434,8 +2434,8 @@ function openVerifySheet(u){
         <input id="vfLevel" maxlength="20" placeholder="如:博士 / 高级工程师 / 500万+">
         <div class="hint">资产只写区间。写具体金额等于把人挂出去当靶子。</div></div>
       <div class="hint" style="line-height:1.9">
-        <b>资产认证需要两位红娘各自审一遍</b>,你这一票投完之后,
-        要另一位也投了才会真正生成徽章 —— 单人审核挡不住收买。</div>
+        <b>谁发的徽章会记下来</b>,被审的人自己查得到,而且撤不回。
+        资产这一档尤其要稳:发出去的「500万+」会被人拿来当判断依据。</div>
       <div class="modal-actions" style="margin-top:14px">
         <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">算了</button>
         <button class="btn btn-coral" id="vfGo">提交</button>
@@ -2467,13 +2467,8 @@ function openVerifySheet(u){
       verifyCache.delete(u.uid);
       host.innerHTML = ""; toast("徽章已发放");
     }catch(e){
-      // 资产那一档第一票写完、徽章写不进去是**预期行为**,不是错误
-      if(type === "asset"){
-        host.innerHTML = ""; toast("你这一票记下了。等另一位红娘也审过,徽章才会生成。");
-      }else{
-        toast("发放失败:" + fbError(e)); console.error(e);
-        btn.disabled = false; btn.textContent = "提交";
-      }
+      toast("发放失败:" + fbError(e)); console.error(e);
+      btn.disabled = false; btn.textContent = "提交";
     }
   });
 }
