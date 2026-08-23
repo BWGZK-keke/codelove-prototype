@@ -197,6 +197,14 @@
   .vis-seg{flex:1;min-width:0}
   .vis-seg button{font-size:11.5px;padding:5px 4px}
 
+  .del-box{border:1.5px solid var(--outline);border-radius:var(--r-sm);padding:13px 15px;
+    background:var(--rose-soft);margin-bottom:10px}
+  .del-box.keep{background:var(--surface-2);border-color:var(--line)}
+  .del-h{font-family:var(--cute);font-size:13.5px;color:var(--ink);margin-bottom:8px}
+  .del-i{display:flex;gap:8px;font-size:12.5px;line-height:1.8;color:var(--ink-soft);
+    margin-bottom:3px}
+  .del-i span{flex:0 0 auto;color:var(--ink-faint)}
+
   .rep-list{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
     border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);
@@ -1020,6 +1028,13 @@
       <div class="form-sub">拉黑后:对方不会出现在你的广场,也无法给你留言或私信</div>
       <div id="blockList"></div>
 
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">账号</div></div>
+      <div class="card">
+        <button class="btn btn-ghost btn-pill" style="width:100%" id="btnDelAccount">注销账号</button>
+        <div class="hint" style="margin-top:8px">删掉资料、心动、私信和测评。点开会先告诉你
+          具体删什么、什么删不掉。</div>
+      </div>
+
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">条款</div></div>
       <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
         <a class="btn btn-ghost btn-pill" href="terms.html" target="_blank" rel="noopener"
@@ -1127,7 +1142,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
          createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
-         sendEmailVerification, reload, deleteUser }
+         sendEmailVerification, reload, deleteUser,
+         reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -1384,6 +1400,7 @@ function reportAuthError(e, how){
   const m = fbError(e, how); if(m) toast(m);
 }
 $("#btnLogout").addEventListener("click", async ()=>{ await signOut(auth); });
+$("#btnDelAccount").addEventListener("click", openDeleteAccount);
 
 // 邮箱密码注册的账号必须先验证。Google 登录的邮箱由 Google 担保,天然算已验证。
 // 判断看的是「有没有 password 这个 provider」,而不是 user.emailVerified 单看 ——
@@ -2180,6 +2197,156 @@ function openAvatarPicker(host){
     $("#modalHost").innerHTML = "";
     toast("头像已选好,记得点下面的「保存资料」");
   });
+}
+
+/* ================= 注销账号 (REQ-016) =================
+   个保法和 GDPR 都要求提供删除入口,App Store 从 2022 年起也是硬性的。
+
+   这里是客户端尽力删,不是 Cloud Function 级联删。差别要说清楚:
+   规则允许我删的,我全删;规则不允许的,我删不掉,而且**写在界面上**,
+   不含糊过去。两样东西刻意删不掉:
+
+     · 对方发给我的私信 —— 那是对方的内容,删掉等于替别人做决定
+     · 我提交过的举报 —— 否则骚扰者删号重来就能把记录抹干净
+
+   顺序也是有讲究的:Auth 账号**最后**删。反过来的话,一旦 Auth 没了,
+   剩下那些 Firestore 文档就再也没人有权限删,永远留在库里。          */
+const DELETE_STEPS = [
+  ["留言与回复",   async uid => {
+    await purgeQuery(query(collection(db,"posts"), where("from","==",uid)));
+    await purgeCollection(collection(db,"walls",uid,"msgs"));
+  }],
+  ["我发出的私信", async uid => purgeMyMessages(uid)],
+  ["心动与拉黑",   async uid => {
+    // 两个方向都删:只删自己发出的,「谁心动过我」会永远留在库里
+    await purgeQuery(query(collection(db,"likes"), where("from","==",uid)));
+    await purgeQuery(query(collection(db,"likes"), where("to","==",uid)));
+    await purgeQuery(query(collection(db,"blocks"), where("from","==",uid)));
+  }],
+  ["资料与测评",   async uid => {
+    for(const c of ["contacts","profiles","shared","mmOnly","lover","concierge","mm_apply","users"])
+      await delDoc(doc(db,c,uid)).catch(()=>{});
+  }]
+];
+
+async function purgeQuery(q){
+  const snap = await getDocs(q).catch(()=>null);
+  if(!snap) return;
+  for(const d of snap.docs) await delDoc(d.ref).catch(()=>{});
+}
+async function purgeCollection(col){
+  const snap = await getDocs(col).catch(()=>null);
+  if(!snap) return;
+  for(const d of snap.docs) await delDoc(d.ref).catch(()=>{});
+}
+// 私信只删自己发的。房间 ID 是「两人 uid 排序拼接」,所以能从心动记录
+// 反推出我参与过哪些房间 —— 没有别的办法列出来,规则不允许扫全站 chats。
+async function purgeMyMessages(uid){
+  const peers = new Set();
+  for(const q of [query(collection(db,"likes"), where("from","==",uid)),
+                  query(collection(db,"likes"), where("to","==",uid))]){
+    const snap = await getDocs(q).catch(()=>null);
+    snap?.docs.forEach(d=>{
+      const v = d.data();
+      peers.add(v.from === uid ? v.to : v.from);
+    });
+  }
+  for(const peer of peers){
+    const q = query(collection(db,"chats",[uid,peer].sort().join("_"),"messages"),
+                    where("from","==",uid));
+    await purgeQuery(q);
+  }
+}
+
+function openDeleteAccount(){
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="form-title" style="font-size:17px">注销账号</div>
+      <div class="form-sub" style="margin:6px 0 14px">这一步不可撤销。删完之后同一个邮箱可以重新注册,
+        但之前的资料、心动和对话都回不来了。</div>
+
+      <div class="del-box">
+        <div class="del-h">会被删掉</div>
+        ${["你的资料卡,以及广场上的那张卡片",
+           "你的邮箱,以及匹配后/仅红娘那两档的资料",
+           "AI 分身与恋人画像",
+           "所有心动记录 —— 你发出的和收到的",
+           "你发过的公共留言、留言墙留言",
+           "你发出的每一条私信",
+           "你的拉黑名单和红娘申请"].map(x=>`<div class="del-i"><span>×</span>${esc(x)}</div>`).join("")}
+      </div>
+
+      <div class="del-box keep">
+        <div class="del-h">不会被删掉</div>
+        <div class="del-i"><span>·</span>对方发给你的私信 —— 那是对方的内容,删掉等于替别人做决定</div>
+        <div class="del-i"><span>·</span>你提交过的举报 —— 否则骚扰者删号重来就能抹掉记录</div>
+        <div class="hint" style="margin-top:6px">这两样都不再和你的账号关联,别人也看不到你是谁。</div>
+      </div>
+
+      <div class="field" style="margin-top:14px">
+        <label>确认请输入「注销」</label>
+        <input id="delConfirm" maxlength="4" placeholder="注销" autocomplete="off"></div>
+      <div class="field hidden" id="delPassWrap">
+        <label>为了安全,请再输一次密码</label>
+        <input id="delPass" type="password" autocomplete="current-password" placeholder="密码"></div>
+      <div class="vf-state" id="delState"></div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">先不删</button>
+        <button class="btn btn-coral" id="delGo">永久删除</button>
+      </div>
+    </div>
+  </div>`;
+  $("#delGo").addEventListener("click", runDeleteAccount);
+}
+
+async function runDeleteAccount(){
+  if($("#delConfirm").value.trim() !== "注销"){ toast("请输入「注销」两个字确认"); return; }
+  const btn = $("#delGo"), state = $("#delState");
+  btn.disabled = true;
+  const say = t => { state.className = "vf-state"; state.textContent = t; };
+  const uid = me.uid;
+  try{
+    stopListeners();
+    for(const [label, run] of DELETE_STEPS){
+      say(`正在删除:${label}…`);
+      btn.textContent = "删除中…";
+      await run(uid);
+    }
+    say("正在删除账号…");
+    await deleteAuthAccount();
+    // 删完 onAuthStateChanged 会把界面切回落地页
+    $("#modalHost").innerHTML = "";
+    toast("账号已删除");
+  }catch(e){
+    console.error(e);
+    state.className = "vf-state bad";
+    state.textContent = "没能删完:" + fbError(e, "email")
+      + "。资料可能已经删掉了一部分,重新登录后再点一次就能删完。";
+    btn.disabled = false; btn.textContent = "永久删除";
+  }
+}
+
+// Firebase 要求删账号前「最近登录过」。隔了一阵子就得重新验一次身份 ——
+// 这不是刁难,是防止别人趁你没锁屏把号删了。
+async function deleteAuthAccount(){
+  const user = auth.currentUser;
+  try{
+    await deleteUser(user);
+  }catch(e){
+    if(!String(e && e.code).includes("requires-recent-login")) throw e;
+    const isPassword = (user.providerData||[]).some(p=>p.providerId === "password");
+    if(isPassword){
+      const wrap = $("#delPassWrap");
+      wrap.classList.remove("hidden");
+      const pass = $("#delPass").value;
+      if(!pass){ $("#delPass").focus(); throw new Error("请输入密码后再点一次「永久删除」"); }
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, pass));
+    }else{
+      await reauthenticateWithPopup(user, new GoogleAuthProvider());
+    }
+    await deleteUser(user);
+  }
 }
 
 /* ================= 举报 (REQ-017) =================
