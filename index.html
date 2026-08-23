@@ -213,7 +213,7 @@
   .lv-v-row{display:flex;align-items:baseline;gap:10px;font-size:15px;color:var(--ink);
     line-height:1.9}
   .lv-v-row b{font-family:var(--cute);font-weight:400}
-  .lv-v-k{flex:0 0 34px;font-size:12px;color:var(--ink-faint)}
+  .lv-v-k{flex:0 0 30px;font-size:12px;color:var(--ink-faint);white-space:nowrap}
   .lv-verdict .rp-why{margin-top:4px}
 
   .rd-wrap{display:flex;justify-content:center;margin:4px 0 2px}
@@ -3154,13 +3154,15 @@ const FISH_MATCH = { explorer:"explorer", builder:"builder",
    下跌」—— 39 题的问卷没人做得完,做得完的样本也严重偏向闲人。
 
    轴的方向统一成「左低右高」:分数越高越靠右边那个词。                */
+// lo/hi 一律不带人称:同一句话要同时用在「我的报告」和「别人的报告」上,
+// 写死「你」的话,看别人的报告会看到「你希望多待在一起」。
 const LOVE_AXES = [
   { k:"A", left:"独立", right:"黏人",   label:"亲密节奏",
-    lo:"你需要不少自己的时间", hi:"你希望多待在一起" },
+    lo:"需要不少自己的时间", hi:"希望多待在一起" },
   { k:"B", left:"回避", right:"直面",   label:"冲突处理",
-    lo:"吵架时你先退开", hi:"你倾向当场说清楚" },
+    lo:"吵架时先退开", hi:"倾向当场说清楚" },
   { k:"C", left:"随性", right:"计划",   label:"生活规划",
-    lo:"到了再看,不爱定死", hi:"你喜欢提前排好" },
+    lo:"到了再看,不爱定死", hi:"喜欢提前排好" },
   { k:"D", left:"家庭", right:"事业",   label:"价值排序",
     lo:"重大取舍时先顾家", hi:"重大取舍时先顾事业" }
 ];
@@ -3203,7 +3205,17 @@ function parseLove(s){
   return ok ? out : null;
 }
 
-/* 雷达图。内联 SVG 手绘,不引图表库 —— 保持零构建、无外链。 */
+/* 雷达图。内联 SVG 手绘,不引图表库 —— 保持零构建、无外链。
+
+   **只画在自己的报告里,不画在别人的报告里。** 这两件事的用途不一样:
+
+   自己的报告是「成果」—— 刚答完 23 道题,值得给一张能看、能截图分享的东西,
+   四条轴的形状也确实比四行字更容易记住。
+
+   别人的报告是「决策材料」—— 我在判断要不要心动,需要的是能快速对比的事实
+   (「TA 是安全型·建设者」「希望多待在一起」)。陌生人的四维图形状说明不了
+   什么,还把有用的文字挤到屏幕外面去。四个点的雷达图本来信息量就低:
+   同样一块地方,四行字能同时给出数值和它的含义。                        */
 function radarSvg(ax, size = 190){
   const c = size/2, r = size/2 - 26, n = LOVE_AXES.length;
   const pt = (i, frac) => {
@@ -3353,17 +3365,19 @@ function scoreLover(answers){
 
 // 适合你的对象长什么样
 function loverIdeal(l){
+  // why 一律不带人称:同一句要同时用在「我的报告」和「别人的报告」上。
+  // 写死「你」的话,看别人的报告会看到「你本身稳」。
   const attAdvice = {
-    secure:  {want:"安全型 或 任意类型", why:"你本身稳,能接住对方的不安,选择面最广"},
-    anxious: {want:"安全型", why:"最该避开回避型 —— 你越靠近对方越退,是最典型的消耗组合"},
-    avoidant:{want:"安全型", why:"需要一个不追不逼、能给你空间又不会走掉的人"},
-    fearful: {want:"安全型,而且要有耐心", why:"你自己既想靠近又会想逃,对方的稳定比热情更重要"}
+    secure:  {want:"安全型 或 任意类型", why:"本身稳,接得住对方的不安,选择面最广"},
+    anxious: {want:"安全型", why:"最该避开回避型 —— 一方越靠近另一方越退,是最典型的消耗组合"},
+    avoidant:{want:"安全型", why:"需要一个不追不逼、给得出空间又不会走掉的人"},
+    fearful: {want:"安全型,而且要有耐心", why:"既想靠近又会想逃,对方的稳定比热情更重要"}
   }[l.att] || {want:"安全型", why:""};
   const fm = FISH_MATCH[l.fisher];
   return {
     att: attAdvice,
     fisher: { key: fm, ...FISH[fm],
-              why: fm === l.fisher ? "同类相吸:你们看世界的方式接近" : "互补型:一个偏理性推进,一个偏关系感受" },
+              why: fm === l.fisher ? "同类相吸:看世界的方式接近" : "互补型:一个偏理性推进,一个偏关系感受" },
     langs: l.langs.map(k=>LANG[k]).filter(Boolean)
   };
 }
@@ -3622,17 +3636,17 @@ function loverSectionHtml(l, own, name){
   const ax = l.ax || null;
   return reportSection(LOVE_ICON, own ? "我适合什么样的恋人" : `${who}想找的恋人`, `
     <div class="lv-verdict">
-      <div class="lv-v-row"><span class="lv-v-k">${who}是</span>
+      <div class="lv-v-row"><span class="lv-v-k">是</span>
         <b>${esc(ATT[l.att])} · ${esc(FISH[l.fisher].n)}</b></div>
       <div class="lv-v-row"><span class="lv-v-k">适合</span>
         <b>${esc(id.att.want)} · ${esc(id.fisher.n)}</b></div>
       <div class="rp-why">${esc(id.fisher.d)}</div>
     </div>
-    ${ax ? `<div class="rd-wrap">${radarSvg(ax)}</div>
-      <div class="rp-grid" style="margin-top:2px">${LOVE_AXES.map(a=>{
+    ${ax && own ? `<div class="rd-wrap">${radarSvg(ax)}</div>` : ""}
+    ${ax ? `<div class="rp-grid">${LOVE_AXES.map(a=>{
         const v = ax[a.k] || 3;
         return `<div><span class="rp-k">${esc(a.label)} · ${esc(v >= 4 ? a.right : v <= 2 ? a.left : "居中")}</span>${
-          esc(v >= 4 ? a.hi : v <= 2 ? a.lo : "这一维你比较中间,两头的人都能处")}</div>`;
+          esc(v >= 4 ? a.hi : v <= 2 ? a.lo : "这一维比较中间,两头的人都能处")}</div>`;
       }).join("")}</div>
       ${own ? `<div class="rp-k" style="margin-top:12px">你适合的恋人</div>
         <div class="rp-grid">${loveAdvice(ax).map(x=>`<div>· ${esc(x)}</div>`).join("")}</div>` : ""}` : ""}
