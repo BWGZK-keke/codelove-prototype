@@ -1020,8 +1020,10 @@
       <div class="form-sub">真实注册用户 · 互相心动即匹配成功</div>
       <div class="match-bar">
         <button class="ai-chip" id="aiMatchBtn">✨ 用 AI 重新匹配</button>
+        <button class="ai-chip" id="feedFilterBtn">筛选</button>
         <span class="match-note" id="aiMatchNote"></span>
       </div>
+      <div id="feedFilter" class="hidden"></div>
       <div id="feedList"><div class="loading"><div class="spinner"></div>加载中…</div></div>
     </div>
     <!-- 匹配 -->
@@ -1915,12 +1917,120 @@ function startListeners(){
 }
 
 // 异性优先,其次保持「最近活跃在前」的顺序
+/* ---------- 广场的筛选与排序 (REQ-074) ----------
+   原来广场是「异性优先 + 最近活跃」的固定顺序,想找特定的人只能一直往下翻。
+   筛选放在广场里而不是单开一个「找人」页:找人本来就是逛广场的一部分,
+   多一个入口只会让人两边都不知道该去哪。
+
+   全部在客户端做 —— 广场的数据本来就已经拉下来了,筛选不用再查一次库。 */
+const FEED_SORTS = {
+  match:  "契合度",
+  active: "最近活跃",
+  young:  "年龄从小到大",
+  old:    "年龄从大到小"
+};
+let feedQuery = { sort:"match", q:"", gender:"", edu:"", industry:"", city:"",
+                  min:"", max:"", verified:false };
+
+function feedMatches(u){
+  const f = feedQuery;
+  if(f.q){
+    const hay = [u.name, u.city, u.role, u.school, (u.stack||[]).join(" ")]
+      .filter(Boolean).join(" ").toLowerCase();
+    if(!hay.includes(f.q.toLowerCase())) return false;
+  }
+  if(f.gender && u.gender !== f.gender) return false;
+  if(f.edu && u.edu !== f.edu) return false;
+  if(f.industry && u.industry !== f.industry) return false;
+  if(f.city && !(u.city||"").includes(f.city)) return false;
+  if(f.min && (!u.age || u.age < +f.min)) return false;
+  if(f.max && (!u.age || u.age > +f.max)) return false;
+  // 徽章是按需拉的,缓存里没有就当没有 —— 不为了一个筛选去拉 80 次子集合
+  if(f.verified && !(verifyCache.get(u.uid)||[]).length) return false;
+  return true;
+}
+
+function feedActive(u){
+  return u.updatedAt && typeof u.updatedAt.toMillis === "function" ? u.updatedAt.toMillis() : 0;
+}
+
 function sortFeed(){
+  const s = feedQuery.sort;
   allUsers.sort((a,b)=>{
-    const ax = a.gender!==myProfile.gender ? 0:1, bx = b.gender!==myProfile.gender ? 0:1;
-    return ax-bx;
+    // 异性优先只在默认排序里生效。用户明确选了排序方式之后就别再插手,
+    // 那是他自己的意图。
+    if(s === "match" || s === "active"){
+      const ax = a.gender!==myProfile.gender ? 0:1, bx = b.gender!==myProfile.gender ? 0:1;
+      if(ax !== bx) return ax - bx;
+    }
+    if(s === "match")  return compat(b) - compat(a);
+    if(s === "active") return feedActive(b) - feedActive(a);
+    if(s === "young")  return (a.age||999) - (b.age||999);
+    if(s === "old")    return (b.age||0) - (a.age||0);
+    return 0;
   });
 }
+
+function renderFeedFilter(){
+  const host = $("#feedFilter"); if(!host) return;
+  const opt = (arr, cur) => ['<option value="">不限</option>']
+    .concat(arr.map(x=>`<option ${cur===x?"selected":""}>${esc(x)}</option>`)).join("");
+  host.innerHTML = `
+    <div class="card">
+      <div class="field"><input id="fdQ" value="${esc(feedQuery.q)}"
+        placeholder="名字、城市、职位、学校、标签…" maxlength="20"></div>
+      <div class="row2">
+        <div class="field"><label>排序</label>
+          <select id="fdSort">${Object.entries(FEED_SORTS).map(([k,v])=>
+            `<option value="${k}"${feedQuery.sort===k?" selected":""}>${esc(v)}</option>`).join("")}</select></div>
+        <div class="field"><label>性别</label>
+          <select id="fdGender">${opt(GENDERS, feedQuery.gender)}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>学历</label><select id="fdEdu">${opt(EDU, feedQuery.edu)}</select></div>
+        <div class="field"><label>行业</label><select id="fdInd">${opt(INDUSTRY, feedQuery.industry)}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>城市</label>
+          <input id="fdCity" value="${esc(feedQuery.city)}" maxlength="12" placeholder="不限"></div>
+        <div class="field"><label>年龄</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="fdMin" type="number" min="18" max="60" value="${esc(feedQuery.min)}" placeholder="18" style="min-width:0">
+            <span style="color:var(--ink-faint)">–</span>
+            <input id="fdMax" type="number" min="18" max="60" value="${esc(feedQuery.max)}" placeholder="60" style="min-width:0"></div></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="fdVerified" ${feedQuery.verified?"checked":""}>
+        <span>只看已验证的</span></label>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost btn-pill" style="flex:1" id="fdClear">清空</button>
+        <button class="btn btn-coral btn-pill" style="flex:2" id="fdGo">应用</button>
+      </div>
+    </div>`;
+  const apply = ()=>{
+    feedQuery = {
+      sort: $("#fdSort").value, q: $("#fdQ").value.trim(),
+      gender: $("#fdGender").value, edu: $("#fdEdu").value,
+      industry: $("#fdInd").value, city: $("#fdCity").value.trim(),
+      min: $("#fdMin").value, max: $("#fdMax").value,
+      verified: $("#fdVerified").checked
+    };
+    sortFeed(); renderFeed();
+  };
+  $("#fdGo").addEventListener("click", apply);
+  $("#fdQ").addEventListener("keydown", e=>{ if(e.key === "Enter") apply(); });
+  $("#fdClear").addEventListener("click", ()=>{
+    feedQuery = { sort:"match", q:"", gender:"", edu:"", industry:"", city:"",
+                  min:"", max:"", verified:false };
+    renderFeedFilter(); sortFeed(); renderFeed();
+  });
+}
+
+$("#feedFilterBtn").addEventListener("click", ()=>{
+  const box = $("#feedFilter");
+  const show = box.classList.contains("hidden");
+  box.classList.toggle("hidden", !show);
+  if(show && !box.innerHTML) renderFeedFilter();
+});
 function refreshViews(){
   renderFeed();
   if(!$("#page-matches").classList.contains("hidden")) renderMatches();
@@ -2557,6 +2667,60 @@ function verifyBadgesHtml(list){
   }).join("")}</div>`;
 }
 
+/* 红娘发徽章。门开得很大(对谁都能发、不需要复核),所以 by 字段必须是本人:
+   留痕是现在唯一的检查,不能让人挂别人的名字。规则里也卡了这一条。 */
+function openVerifySheet(u){
+  const mmId = (MATCHMAKERS.find(m=>m.uid === me.uid)||{}).id;
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="qz-head"><div class="qz-title">给 ${esc(u.name||"TA")} 发验证徽章</div>
+        <div class="qz-sub">只填结论。材料看完就该删,别在这里记任何原件内容。</div></div>
+      <div class="field"><label>验证哪一项</label>
+        <div class="ai-seg vf-seg">${Object.entries(VERIFY_TYPES).map(([k,v],i)=>
+          `<button type="button" data-v="${k}"${i===0?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div>
+        <div class="hint vf-hint">${esc(VERIFY_TYPES.edu.hint)}</div></div>
+      <div class="field"><label>结论</label>
+        <input id="vfLevel" maxlength="20" placeholder="如:博士 / 高级工程师 / 500万+">
+        <div class="hint">资产只写区间。写具体金额等于把人挂出去当靶子。</div></div>
+      <div class="hint" style="line-height:1.9">
+        <b>会记下是你发的</b>,被发的人看得到,你自己撤不回。
+        这是现在唯一的检查 —— 发之前想清楚。</div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">算了</button>
+        <button class="btn btn-coral" id="vfGo">发放</button>
+      </div>
+    </div>
+  </div>`;
+  const host = $("#modalHost");
+  host.querySelectorAll(".vf-seg button").forEach(b=>b.addEventListener("click", ()=>{
+    host.querySelectorAll(".vf-seg button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    host.querySelector(".vf-hint").textContent = VERIFY_TYPES[b.dataset.v].hint;
+  }));
+  $("#vfGo").addEventListener("click", async ()=>{
+    const type = host.querySelector(".vf-seg .on").dataset.v;
+    const level = $("#vfLevel").value.trim();
+    if(!level){ toast("填一下结论"); return; }
+    const btn = $("#vfGo"); btn.disabled = true; btn.textContent = "发放中…";
+    try{
+      await setDoc(doc(db,"verifications",u.uid,"types",type), {
+        uid:u.uid, type, level, by: mmId,
+        verifiedAt: serverTimestamp(),
+        // 有效期 12 个月 —— 工作和资产都会变
+        expiresAt: new Date(Date.now() + 365*24*3600*1000)
+      });
+      // 处理完把待办清掉
+      await delDoc(doc(db,"verifyRequests",`${u.uid}_${type}`)).catch(()=>{});
+      verifyCache.delete(u.uid);
+      host.innerHTML = ""; toast("徽章已发放");
+    }catch(e){
+      toast("发放失败:" + fbError(e)); console.error(e);
+      btn.disabled = false; btn.textContent = "发放";
+    }
+  });
+}
+
 /* 自助提交验证。**材料不进 Firestore** —— 原件要走 Storage 而且阅后即焚,
    那部分还没开通。这里只记「我要验哪一项」和一句备注。
 
@@ -2632,7 +2796,7 @@ async function renderMyVerify(){
         if(pending.has(k)) return `<div class="qz-row" style="cursor:default">
           <span class="qz-ico">${LOVE_ICON}</span>
           <div style="flex:1;min-width:0"><div class="qz-t">${esc(t.label)}</div>
-            <div class="qz-s">已提交,等核验通道开通</div></div>
+            <div class="qz-s">已提交,等红娘处理</div></div>
           <button class="qz-go" data-vcancel="${esc(k)}">撤回</button></div>`;
         return `<div class="qz-row" data-vreq="${esc(k)}">
           <span class="qz-ico">${LOVE_ICON}</span>
@@ -3127,12 +3291,15 @@ async function openTwinPortrait(u){
     title: `${u.name || "TA"} 的测评报告`,
     sub: [u.age && u.age+"岁", u.role, u.city].filter(Boolean).join(" · "),
     actions: `<button class="btn btn-ghost" id="rpReport">举报</button>
+              ${iAmMatchmaker() ? `<button class="btn btn-ghost" id="rpVerify">发徽章</button>` : ""}
               <button class="btn btn-coral" style="flex:1" id="rpSim">让分身先聊一段</button>`
   });
   const rb = $("#rpReport");
   if(rb) rb.addEventListener("click", ()=> openReportSheet({ target:u.uid, name:u.name }));
   const sb = $("#rpSim");
   if(sb) sb.addEventListener("click", ()=> openSimulate(u));
+  const vb = $("#rpVerify");
+  if(vb) vb.addEventListener("click", ()=> openVerifySheet(u));
 }
 
 // 自己的报告:两份测评在同一页,可以就地重测、就地改可见性
@@ -4133,7 +4300,17 @@ function renderFeed(){
       把网址分享给朋友,TA 注册完你这里会立刻出现 TA。</div>`;
     return;
   }
-  $("#feedList").innerHTML = self + allUsers.map(u=>{
+  const shown = allUsers.filter(feedMatches);
+  if(!shown.length){
+    $("#feedList").innerHTML = self + `<div class="empty" style="padding:26px 10px">
+      没人符合这些条件。<br>放宽一两项试试,或者点「筛选」里的清空。</div>`;
+    return;
+  }
+  $("#feedList").innerHTML = self
+    + (shown.length < allUsers.length
+        ? `<div class="rp-k" style="margin:4px 0 8px">
+             ${shown.length} / ${allUsers.length} 人 · ${esc(FEED_SORTS[feedQuery.sort])}</div>` : "")
+    + shown.map(u=>{
     const liked = myLikes.has(u.uid);
     const isMatch = liked && likedMe.has(u.uid);
     const avatar = avatarHtml(u);
