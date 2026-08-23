@@ -141,6 +141,20 @@
 
   /* 后台没开通登录方式这类错,toast 两秒就没了,而它恰恰需要人去点一下控制台。
      所以单开一条不会自动消失的提示,带可点的链接。 */
+  /* 发信结果:成了显示时间,没成显示原因。两种都要说,不能只留一片空白 */
+  .vf-state{margin:12px auto 0;max-width:360px;font-size:12.5px;line-height:1.8;
+    text-align:center;color:var(--ink-soft)}
+  .vf-state.ok{color:var(--ink-soft)}
+  .vf-state.bad{color:var(--ink);background:var(--rose-soft);
+    border:1.5px solid var(--outline);border-radius:var(--r-sm);padding:9px 12px}
+  .vf-help{margin:20px auto 0;max-width:360px;text-align:left;font-size:12.5px;
+    line-height:1.9;color:var(--ink-soft);background:var(--surface);
+    border:1.5px solid var(--line);border-radius:var(--r-sm);padding:14px 16px}
+  .vf-help b{color:var(--ink)}
+  .vf-help ol{margin:8px 0 10px;padding-left:20px}
+  .vf-help li{margin-bottom:6px}
+  .vf-help code{font-family:var(--mono);font-size:11.5px;word-break:break-all}
+
   .auth-note{margin-top:14px;text-align:left;font-size:13px;line-height:1.8;
     background:var(--butter-soft);border:1.5px solid var(--outline);border-radius:14px;
     padding:13px 15px;color:var(--ink)}
@@ -868,14 +882,27 @@
 <div id="view-verify" class="login hidden">
   <div class="logo" style="margin-bottom:18px">Code<em>Love</em></div>
   <div class="form-title" style="text-align:center">先验证一下邮箱</div>
-  <div class="form-sub" style="text-align:center;max-width:340px;margin:10px auto 0">
-    验证链接已经发到 <b id="verifyMail"></b>。点开那封邮件里的链接,再回来点下面的按钮。
-    <br><br>没收到就看看垃圾邮件箱 —— 发件人是 noreply@codelove-7b495.firebaseapp.com。
+  <div class="form-sub" style="text-align:center;max-width:360px;margin:10px auto 0">
+    我们给 <b id="verifyMail"></b> 发了一封验证邮件。点开里面的链接,再回来点下面的按钮。
   </div>
-  <div class="mail-form" style="margin-top:22px">
+  <div class="vf-state" id="verifyState"></div>
+  <div class="mail-form" style="margin-top:14px">
     <button class="btn btn-coral btn-pill" style="width:100%" id="verifyDone">我已经点过链接了</button>
     <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="verifyResend">重新发一封</button>
-    <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="verifyOut">换个账号</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="verifyFix">邮箱填错了,换一个</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:9px" id="verifyOut">先退出</button>
+  </div>
+  <div class="vf-help">
+    <b>一直收不到,按这个顺序查:</b>
+    <ol>
+      <li><b>垃圾邮件箱。</b>发件人是 <code>noreply@codelove-7b495.firebaseapp.com</code>,
+        这个默认发件域名没做过信誉积累,进垃圾箱是常事。</li>
+      <li><b>地址有没有打错。</b>上面那个就是我们发过去的地址,一个字母都不能错。</li>
+      <li><b>换个邮箱试试。</b>QQ 邮箱、163、126 对陌生发件域名拦得很凶,
+        而且是<b>静默丢弃</b>,不会退信。Gmail / Outlook / 学校邮箱基本都能收到。</li>
+    </ol>
+    三条都试过还是不行,多半是后台的邮件模板出了问题,得去
+    Authentication → Templates 看一眼 —— 那是只有项目所有者能做的。
   </div>
   <div class="tip">为什么要这一步:验证过的邮箱才能证明这个地址是你的。
     这也是「我们审核资料,不是注册即入场」的第一道 —— 没有它,任何人都能拿别人的邮箱注册。</div>
@@ -1031,7 +1058,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
          createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
-         sendEmailVerification, reload }
+         sendEmailVerification, reload, deleteUser }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -1241,10 +1268,10 @@ async function doEmailAuth(){
   try{
     if(authMode === "up"){
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
-      // 立刻发验证信。发不出去不该把注册也回滚 —— 账号已经建好了,
-      // 验证页上还有「重新发一封」可以补救。
-      try{ await sendEmailVerification(cred.user); }
-      catch(e){ console.error("验证信没发出去", e); }
+      // 立刻发验证信。发不出去不该把注册也回滚 —— 账号已经建好了。
+      // 但**结果必须让人看见**:原来这里只 console.error,发失败的人会坐在
+      // 验证页上等一封永远不会来的信,界面一个字都不说。
+      await trySendVerification(cred.user);
     }else{
       await signInWithEmailAndPassword(auth, email, pass);
     }
@@ -1290,6 +1317,33 @@ $("#btnLogout").addEventListener("click", async ()=>{ await signOut(auth); });
 // 邮箱密码注册的账号必须先验证。Google 登录的邮箱由 Google 担保,天然算已验证。
 // 判断看的是「有没有 password 这个 provider」,而不是 user.emailVerified 单看 ——
 // 同一个邮箱先用 Google 登录、后来又设了密码的情况下,前者已经是可信的了。
+// 上一次发验证信的结果。发信是会失败的(配额、模板配错、地址被拒),
+// 而失败的表现和「信在路上」一模一样 —— 都是收件箱空的。必须写在脸上。
+let verifySend = null;   // {ok, at, why}
+async function trySendVerification(user){
+  try{
+    await sendEmailVerification(user);
+    verifySend = { ok:true, at:Date.now() };
+  }catch(e){
+    console.error("验证信没发出去", e);
+    verifySend = { ok:false, at:Date.now(), why:fbError(e, "email") };
+  }
+  renderVerifyState();
+  return verifySend.ok;
+}
+function renderVerifyState(){
+  const box = $("#verifyState"); if(!box) return;
+  if(!verifySend){ box.className = "vf-state"; box.textContent = ""; return; }
+  const t = new Date(verifySend.at).toTimeString().slice(0,5);
+  if(verifySend.ok){
+    box.className = "vf-state ok";
+    box.textContent = `${t} 已发出。信通常一分钟内到,慢的话看一下垃圾邮件。`;
+  }else{
+    box.className = "vf-state bad";
+    box.textContent = `${t} 没能发出:${verifySend.why}`;
+  }
+}
+
 function needsVerify(user){
   if(!user || user.emailVerified) return false;
   return (user.providerData || []).some(p => p.providerId === "password");
@@ -1310,10 +1364,25 @@ $("#verifyDone").addEventListener("click", async ()=>{
   btn.disabled = false; btn.textContent = "我已经点过链接了";
 });
 $("#verifyResend").addEventListener("click", async ()=>{
-  const btn = $("#verifyResend"); btn.disabled = true;
-  try{ await sendEmailVerification(auth.currentUser); toast("又发了一封,去邮箱看看"); }
-  catch(e){ toast(fbError(e, "email")); }
-  setTimeout(()=>{ btn.disabled = false; }, 30000);   // 别让人连点,发信是有配额的
+  const btn = $("#verifyResend"); btn.disabled = true; btn.textContent = "发送中…";
+  const ok = await trySendVerification(auth.currentUser);
+  if(ok) toast("又发了一封,去邮箱看看");
+  btn.textContent = "重新发一封";
+  // 别让人连点:发信有配额,连点只会更快撞上 too-many-requests
+  setTimeout(()=>{ btn.disabled = false; }, 30000);
+});
+// 地址打错是收不到信最常见的原因,而这个账号还没资料、没验证,删掉不损失任何东西。
+$("#verifyFix").addEventListener("click", async ()=>{
+  if(!confirm("会删掉这个还没验证的账号,然后你可以用另一个邮箱重新注册。继续?")) return;
+  try{
+    await deleteUser(auth.currentUser);
+    verifySend = null;
+    toast("已删除,换个邮箱再注册一次");
+  }catch(e){
+    // 隔了一段时间的会话删不掉,退出去重登也能达到目的
+    await signOut(auth);
+    toast("请重新登录后再换邮箱:" + fbError(e, "email"));
+  }
 });
 $("#verifyOut").addEventListener("click", ()=> signOut(auth));
 
@@ -1322,6 +1391,12 @@ async function routeAfterAuth(user){
   if(needsVerify(user)){
     $("#verifyMail").textContent = user.email || "你的邮箱";
     show("view-verify");
+    // 这一页原来写死一句「验证链接已经发到 X」—— 但只有**刚注册那一次**真的发了信。
+    // 已经有账号还没验证的人(比如这套验证上线之前注册的),重新登录会直接落到
+    // 这一页,一封信都没发过,却被告知「已经发了」,只能干等。
+    // 所以:落到这一页时如果本次会话还没发过,就发一封。
+    if(!verifySend) await trySendVerification(user);
+    else renderVerifyState();
     return;
   }
   const snap = await getDoc(doc(db,"users",user.uid));
