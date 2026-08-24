@@ -535,10 +535,9 @@
   .sec-ico svg{display:none}
   .sec-ico::before{content:"";width:9px;height:9px;border-radius:50%;
     background:currentColor;display:block}
-  .sec-head:nth-of-type(4n+1) .sec-ico{color:var(--accent)}
-  .sec-head:nth-of-type(4n+2) .sec-ico{color:var(--rose)}
-  .sec-head:nth-of-type(4n+3) .sec-ico{color:var(--mint)}
-  .sec-head:nth-of-type(4n)   .sec-ico{color:var(--butter)}
+  /* 原来这里按 nth-of-type 轮换四种颜色,但 nth-of-type 数的是**同类型兄弟**
+     (都是 div),而小节之间隔着一堆别的 div —— 轮换实际上是随机的,
+     看起来像出了 bug。统一用杏橘;区分交给标题的荧光笔划痕,那个是稳的。 */
 
   /* ---------- 星芒 ---------- */
   .sparkle{position:absolute;color:var(--butter);opacity:.7;pointer-events:none;
@@ -930,18 +929,11 @@
     margin-top:6px;max-width:30em;margin-left:auto;margin-right:auto}
   .es-go{margin-top:var(--s4)}
 
-  /* ---------- 社区规则 (REQ-052) ---------- */
-  .rl-age{font-family:var(--sans);font-size:13px;line-height:1.85;color:var(--ink);
-    background:var(--butter-soft);border-radius:var(--r-xs);padding:var(--s3)}
-  .rl-list{list-style:none;margin:var(--s2) 0 0;padding:0}
-  .rl-list li{font-family:var(--sans);font-size:13px;line-height:1.9;color:var(--ink);
-    padding-left:16px;position:relative}
-  .rl-list li::before{content:"×";position:absolute;left:2px;color:var(--rose-ink)}
-  .rl-d{background:var(--surface);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
-    margin-top:6px}
-  .rl-t{font-family:var(--cute);font-size:13.5px;color:var(--ink)}
-  .rl-x{font-family:var(--sans);font-size:12.5px;line-height:1.85;color:var(--ink-soft);
-    margin-top:2px}
+  /* 「我的」页最末的条款小字 (REQ-095) */
+  .me-foot{margin-top:var(--s7);padding-top:var(--s4);text-align:center;
+    font-family:var(--sans);font-size:11.5px;color:var(--ink-faint)}
+  .me-foot a{color:var(--ink-faint);text-decoration:underline}
+  .me-foot span{margin:0 6px}
 
   /* ---------- 用户反馈 (REQ-041) ---------- */
   .fb-card{background:var(--surface-2);
@@ -1682,12 +1674,6 @@
       <div class="form-sub">学历、工作、资产证明。验了是加分,不验也能正常用</div>
       <div class="card" id="myVerify"></div>
 
-      <!-- 社区规则 (REQ-052)。条款页里已经写了,但那是一个要跳出去的独立页面 ——
-           App Store 审核和用户都得在**产品里**找得到,所以这儿放一份摘要。 -->
-      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">社区规则</div></div>
-      <div class="form-sub">这里写清楚什么不能发、举报之后会发生什么</div>
-      <div id="rulesBox"></div>
-
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">提点意见</div></div>
       <div class="form-sub">一次一句就够。被采纳的会有人回你 —— 不是自动回复</div>
       <div id="myFeedback"></div>
@@ -1699,12 +1685,13 @@
           具体删什么、什么删不掉。</div>
       </div>
 
-      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">条款</div></div>
-      <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
-        <a class="btn btn-ghost btn-pill" href="terms.html" target="_blank" rel="noopener"
-           style="flex:1;text-align:center;text-decoration:none">用户协议</a>
-        <a class="btn btn-ghost btn-pill" href="privacy.html" target="_blank" rel="noopener"
-           style="flex:1;text-align:center;text-decoration:none">隐私政策</a>
+      <!-- 条款收成页脚小字 (REQ-095)。它得**在**,但不该占一栏:
+           用户一年点不到一次,而 App Store 只要求「找得到」。
+           注册时那个勾里也有链接,那才是真正需要它的时刻。 -->
+      <div class="me-foot">
+        <a href="terms.html" target="_blank" rel="noopener">用户协议</a>
+        <span>·</span>
+        <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a>
       </div>
 
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">我的 ID</div></div>
@@ -2693,7 +2680,6 @@ async function enterApp(){
   renderMmSeen();
   renderMyVerify();
   subscribeMyVerify();
-  renderRules();
   renderMyFeedback();
   loadEntitlement();
   $("#uidText").textContent = me.uid;
@@ -3258,45 +3244,6 @@ function copySiteLink(){
   navigator.clipboard.writeText(url)
     .then(()=>toast("链接已复制,发给朋友就行"))
     .catch(()=>toast("复制不了,手动copy地址栏那一串"));
-}
-
-/* ================= 社区规则 (REQ-052) =================
-
-   条款页(terms.html)里已经写全了,但那是一个要跳出去的独立页面。
-   App Store 1.2 要求的是**产品里**能找到:禁什么、怎么举报、多久处理。
-   用户也一样 —— 真遇到骚扰的时候,没人会想起去翻用户协议。
-
-   所以这里放一份摘要,并且每条都对应产品里真的存在的东西:
-   「发送时就拦下来」对应 contentRejection、「举报」对应 openReportSheet、
-   「拉黑」对应 blocks 集合。写在这儿的每一句都要能指到一处实现,
-   否则它就只是一段免责声明。                                      */
-const RULE_BANNED = [
-  "辱骂、人身攻击、威胁、持续骚扰",
-  "色情内容、性交易、招嫖",
-  "涉及未成年人的任何性相关内容",
-  "诈骗、刷单、投资引流、赌博推广",
-  "歧视性言论(性别、地域、性取向、种族、身体状况等)",
-  "冒充他人,或未经同意公开他人隐私信息",
-  "广告、垃圾信息、批量骚扰",
-];
-const RULE_DEFENSE = [
-  ["发送时就拦",   "明显的辱骂、色情招嫖和诈骗话术,在你点发送的那一刻就会被挡回来。"],
-  ["举报",         "每个人、每条私信和留言旁边都有举报入口。**24 小时内**核实处理,处理结果不会告诉被举报的人,也不会让对方知道是谁举报的。"],
-  ["拉黑",         "随时可以拉黑任何人。拉黑后对方无法心动、留言或私信你,而且**对方不会知道自己被拉黑了** —— 让骚扰者确认这件事,现实中往往招来升级。"],
-];
-function renderRules(){
-  const host = $("#rulesBox"); if(!host) return;
-  host.innerHTML = `
-    <div class="rl-age">本站只面向<b>年满 18 周岁</b>的用户。发现未成年账号会直接删除,不接受申诉。</div>
-    <div class="rp-k" style="margin-top:14px">这些一律禁止,发现即删除并封号</div>
-    <ul class="rl-list">${RULE_BANNED.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-    <div class="rp-k" style="margin-top:14px">出了事会怎么处理</div>
-    ${RULE_DEFENSE.map(([t,d])=>`<div class="rl-d">
-      <div class="rl-t">${esc(t)}</div>
-      <div class="rl-x">${d.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</div></div>`).join("")}
-    <div class="hint" style="margin-top:12px;line-height:1.9">
-      完整条款见<a href="terms.html#rules" target="_blank" rel="noopener">用户协议</a>。
-      上面每一条都对应产品里真的存在的东西 —— 不是一段免责声明。</div>`;
 }
 
 /* ================= 用户反馈 (REQ-041) =================
