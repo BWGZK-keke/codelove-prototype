@@ -1732,7 +1732,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
          sendEmailVerification, reload, deleteUser,
          reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -7016,7 +7016,21 @@ async function callProxy(path, payload){
     });
   }catch(e){ throw new Error("连不上本站的 AI 服务,检查一下网络"); }
   const j = await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(j.error || `本站 AI 服务返回 ${res.status}`);
+  if(!res.ok){
+    /* 端点没部署时的报错要说人话 (REQ-081)。
+
+       Worker 把所有路径都收进同一个 handler:如果线上那份还没有 /gift、
+       /trip 这些新路由,请求会**掉进「普通对话」那一支**,然后因为没带
+       messages 而报「messages 不能为空」。用户点的是「送点什么」,
+       看到这句话完全无从下手 —— 这是真实发生过的一次。
+
+       所以这里把这种「明显不是本次调用该有的错」翻译成一句能动手的话。 */
+    const generic = ["messages 不能为空", "messages 格式不对", "messages 太多了"];
+    if(path !== "/chat" && generic.some(g => (j.error||"").includes(g)))
+      throw new Error(`这个功能的服务端还没更新 —— 需要重新部署 Worker(wrangler deploy)。` +
+                      `其余功能不受影响。`);
+    throw new Error(j.error || `本站 AI 服务返回 ${res.status}`);
+  }
   // 服务端每次都会回报剩余次数,记下来给设置面板显示 ——
   // 不然「还能用几次」全靠猜,出问题时也说不清是额度还是别的原因
   if(typeof j.__quota_left === "number")
