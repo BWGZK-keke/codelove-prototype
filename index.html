@@ -198,6 +198,16 @@
   .b-green{background:var(--mint-soft)}
   .b-indigo{background:var(--sky-soft)}
   .b-amber{background:var(--butter-soft)}
+  .b-rose{background:var(--rose-soft)}
+  .mod-b{font-size:13px;color:var(--ink);background:var(--surface-2);
+    border-radius:var(--r-sm);padding:11px 14px;margin-bottom:10px;line-height:1.6}
+  .mod-b.bad{background:var(--rose-soft)}
+  .mod-b.ok{background:var(--mint-soft)}
+  .inv-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:8px 0;flex-wrap:wrap}
+  .inv-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;
+    letter-spacing:2px;color:var(--ink);background:var(--surface-2);
+    border-radius:var(--pill);padding:5px 14px}
   /* 标签里常有中文(攀岩、咖啡),等宽字体没有中文字形会掉到很难看的 fallback,
      所以跟全站统一用 --cute */
   .tok{font-family:var(--cute);font-size:11.5px;color:var(--ink);background:var(--surface-2);
@@ -430,6 +440,10 @@
   .tab .ico svg{width:20px;height:20px;stroke:currentColor;fill:none;
     stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
   .tab.on{color:var(--ink);background:var(--accent)}
+  /* 未读只用一个点,不用数字 —— 数字会把「有人回你了」变成待清零的待办。 */
+  .tab.has-dot .ico{position:relative}
+  .tab.has-dot .ico::after{content:"";position:absolute;top:0;right:calc(50% - 13px);
+    width:7px;height:7px;border-radius:50%;background:var(--rose-ink)}
 
   /* ================= 桌面端双栏 (REQ-048) =================
 
@@ -1653,6 +1667,7 @@
     <div id="page-me" class="hidden">
       <div class="form-title">我的资料</div>
       <div class="form-sub">资料会展示在广场,请真实填写</div>
+      <div id="modBanner" class="hidden"></div>
       <div class="card" id="profileFormCard"></div>
 
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">AI 助手</div></div>
@@ -1673,6 +1688,10 @@
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">验证</div></div>
       <div class="form-sub">学历、工作、资产证明。验了是加分,不验也能正常用</div>
       <div class="card" id="myVerify"></div>
+
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">邀请码</div></div>
+      <div class="form-sub">三个,发给你真心觉得该来的人。用掉就没了,不会再生</div>
+      <div class="card" id="inviteCard"></div>
 
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">提点意见</div></div>
       <div class="form-sub">一次一句就够。被采纳的会有人回你 —— 不是自动回复</div>
@@ -1719,6 +1738,11 @@
           <div class="form-title">结算</div></div>
         <div class="form-sub">牵成一对算一条。这两份数据你自己写不了 —— 由服务端在确认双方真的匹配之后写</div>
         <div id="mmSettle"></div>
+
+        <div class="sec-head" style="margin-top:24px"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span>
+          <div class="form-title">资料审核</div></div>
+        <div class="form-sub">新资料和改过的资料排在这里。退回要写理由 —— 对方看得到原话</div>
+        <div id="mmModDesk"></div>
 
         <div class="sec-head" style="margin-top:24px"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span>
           <div class="form-title">验证申请</div></div>
@@ -1811,7 +1835,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
          sendEmailVerification, reload, deleteUser,
          reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, startAfter, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1882,7 +1906,42 @@ let me = null;          // firebase user
 let myProfile = null;   // firestore profile
 let myLikes = new Set();// uids I liked
 let likedMe = new Set();// uids who liked me
-let allUsers = [];      // cached users
+let allUsers = [];      // 广场当前展示的全部人 = 实时那一页 + 翻出来的
+/* 分页 (REQ-056)。第一页走实时订阅(新注册的立刻出现),往后翻是一次性查询。
+
+   为什么不把后面几页也做成实时:每页一个 onSnapshot,翻五页就是五个长连接,
+   而第二页之后的人本来也不该在你眼前跳来跳去 —— 那反而让人看丢位置。 */
+const FEED_PAGE = 80;
+let liveUsers = [];     // 实时那一页
+let moreUsers = [];     // 往后翻出来的
+let feedCursor = null;  // 最后一条的 updatedAt,下一页从这儿接着取
+let feedEnd = false, feedLoading = false;
+function mergeFeed(){
+  const seen = new Set(liveUsers.map(u=>u.uid));
+  allUsers = liveUsers.concat(moreUsers.filter(u=>!seen.has(u.uid) && !myBlocks.has(u.uid)));
+}
+async function loadMoreFeed(){
+  if(feedLoading || feedEnd) return;
+  feedLoading = true; renderFeed();
+  try{
+    const last = liveUsers.concat(moreUsers)
+      .map(u=>u.updatedAt).filter(Boolean).sort((a,b)=>(a.toMillis?.()||0)-(b.toMillis?.()||0))[0];
+    const q = last
+      ? query(collection(db,"users"), orderBy("updatedAt","desc"), startAfter(last), limit(FEED_PAGE))
+      : query(collection(db,"users"), orderBy("updatedAt","desc"), limit(FEED_PAGE));
+    const snap = await getDocs(q);
+    let got = 0;
+    snap.forEach(d=>{
+      got++;
+      const v = d.data();
+      if(d.id !== me.uid && !myBlocks.has(d.id) && !v.invisible
+         && !moreUsers.some(x=>x.uid === v.uid)) moreUsers.push(v);
+    });
+    if(got < FEED_PAGE) feedEnd = true;
+  }catch(e){ toast("翻不动了:" + fbError(e)); console.error(e); }
+  feedLoading = false;
+  mergeFeed(); sortFeed(); renderFeed();
+}
 let likedMeNote = new Map();   // 谁心动我时写的那句话 (REQ-007)
 let myLikeNote  = new Map();   // 我心动别人时写的那句话
 const matchNotified = new Set(); // 已弹过「匹配成功」的人,防止重复弹窗
@@ -2268,6 +2327,7 @@ const MARITAL  = ["未婚","离异","丧偶","不想说"];
 /* 结构化地区 (REQ-038)。国家一级用枚举:它决定合规分区和时区,不能随手填。
    省/州和城市留成自由文本 —— 城市名太多枚举不完,而且「张江」「浦东」
    这种说法列不进任何一张表。 */
+const ORIENT = ["异性","同性","都可以","不想说"];
 const COUNTRIES = ["中国大陆","中国香港","中国澳门","中国台湾","美国","加拿大",
                    "英国","澳大利亚","新西兰","新加坡","日本","韩国","德国",
                    "法国","荷兰","瑞士","其他"];
@@ -2413,6 +2473,10 @@ function renderProfileForm(host, data, isNew){
           <input id="f-city" maxlength="12" value="${esc(d.city||"")}" placeholder="如:上海">
           <div class="hint">最多 12 个字</div></div>
       </div>
+      <div class="field"><label>性取向</label>
+        <select id="f-orient">${optList(ORIENT, d.orient)}</select>
+        <div class="hint">只影响推荐顺序,不显示在你的卡片上。
+          原来是写死的「异性优先」—— 那对一部分人等于直接不可用。</div></div>
       <label class="chk"><input type="checkbox" id="f-remote" ${d.remote?"checked":""}>
         <span>可以接受异地</span></label>
       <div class="hint" style="margin:-2px 0 10px">
@@ -2594,7 +2658,7 @@ async function saveProfile(host,isNew){
   // 今天把城市藏起来、明天想公开,不用重新再填一遍。
   const all = {
     age, city, role, edu: v("f-edu"), marital: v("f-marital"),
-    country: v("f-country"), region: v("f-region"),
+    country: v("f-country"), region: v("f-region"), orient: v("f-orient"),
     industry: v("f-industry"), level: v("f-level"), org: v("f-org"),
     school: v("f-school"),
     stack: v("f-stack").split(/\s+/).filter(Boolean).slice(0,8),
@@ -2610,6 +2674,9 @@ async function saveProfile(host,isNew){
   //   tz 由浏览器自己报,用途只有「对方那边现在几点」—— 一个时区名
   //     暴露不了什么,而藏起来的代价是有人半夜三点收到消息。
   const remote = !!host.querySelector("#f-remote")?.checked;
+  // 性取向和 remote 一样不进分档:它只影响排序,藏起来就不起作用,
+  // 而且卡片上根本不显示它 —— 存它是为了排得对,不是为了给人看。
+  const orient = v("f-orient");
   const tz = (()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; }
                     catch(e){ return ""; } })().slice(0,40);
   const bucket = t => {
@@ -2630,7 +2697,7 @@ async function saveProfile(host,isNew){
     photo: v("f-photo"), twin: invisible ? "" : twinString(),
     // 这两个不受可见性分档影响,也不受隐身影响 ——
     // 隐身是「不出现在广场」,不是「让已经匹配的人半夜收到消息」
-    remote, ...(tz ? { tz } : {}),
+    remote, orient, ...(tz ? { tz } : {}),
     invisible, vis,
     hidden: VIS_FIELDS.filter(([k])=>invisible || vis[k] !== "pub").map(([k])=>k),
     uid: me.uid, updatedAt: serverTimestamp()
@@ -2684,6 +2751,9 @@ async function enterApp(){
   renderMyVerify();
   subscribeMyVerify();
   renderMyFeedback();
+  renderInvites();
+  claimInvite();
+  renderModStatus();
   loadEntitlement();
   $("#uidText").textContent = me.uid;
   startListeners();
@@ -2726,12 +2796,15 @@ function startListeners(){
   unsubs.push(onSnapshot(
     query(collection(db,"users"), orderBy("updatedAt","desc"), limit(80)),
     snap=>{
-      allUsers = []; myCard = null;
+      liveUsers = []; myCard = null;
       snap.forEach(d=>{
         if(d.id===me.uid) myCard = d.data();
         else if(!myBlocks.has(d.id) && !d.data().invisible)
-          allUsers.push(d.data());   // 拉黑的人和隐身的人都不出现在广场
+          liveUsers.push(d.data());   // 拉黑的人和隐身的人都不出现在广场
       });
+      // 实时那一页 + 后面翻出来的那些。翻出来的不实时 ——
+      // 挂 80 个以上的监听没有意义,而第二页之后的人本来就不该在你眼前跳动。
+      mergeFeed();
       sortFeed();
       renderFeed();
       prefetchLovers();
@@ -2847,7 +2920,14 @@ function sortFeed(){
     // 异性优先只在默认排序里生效。用户明确选了排序方式之后就别再插手,
     // 那是他自己的意图。
     if(s === "match" || s === "active"){
-      const ax = a.gender!==myProfile.gender ? 0:1, bx = b.gender!==myProfile.gender ? 0:1;
+      /* 性取向决定「谁排前面」(REQ-057)。原来写死的是异性优先 ——
+         对同性取向的人来说,那不是排序不准,是整个广场都排反了。
+         没填(或选「不想说」)的照旧按异性优先,不替人做假设。 */
+      const o = myProfile.orient || "";
+      const want = g => o === "同性" ? (g === myProfile.gender)
+                      : o === "都可以" ? true
+                      : (g !== myProfile.gender);
+      const ax = want(a.gender) ? 0 : 1, bx = want(b.gender) ? 0 : 1;
       if(ax !== bx) return ax - bx;
     }
     if(s === "match")  return compat(b) - compat(a);
@@ -2927,7 +3007,17 @@ $("#feedFilterBtn").addEventListener("click", ()=>{
 function refreshViews(){
   renderFeed();
   if(!$("#page-matches").classList.contains("hidden")) renderMatches();
+  else pollUnread();   // 人在广场时也要看得到「匹配」上的红点
 }
+/* 轮询而不是订阅:红点不需要秒级,而每个匹配挂一条长连接换一个时间戳不划算。
+   回到页面时立刻查一次 —— 那是最可能有新消息的时刻。 */
+function pollUnread(){
+  if(!me) return;
+  const ids = [...myLikes].filter(u=>likedMe.has(u) && !myBlocks.has(u));
+  if(ids.length) refreshUnread(ids); else paintUnread();
+}
+setInterval(pollUnread, 45000);
+window.addEventListener("focus", pollUnread);
 
 function goTab(name){
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x.dataset.p===name));
@@ -3431,6 +3521,80 @@ function bindFb(host, k, dismissible){
 /* 「我的」页:常驻入口 + 收到的回信。
    回信这一栏平时是空的,但它必须在 —— 有地方能收到回信,
    和「提了石沉大海」是两种完全不同的体验。 */
+/* ── 邀请码 (REQ-055) ────────────────────────────────────────
+   每人三个,一次性。
+
+   **三个这个上限只在浏览器里**:规则拦得住「不是我的码我不能删」、
+   「已经被领走的码不能再改」、「code 长度必须 6–16」,但拦不住
+   「这个人一共发了几个」—— 那要一个计数器文档,而计数器要么可被
+   本人改(等于没拦),要么需要一个我们现在没有的后端。写在这儿,
+   免得以后有人以为规则挡过了。
+
+   码本身用无歧义字符表:去掉 0/O/1/I/L,免得抄错一位就说「你给我的
+   码是坏的」。 */
+const INVITE_N = 3, INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function newCode(){
+  const a = new Uint32Array(8); crypto.getRandomValues(a);
+  return [...a].map(x=>INVITE_ALPHABET[x % INVITE_ALPHABET.length]).join("");
+}
+async function myInvites(){
+  const snap = await getDocs(query(collection(db,"invites"), where("by","==",me.uid)));
+  const out = []; snap.forEach(d=>out.push({code:d.id, ...d.data()}));
+  return out.sort((a,b)=>a.code.localeCompare(b.code));
+}
+async function renderInvites(){
+  const box = $("#inviteCard");
+  box.innerHTML = `<div class="hint">正在取你的邀请码…</div>`;
+  let list;
+  try{ list = await myInvites(); }
+  catch(e){ box.innerHTML = `<div class="hint">读不到邀请码:${esc(fbError(e))}</div>`; return; }
+
+  const left = INVITE_N - list.length;
+  box.innerHTML = list.map(v=>`
+    <div class="inv-row">
+      <code class="inv-code">${esc(v.code)}</code>
+      ${v.usedBy
+        ? `<span class="badge b-green">已经有人用了</span>`
+        : `<button class="btn-chat" data-inv="${esc(v.code)}">复制邀请链接</button>`}
+    </div>`).join("")
+    + (left > 0
+        ? `<button class="btn btn-pill" style="width:100%;margin-top:10px" id="invGen">
+             生成邀请码(还剩 ${left} 个)</button>`
+        : `<div class="hint" style="margin-top:8px">三个都发出去了。</div>`)
+    + `<div class="hint" style="margin-top:10px">
+         邀请码现在只记「谁把谁带进来的」,不是进站的门槛 ——
+         站还开着注册。等哪天要收口了,这份名单就是第一批放行的人。</div>`;
+
+  box.querySelectorAll("[data-inv]").forEach(b=>b.addEventListener("click", ()=>{
+    const url = location.origin + location.pathname + "?invite=" + b.dataset.inv;
+    (navigator.clipboard?.writeText(url) || Promise.reject())
+      .then(()=>toast("邀请链接已复制"))
+      .catch(()=>toast("复制失败,码是 " + b.dataset.inv));
+  }));
+  $("#invGen")?.addEventListener("click", async ()=>{
+    const btn = $("#invGen"); btn.disabled = true; btn.textContent = "…";
+    try{
+      await setDoc(doc(db,"invites",newCode()),
+                   {by: me.uid, usedBy: "", createdAt: serverTimestamp(), usedAt: ""});
+      toast("生成好了");
+    }catch(e){ toast(fbError(e)); }
+    renderInvites();
+  });
+}
+// 从 ?invite=CODE 进来的人,登录后自动认领一次。
+async function claimInvite(){
+  const code = new URLSearchParams(location.search).get("invite");
+  if(!code || !me) return;
+  history.replaceState(null, "", location.pathname);   // 别让码留在地址栏被再贴一次
+  try{
+    const ref = doc(db,"invites",code), d = await getDoc(ref);
+    if(!d.exists() || d.data().usedBy) return;         // 无效或已被领走,静默略过
+    if(d.data().by === me.uid) return;                 // 不能自己领自己的
+    await updateDoc(ref, {usedBy: me.uid, usedAt: serverTimestamp()});
+    toast("邀请码收下了");
+  }catch(e){ console.warn("invite", e); }
+}
+
 async function renderMyFeedback(){
   const host = $("#myFeedback"); if(!host || !me) return;
   let rows = [];
@@ -6774,6 +6938,14 @@ function renderFeed(){
     </div>`;
   }).join("");
   syncMatchBtn();
+  const moreBar = document.createElement("div");
+  moreBar.style.cssText = "text-align:center;padding:8px 0 4px";
+  moreBar.innerHTML = feedEnd
+    ? `<div class="rp-k">已经到底了 —— 现在站上一共这些人</div>`
+    : `<button class="btn ghost" id="feedMore"${feedLoading?" disabled":""}>${feedLoading?"正在翻…":"看更多"}</button>`;
+  if(shown.length) $("#feedList").appendChild(moreBar);
+  $("#feedMore")?.addEventListener("click", loadMoreFeed);
+
   $("#feedList").querySelectorAll("[data-twin]").forEach(b=>
     b.addEventListener("click", ()=>{
       const u = allUsers.find(x=>x.uid===b.dataset.twin);
@@ -6806,10 +6978,60 @@ $("#chatReport").addEventListener("click", ()=>{
                     kind: "message", contextId: chatIdFor(curChatPeer) });
 });
 function chatIdFor(uid){ return [me.uid, uid].sort().join("_"); }
+
+/* ── 私信未读 (REQ-058) ───────────────────────────────────────
+   没有后端,所以「未读」拆成两半:
+
+   · **对方最后一次说话是什么时候** —— 写在 chatMeta/{chatId} 里,
+     两个人都读得到(规则按 chatId 拆 uid 判成员)。发消息时顺手更新。
+   · **我最后一次看到哪儿** —— 只存在这台设备的 localStorage 里。
+     不写进库:那是「我读没读」,不该让对方查得到,更不该攒成一张
+     谁在什么时候看了谁的表。代价是换台设备红点会重新出现一次。
+
+   为什么不直接数 messages:那要给每个匹配挂一个 onSnapshot,
+   十个匹配就是十条长连接,而这里只需要一个时间戳。 */
+const READ_KEY = "cl_read_v1";
+let readMap = {};
+try{ readMap = JSON.parse(localStorage.getItem(READ_KEY) || "{}"); }catch(e){ readMap = {}; }
+const lastMeta = new Map();     // uid -> {lastAt(ms), lastFrom}
+
+function markRead(uid){
+  readMap[uid] = Date.now();
+  try{ localStorage.setItem(READ_KEY, JSON.stringify(readMap)); }catch(e){}
+}
+function isUnread(uid){
+  const m = lastMeta.get(uid);
+  return !!m && m.lastFrom && m.lastFrom !== me.uid && m.lastAt > (readMap[uid] || 0);
+}
+function unreadCount(){
+  return [...myLikes].filter(u=>likedMe.has(u) && !myBlocks.has(u) && isUnread(u)).length;
+}
+function paintUnread(){
+  const n = unreadCount();
+  const tab = document.querySelector('.tab[data-p="matches"]');
+  if(tab){
+    tab.classList.toggle("has-dot", n > 0);
+    tab.setAttribute("aria-label", n ? `匹配,${n} 条未读` : "匹配");
+  }
+}
+async function refreshUnread(ids){
+  await Promise.all(ids.map(async uid=>{
+    try{
+      const d = await getDoc(doc(db, "chatMeta", chatIdFor(uid)));
+      if(d.exists()){
+        const v = d.data();
+        lastMeta.set(uid, {lastAt: tms(v.lastAt) === Number.MAX_SAFE_INTEGER ? 0 : tms(v.lastAt),
+                           lastFrom: v.lastFrom || ""});
+      }
+    }catch(e){ /* 读不到就当没有未读,不要为了一个红点弹错误 */ }
+  }));
+  paintUnread();
+}
 function tms(t){ return t && typeof t.toMillis==="function" ? t.toMillis() : Number.MAX_SAFE_INTEGER; }
 
 function openChat(uid, name, photo, gender, sub){
   curChatPeer = {uid, name, photo, gender};
+  markRead(uid); paintUnread();
   $("#chatName").textContent = name;
   const subEl = $("#view-chat").querySelector(".chat-head .sub");
   if(subEl) subEl.innerHTML = sub ? esc(sub) : ico(ICON_HEART_ON) + "已匹配";
@@ -6884,6 +7106,11 @@ async function postMsgTo(uid, text, ai){
   const d = {from: me.uid, text, createdAt: serverTimestamp()};
   if(ai) d.ai = true;
   await addDoc(collection(db,"chats",chatIdFor(uid),"messages"), d);
+  // 给对方点亮红点。写失败不该让消息看起来发失败了 —— 消息已经在库里了。
+  try{
+    await setDoc(doc(db,"chatMeta",chatIdFor(uid)),
+                 {lastAt: serverTimestamp(), lastFrom: me.uid});
+  }catch(e){ console.warn("chatMeta", e); }
 }
 async function postMsg(text, ai){ return postMsgTo(curChatPeer.uid, text, ai); }
 
@@ -8242,6 +8469,114 @@ function ConciergeWaiting(st){
            matched:"已经牵上了。" }[st] || "你还没受理。申请人正在等第一个回应。";
 }
 
+/* ── 资料人工审核 (REQ-059) ──────────────────────────────────
+   「我们审核资料,不是注册即入场」这句话在登录页写了很久,但一直
+   没有地方真的审。这一块把它接上。
+
+   队列不是一张待办表 —— 没有后端,谁也写不了「这个人待审」这条记录
+   (规则只让红娘写 moderation)。所以队列是**算出来的**:
+   最近更新过资料的人,减去已经审过且审核时间晚于最后一次修改的人。
+   改了资料就自动重新排队,不需要谁去打标记。
+
+   退回必须写理由,规则里也拦了(status=='changes' 时 reason 不能为空)。
+   理由原话会展示给本人 —— 一句「不合规」等于没说。 */
+const MOD_SCAN = 40;
+let modQueue = [];
+function myMmId(){ return (MATCHMAKERS.find(m=>m.uid===me.uid) || {}).id || ""; }
+function modStateOf(u, rec){
+  if(!rec) return "new";
+  return tms(u.updatedAt) > tms(rec.at) + 1000 ? "again" : rec.status;
+}
+async function renderModDesk(){
+  const box = $("#mmModDesk");
+  if(!box) return;
+  if(!myMmId()){
+    box.innerHTML = `<div class="card"><div class="hint">
+      认不出你是哪位红娘 —— 去 firestore.rules 的 matchmakerIdOf 里补上你的 uid。</div></div>`;
+    return;
+  }
+  box.innerHTML = waiting("在排审核队列", "改过资料的人会自动回到队尾");
+  let users = [], recs = new Map();
+  try{
+    const [us, ms] = await Promise.all([
+      getDocs(query(collection(db,"users"), orderBy("updatedAt","desc"), limit(MOD_SCAN))),
+      getDocs(collection(db,"moderation"))
+    ]);
+    us.forEach(d=>users.push({uid:d.id, ...d.data()}));
+    ms.forEach(d=>recs.set(d.id, d.data()));
+  }catch(e){ box.innerHTML = `<div class="card"><div class="hint">读不到队列:${esc(fbError(e))}</div></div>`; return; }
+
+  modQueue = users.map(u=>({u, rec: recs.get(u.uid), st: modStateOf(u, recs.get(u.uid))}));
+  const todo = modQueue.filter(x=>x.st === "new" || x.st === "again" || x.st === "pending");
+  const done = modQueue.filter(x=>!todo.includes(x));
+
+  const row = x=>`
+    <div class="card" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        ${avatarHtml(x.u)}
+        <div style="flex:1;min-width:120px">
+          <div class="uname">${esc(x.u.name || "(没填名字)")}
+            ${{new:'<span class="badge b-amber">新资料</span>',
+               again:'<span class="badge b-amber">改过了</span>',
+               pending:'<span class="badge b-amber">在审</span>',
+               approved:'<span class="badge b-green">已通过</span>',
+               changes:'<span class="badge b-rose">已退回</span>'}[x.st] || ""}</div>
+          <div class="umeta">${esc(dot([x.u.role, x.u.org, x.u.city, x.u.edu])) || "资料很空"}</div>
+        </div>
+      </div>
+      ${x.u.bio ? `<div class="hint" style="margin-top:8px">${esc(x.u.bio.slice(0,160))}</div>` : ""}
+      ${x.rec && x.rec.status === "changes" && x.rec.reason
+        ? `<div class="hint" style="margin-top:6px">上次退回理由:${esc(x.rec.reason)}</div>` : ""}
+      <div class="mc-acts" style="margin-top:8px">
+        <button class="btn-chat" data-mod-ok="${esc(x.u.uid)}">通过</button>
+        <button class="btn-chat" data-mod-no="${esc(x.u.uid)}">退回并说明</button>
+      </div>
+    </div>`;
+
+  box.innerHTML =
+    (todo.length ? todo.map(row).join("")
+                 : `<div class="card"><div class="hint">队列空了。</div></div>`)
+    + (done.length ? `<div class="rp-k" style="margin:10px 0 6px">审过的 ${done.length} 位</div>`
+                     + done.map(row).join("") : "");
+
+  box.querySelectorAll("[data-mod-ok]").forEach(b=>
+    b.addEventListener("click", ()=>setMod(b.dataset.modOk, "approved", "")));
+  box.querySelectorAll("[data-mod-no]").forEach(b=>
+    b.addEventListener("click", async ()=>{
+      const why = (prompt("退回理由(对方看得到这句原话,300 字以内):") || "").trim();
+      if(!why) return toast("退回必须写理由");
+      setMod(b.dataset.modNo, "changes", why.slice(0,300));
+    }));
+}
+async function setMod(uid, status, reason){
+  try{
+    await setDoc(doc(db,"moderation",uid),
+      {uid, status, reason, by: myMmId(), at: serverTimestamp()});
+    toast(status === "approved" ? "已通过" : "已退回");
+  }catch(e){ toast(fbError(e)); }
+  renderModDesk();
+}
+
+/* 本人这一侧。审核结果要看得到,否则退回等于石沉大海。 */
+async function renderModStatus(){
+  const box = $("#modBanner");
+  if(!box) return;
+  let rec = null;
+  try{
+    const d = await getDoc(doc(db,"moderation",me.uid));
+    if(d.exists()) rec = d.data();
+  }catch(e){ box.classList.add("hidden"); return; }
+  const st = rec && myProfile ? modStateOf(myProfile, rec) : (rec ? rec.status : "new");
+  if(!rec || st === "new"){ box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.innerHTML = st === "changes"
+    ? `<div class="mod-b bad"><b>资料被退回了</b><div style="margin-top:4px">${esc(rec.reason)}</div>
+         <div style="margin-top:4px">改完直接保存,会自动回到审核队列。</div></div>`
+    : st === "approved"
+      ? `<div class="mod-b ok">资料已经审过了。</div>`
+      : `<div class="mod-b">资料改过了,在重新排队。审核期间照常能用。</div>`;
+}
+
 function subscribeMatchmakerDesk(){
   if(unsubDesk) return;
   unsubDesk = onSnapshot(
@@ -8274,6 +8609,7 @@ function subscribeMatchmakerDesk(){
   subscribeMmApplyDesk();
   subscribeVerifyDesk();
   renderSettle();
+  renderModDesk();
 }
 
 /* 结算页 (REQ-013 / REQ-014)。
@@ -8531,12 +8867,21 @@ async function renderMatches(){
     Promise.all(pendingIds.map(fetchProfile))
   ]).then(r=>[r[0].filter(Boolean), r[1].filter(Boolean)]);
 
+  refreshUnread(matchIds).then(()=>{        // 红点晚到一步没关系,不挡卡片渲染
+    matchIds.forEach(uid=>{
+      $("#matchList").querySelectorAll("[data-unread]").forEach(el=>{
+        if(el.dataset.unread === uid) el.hidden = !isUnread(uid);
+      });
+    });
+  });
+
   $("#matchList").innerHTML = matches.length ? matches.map(u=>`
     <div class="match-card">
       <div class="mc-top">
         <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatarHtml(u)}</span>
         <div class="info">
-          <div class="uname">${esc(u.name)} <span class="badge b-amber">${ico(ICON_HEART_ON)}双向心动</span></div>
+          <div class="uname">${esc(u.name)} <span class="badge b-amber">${ico(ICON_HEART_ON)}双向心动</span>
+            <span class="badge b-rose" data-unread="${esc(u.uid)}" hidden>新消息</span></div>
           <div class="umeta">${esc(dot([u.role, u.level, u.org, u.city])) || "未公开更多信息"}</div>
           ${peerClock(u)}
         </div>
