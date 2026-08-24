@@ -81,7 +81,20 @@
        思源黑),一个字节都不用下载,而且中文正文本来就该用黑体。
        展示体只在短句上用,那才是它擅长的地方。 */
     --cute:"ZCOOL KuaiLe","Yuanti SC","YouYuan","幼圆",-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
-    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",
+    /* 正文的**拉丁字**用 Comic Sans(Ke 指定,取自 arXiv 2505.21653 里
+       配图的标注字体 —— 那篇的插图注释就是 Comic Sans MS regular/bold)。
+
+       两件事必须写清楚,否则会被当成没生效:
+
+       1. **Comic Sans 没有汉字。** 它只有拉丁字母和标点,所以中文正文
+          照旧落到苹方/思源黑 —— 这不是回退失败,是这个字体本来就没有
+          那些字形。真正会变的是中文里夹的英文词、以及英文版落地页。
+       2. **它不能自托管。** Comic Sans MS 是微软的字体,没有再分发授权,
+          所以只能按名字引用系统里已有的那份。装了 Office 的 macOS 也有。
+          没有的机器依次落到 Comic Neue(开源仿版)、Chalkboard SE(macOS),
+          再没有就还是系统黑体 —— 不下载任何东西,不违反 REQ-044。 */
+    --sans:"Comic Sans MS","Comic Neue","Chalkboard SE",
+           -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",
            "Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
     --serif:var(--cute);
     --mono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
