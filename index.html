@@ -769,6 +769,37 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 生活栏目 (REQ-039) ---------- */
+  .lf-pane{min-height:60px}
+  .wk-q{font-family:var(--cute);font-size:19px;line-height:1.5;color:var(--ink);
+    text-wrap:balance}
+  .wk-sub{font-family:var(--sans);font-size:12.5px;line-height:1.85;color:var(--ink-soft);
+    margin:var(--s2) 0 var(--s4)}
+  .wk-a{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-sm);
+    padding:var(--s3) var(--s4);margin-bottom:var(--s2)}
+  .wk-t{font-family:var(--sans);font-size:14px;line-height:1.9;color:var(--ink)}
+  .wk-by{font-family:var(--sans);font-size:11.5px;color:var(--ink-faint);margin-top:5px}
+  .wk-nm{color:var(--ink-soft);cursor:pointer;text-decoration:underline}
+  .wk-peek{background:var(--butter-soft);border:var(--bw) solid var(--outline);
+    border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin:var(--s5) 0 var(--s2);
+    cursor:pointer;box-shadow:var(--sh);transition:transform var(--dur) var(--ease)}
+  .wk-peek:hover{transform:translateY(-1px)}
+  .wk-peek-k{font-family:var(--sans);font-size:11px;color:var(--ink-soft);
+    letter-spacing:.14em;text-transform:uppercase}
+  .wk-peek-q{font-family:var(--cute);font-size:15.5px;line-height:1.5;color:var(--ink);
+    margin-top:3px;text-wrap:balance}
+  .wk-peek-go{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:6px}
+  .ask-card{background:var(--surface);border:var(--bw) solid var(--outline);
+    border-radius:var(--r-sm);padding:var(--s3) var(--s4);box-shadow:var(--sh);
+    margin-top:var(--s3)}
+  .ask-top{display:flex;align-items:center;justify-content:space-between;gap:var(--s3)}
+  .ask-who{font-family:var(--sans);font-size:11.5px;color:var(--ink-faint)}
+  .ask-t{font-family:var(--cute);font-size:15.5px;line-height:1.5;color:var(--ink);
+    margin-top:var(--s2);text-wrap:balance}
+  .ask-x{font-family:var(--sans);font-size:13px;line-height:1.85;color:var(--ink-soft);
+    margin-top:4px}
+  .sp-area{font-family:var(--sans);font-size:12px;color:var(--ink-soft)}
+
   /* ---------- 对方那边几点 (REQ-038) ---------- */
   .clk{display:inline-block;font-family:var(--sans);font-size:11px;color:var(--ink-soft);
     background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--pill);
@@ -1381,6 +1412,9 @@
         <span class="match-note" id="aiMatchNote"></span>
       </div>
       <div id="feedFilter" class="hidden"></div>
+      <!-- 每周一题 (REQ-039):文档要求「独立入口且首页可见」。
+           放一条,点了跳到生活页 —— 不在广场里就地作答,那会把广场变成信息流。 -->
+      <div id="weeklyPeek"></div>
       <!-- 今天的三位 (REQ-006):当天固定,不刷新、不无限翻 -->
       <div id="dailyBox"></div>
       <div id="feedList"><div class="loading"><div class="spinner"></div>
@@ -1401,6 +1435,20 @@
     </div>
     <!-- 留言板 -->
     <div id="page-board" class="hidden">
+      <!-- 生活栏目 (REQ-039)。刻意不做朋友圈信息流 —— 那会变成炫耀场。
+           三块都是话题式的:有题可答,而不是有生活可晒。 -->
+      <div class="ai-seg lf-seg" style="margin-bottom:14px">
+        <button type="button" data-lf="weekly" class="on">每周一题</button>
+        <button type="button" data-lf="asks">深度问答</button>
+        <button type="button" data-lf="spots">城市漫游</button>
+        <button type="button" data-lf="board">留言板</button>
+      </div>
+
+      <div class="lf-pane" data-pane="weekly"><div id="weeklyBox"></div></div>
+      <div class="lf-pane hidden" data-pane="asks"><div id="asksBox"></div></div>
+      <div class="lf-pane hidden" data-pane="spots"><div id="spotsBox"></div></div>
+
+      <div class="lf-pane hidden" data-pane="board">
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">留言板</div></div>
       <div class="form-sub">写给所有人 · 显示最新 50 条</div>
       <div class="card compose">
@@ -1413,6 +1461,7 @@
       <div id="boardList"><div class="loading"><div class="spinner"></div>
         <div class="wt-what">在读留言板</div>
         <div class="wt-why">显示最新 50 条</div></div></div>
+      </div>
     </div>
     <!-- 我的 -->
     <div id="page-me" class="hidden">
@@ -1503,7 +1552,7 @@
   <div class="tabbar"><div class="tabbar-inner">
     <button class="tab on" data-p="feed"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.1 5-5 2.1 2.1-5z"/></svg></span>广场</button>
     <button class="tab" data-p="matches"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 20s-6.5-4.3-8.4-8A4.6 4.6 0 0 1 12 7.3 4.6 4.6 0 0 1 20.4 12c-1.9 3.7-8.4 8-8.4 8z"/></svg></span>匹配</button>
-    <button class="tab" data-p="board"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 15.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg></span>留言</button>
+    <button class="tab" data-p="board"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 15.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg></span>生活</button>
     <button class="tab" data-p="mm"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 20s-6.5-4.3-8.4-8A4.6 4.6 0 0 1 12 7.3 4.6 4.6 0 0 1 20.4 12c-1.9 3.7-8.4 8-8.4 8z"/><path d="M17.5 4.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg></span>红娘</button>
     <button class="tab" data-p="me"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.5a7.2 7.2 0 0 1 14.4 0"/></svg></span>我的</button>
   </div></div>
@@ -2383,6 +2432,11 @@ async function enterApp(){
   $("#uidText").textContent = me.uid;
   startListeners();
   subscribeBoard();
+  // 生活栏目的三块 (REQ-039):切到哪一块才订阅哪一块 ——
+  // 一次挂三个实时监听,而用户多半只看其中一块
+  document.querySelectorAll(".lf-seg button").forEach(b=>
+    b.addEventListener("click", ()=>switchLife(b.dataset.lf)));
+  switchLife("weekly");
   subscribeMatchmakerDesk();
 }
 
@@ -2896,6 +2950,296 @@ function renderDaily(){
   if(less) less.addEventListener("click", ()=>{ topOpen = false; renderDaily(); });
 }
 
+/* ================= 生活栏目 (REQ-039) =================
+
+   要解决的真实问题:**没匹配到人的用户没有回访理由**。留言板已经承担了
+   一部分,这三块是它的升级。
+
+   刻意**不做**朋友圈信息流:那会变成炫耀场,和「严肃交友」直接冲突。
+   三块都是话题式的 —— 有题可答,而不是有生活可晒。
+
+   ① 每周一题:全站同一题,一人一条,默认匿名。匿名不是可有可无的细节 ——
+      问的是「你上一次熬到三点是为了什么」这种题,署名了就没人说实话,
+      而说实话的答案才看得出一个人的质地,比「喜欢旅游美食」的标签有用得多。
+   ② 深度问答:限定生活方式 / 职业选择 / 亲密关系三类。不做技术问答,
+      那是另一个产品,而且技术问答会立刻把这里变成一个错误的社区。
+   ③ 城市漫游:投稿「我常去的一个地方」。**一石二鸟** ——
+      既是内容,又直接进同城两个人的「约在哪」候选池(见 REQ-034)。
+
+   题库写死在前端。每周换一题靠 ISO 周数取模,不需要后台 ——
+   没有定时任务也能保证全站同一周看到同一题。                        */
+const WEEKLY_Q = [
+  "你上一次为一件事熬到凌晨三点,是为了什么?",
+  "你书架上最旧的一本书是什么?",
+  "最近一次改变你想法的一段对话,发生在什么时候?",
+  "你做过最不划算、但一点都不后悔的一件事?",
+  "如果明天不用上班,你会先做什么?",
+  "有什么东西你用了很多年,一直没换?",
+  "你最近一次觉得「这事真有意思」是什么时候?",
+  "你希望别人怎么形容你,而现在还不太够的?",
+];
+const ASK_TOPICS = [["life","生活方式"], ["career","职业选择"], ["love","亲密关系"]];
+const SPOT_KINDS = [["cafe","咖啡馆"], ["food","吃饭"], ["books","书店"],
+                    ["museum","展览"], ["walk","走走"], ["climb","运动"], ["other","别的"]];
+
+/* ISO 周编号。用它当每周一题的 key —— 全站同一周同一题,不需要后台。
+   周一是一周的第一天(ISO 8601),不是周日。 */
+function isoWeek(d = new Date()){
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  const wk = Math.ceil(((t - y0) / 86400000 + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(wk).padStart(2, "0")}`;
+}
+function weeklyKey(){ return isoWeek(); }
+function weeklyQuestion(){
+  const k = weeklyKey();
+  return WEEKLY_Q[dayHash(k) % WEEKLY_Q.length];
+}
+
+let lfTab = "weekly";
+const lfUnsub = {};
+function switchLife(tab){
+  lfTab = tab;
+  document.querySelectorAll(".lf-seg button").forEach(b=>
+    b.classList.toggle("on", b.dataset.lf === tab));
+  document.querySelectorAll(".lf-pane").forEach(p=>
+    p.classList.toggle("hidden", p.dataset.pane !== tab));
+  if(tab === "weekly") subWeekly();
+  if(tab === "asks")   subAsks();
+  if(tab === "spots")  subSpots();
+}
+
+/* 广场上的那一条。只是一个入口,不在这儿就地作答 ——
+   在广场里嵌一个输入框,广场就开始往信息流的方向滑。 */
+function renderWeeklyPeek(){
+  const host = document.getElementById("weeklyPeek"); if(!host) return;
+  host.innerHTML = `
+    <div class="wk-peek" id="wkPeek">
+      <div class="wk-peek-k">本周问题</div>
+      <div class="wk-peek-q">${esc(weeklyQuestion())}</div>
+      <div class="wk-peek-go">去答一句 →</div>
+    </div>`;
+  document.getElementById("wkPeek").addEventListener("click", ()=>{
+    goTab("board"); switchLife("weekly");
+  });
+}
+
+/* ---------- 每周一题 ---------- */
+function subWeekly(){
+  if(lfUnsub.weekly) return;
+  const wk = weeklyKey();
+  lfUnsub.weekly = onSnapshot(
+    query(collection(db,"weekly",wk,"answers"), limit(100)),
+    snap=>{
+      const rows = []; snap.forEach(d=>rows.push({id:d.id, ...d.data()}));
+      renderWeekly(rows);
+    },
+    err=>{ const b = $("#weeklyBox"); if(b) b.innerHTML =
+      `<div class="empty" style="padding:20px">读不到:${esc(fbError(err))}</div>`; });
+}
+async function renderWeekly(rows){
+  const host = $("#weeklyBox"); if(!host) return;
+  const mine = rows.find(r=>r.id === me.uid);
+  // 实名的那些才去拉资料。匿名的一律不拉 —— 拉了就等于在客户端里
+  // 摆着一份「谁答了什么」的对照表,那和署名没区别。
+  const named = rows.filter(r=>!r.anon && r.id !== me.uid);
+  const profs = {};
+  await Promise.all(named.slice(0,60).map(async r=>{ profs[r.id] = await fetchProfile(r.id); }));
+  host.innerHTML = `
+    <div class="wk-q">${esc(weeklyQuestion())}</div>
+    <div class="wk-sub">这周全站同一题。<b>默认匿名</b> —— 匿名了才有人说实话,
+      而说实话的答案才看得出一个人。愿意署名的话,别人可以从这里点进你的资料。</div>
+    <div class="card compose">
+      <textarea id="wkInput" maxlength="500" placeholder="随便写,几十个字就够">${esc(mine?mine.text:"")}</textarea>
+      <div class="compose-foot">
+        <label class="chk" style="margin:0"><input type="checkbox" id="wkAnon" ${
+          mine && mine.anon === false ? "" : "checked"}><span>匿名</span></label>
+        <button class="btn btn-coral btn-pill" id="wkSend">${mine?"改一改":"答一条"}</button>
+      </div>
+    </div>
+    ${mine ? `<button class="dl-more" id="wkDrop">撤回我的回答</button>` : ""}
+    <div class="rp-k" style="margin-top:14px">${rows.length} 个人答了</div>
+    ${rows.length ? rows.map(r=>{
+      const u = !r.anon && profs[r.id];
+      return `<div class="wk-a">
+        <div class="wk-t">${esc(r.text)}</div>
+        <div class="wk-by">${r.id === me.uid ? "你写的"
+          : (u ? `<span class="wk-nm" data-wkopen="${esc(r.id)}">${esc(u.name||"未知")}</span>`
+               : "匿名")}</div>
+      </div>`;
+    }).join("") : `<div class="empty" style="padding:24px">还没有人答。
+      第一个答的人通常会被看到最多次。</div>`}`;
+
+  $("#wkSend").addEventListener("click", async ()=>{
+    const text = $("#wkInput").value.trim();
+    if(!text){ toast("写一句吧"); return; }
+    const why = contentRejection(text, true);
+    if(why){ toast(why); return; }
+    try{
+      await setDoc(doc(db,"weekly",weeklyKey(),"answers",me.uid),
+        { uid: me.uid, text, anon: $("#wkAnon").checked, createdAt: serverTimestamp() });
+      toast("答好了");
+    }catch(e){ toast("没发出去:" + fbError(e)); }
+  });
+  const drop = $("#wkDrop");
+  if(drop) drop.addEventListener("click", async ()=>{
+    try{ await delDoc(doc(db,"weekly",weeklyKey(),"answers",me.uid)); toast("已撤回"); }
+    catch(e){ toast("撤不回:" + fbError(e)); }
+  });
+  host.querySelectorAll("[data-wkopen]").forEach(b=>b.addEventListener("click", ()=>{
+    const u = allUsers.find(x=>x.uid === b.dataset.wkopen) || profs[b.dataset.wkopen];
+    if(u) openTwinPortrait(u);
+  }));
+}
+
+/* ---------- 深度问答 ---------- */
+let askTopic = "";
+function subAsks(){
+  if(lfUnsub.asks) return;
+  lfUnsub.asks = onSnapshot(
+    query(collection(db,"asks"), orderBy("createdAt","desc"), limit(50)),
+    snap=>{ const rows=[]; snap.forEach(d=>rows.push({id:d.id, ...d.data()})); renderAsks(rows); },
+    err=>{ const b = $("#asksBox"); if(b) b.innerHTML =
+      `<div class="empty" style="padding:20px">读不到:${esc(fbError(err))}</div>`; });
+}
+async function renderAsks(rows){
+  const host = $("#asksBox"); if(!host) return;
+  if(!host.innerHTML.trim()) host.innerHTML = waiting("在读问答", "提问人的名字要分别读");
+  const shown = askTopic ? rows.filter(r=>r.topic === askTopic) : rows;
+  const profs = {};
+  await Promise.all(shown.slice(0,30).map(async r=>{ profs[r.from] = await fetchProfile(r.from); }));
+  host.innerHTML = `
+    <div class="wk-sub">只聊三类:生活方式、职业选择、亲密关系。
+      <b>不做技术问答</b> —— 那是另一个产品,放进来会立刻把这儿变成一个错误的社区。</div>
+    <div class="card compose">
+      <div class="ai-seg" id="askTopicSeg" style="margin-bottom:8px">${ASK_TOPICS.map(([k,l],i)=>
+        `<button type="button" data-at="${k}"${i===0?' class="on"':""}>${esc(l)}</button>`).join("")}</div>
+      <input id="askTitle" maxlength="60" placeholder="一句话把问题说清楚">
+      <textarea id="askText" maxlength="800" placeholder="补充背景(可选)" style="margin-top:8px"></textarea>
+      <div class="compose-foot">
+        <span class="hint">问题发出去就不能改了 —— 改了下面的回答会对不上</span>
+        <button class="btn btn-coral btn-pill" id="askSend">提问</button>
+      </div>
+    </div>
+    <div class="mm-tabs" style="margin-top:12px">
+      <button class="mm-tab${askTopic?"":" on"}" data-af="">全部 ${rows.length}</button>
+      ${ASK_TOPICS.map(([k,l])=>`<button class="mm-tab${askTopic===k?" on":""}" data-af="${k}">${
+        esc(l)} ${rows.filter(r=>r.topic===k).length}</button>`).join("")}
+    </div>
+    ${shown.length ? shown.map(r=>{
+      const u = profs[r.from] || {};
+      const tl = (ASK_TOPICS.find(t=>t[0]===r.topic)||[])[1] || "";
+      return `<div class="ask-card">
+        <div class="ask-top"><span class="badge b-indigo">${esc(tl)}</span>
+          <span class="ask-who">${esc(u.name||"未知用户")} · ${esc(timeAgo(r.createdAt))}</span></div>
+        <div class="ask-t">${esc(r.title)}</div>
+        ${r.text ? `<div class="ask-x">${esc(r.text)}</div>` : ""}
+        <button class="dl-more" style="margin:10px 0 0" data-askopen="${esc(r.id)}">看看怎么答的</button>
+        <div class="ask-rep hidden" data-repbox="${esc(r.id)}"></div>
+      </div>`;
+    }).join("") : `<div class="empty" style="padding:24px">这一类还没有人问。</div>`}`;
+
+  host.querySelectorAll("#askTopicSeg button").forEach(b=>b.addEventListener("click", ()=>{
+    host.querySelectorAll("#askTopicSeg button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+  }));
+  host.querySelectorAll("[data-af]").forEach(b=>b.addEventListener("click", ()=>{
+    askTopic = b.dataset.af; renderAsks(rows);
+  }));
+  $("#askSend").addEventListener("click", async ()=>{
+    const title = $("#askTitle").value.trim();
+    if(!title){ toast("先把问题写出来"); return; }
+    const text = $("#askText").value.trim();
+    for(const v of [title, text]){
+      const why = contentRejection(v, true);
+      if(why){ toast(why); return; }
+    }
+    const topic = host.querySelector("#askTopicSeg .on").dataset.at;
+    try{
+      await addDoc(collection(db,"asks"),
+        { from: me.uid, topic, title, text, createdAt: serverTimestamp() });
+      $("#askTitle").value = ""; $("#askText").value = "";
+      toast("问出去了");
+    }catch(e){ toast("没发出去:" + fbError(e)); }
+  });
+  host.querySelectorAll("[data-askopen]").forEach(b=>b.addEventListener("click", ()=>{
+    const r = shown.find(x=>x.id === b.dataset.askopen) || {};
+    toggleReplies(b.dataset.askopen, host,
+      { coll:"asks", ownerCanDelete: r.from === me.uid });
+  }));
+}
+
+/* ---------- 城市漫游 ---------- */
+function subSpots(){
+  if(lfUnsub.spots) return;
+  lfUnsub.spots = onSnapshot(
+    query(collection(db,"spots"), orderBy("createdAt","desc"), limit(60)),
+    snap=>{ const rows=[]; snap.forEach(d=>rows.push({id:d.id, ...d.data()})); renderSpots(rows); },
+    err=>{ const b = $("#spotsBox"); if(b) b.innerHTML =
+      `<div class="empty" style="padding:20px">读不到:${esc(fbError(err))}</div>`; });
+}
+async function renderSpots(rows){
+  const host = $("#spotsBox"); if(!host) return;
+  if(!host.innerHTML.trim()) host.innerHTML = waiting("在读大家投的地方", "投稿人的名字要分别读");
+  const profs = {};
+  await Promise.all(rows.slice(0,30).map(async r=>{ profs[r.from] = await fetchProfile(r.from); }));
+  host.innerHTML = `
+    <div class="wk-sub">投一个你常去的地方。这一栏<b>一石二鸟</b>:它既是内容,
+      也直接进同城两个人的「约在哪」候选 —— 你写的推荐语会原样出现在那里。</div>
+    <div class="card compose">
+      <div class="row2">
+        <div class="field"><label>城市</label>
+          <input id="spCity" maxlength="12" value="${esc((myProfile&&myProfile.city)||"")}"></div>
+        <div class="field"><label>类型</label>
+          <select id="spKind">${SPOT_KINDS.map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("")}</select></div>
+      </div>
+      <div class="field"><label>叫什么</label>
+        <input id="spName" maxlength="40" placeholder="店名或地名"></div>
+      <div class="field"><label>在哪一带</label>
+        <input id="spArea" maxlength="40" placeholder="如:复兴中路"></div>
+      <div class="field"><label>为什么推荐</label>
+        <textarea id="spNote" maxlength="300" placeholder="一句话。吵不吵、几点去合适、靠窗有没有位"></textarea></div>
+      <div class="compose-foot">
+        <span class="hint">写得具体一点 —— 这句话会出现在别人的约会建议里</span>
+        <button class="btn btn-coral btn-pill" id="spSend">投一个</button>
+      </div>
+    </div>
+    ${rows.length ? rows.map(r=>{
+      const u = profs[r.from] || {};
+      const kl = (SPOT_KINDS.find(k=>k[0]===r.kind)||[])[1] || "";
+      return `<div class="ask-card">
+        <div class="ask-top"><span class="badge b-green">${esc(r.city)} · ${esc(kl)}</span>
+          <span class="ask-who">${esc(u.name||"未知用户")}</span></div>
+        <div class="ask-t">${esc(r.name)}${r.area?` <span class="sp-area">${esc(r.area)}</span>`:""}</div>
+        <div class="ask-x">${esc(r.note)}</div>
+        ${r.from === me.uid ? `<button class="dl-more" style="margin:10px 0 0" data-spdel="${esc(r.id)}">撤掉</button>` : ""}
+      </div>`;
+    }).join("") : `<div class="empty" style="padding:24px">还没有人投稿。
+      你投的第一个地方,会出现在同城所有人的约会建议里。</div>`}`;
+
+  $("#spSend").addEventListener("click", async ()=>{
+    const city = $("#spCity").value.trim(), name = $("#spName").value.trim();
+    const note = $("#spNote").value.trim(), area = $("#spArea").value.trim();
+    if(!city || !name || !note){ toast("城市、名字、推荐语都要填"); return; }
+    for(const v of [name, area, note]){
+      const why = contentRejection(v, true);
+      if(why){ toast(why); return; }
+    }
+    try{
+      await addDoc(collection(db,"spots"), { from: me.uid, city, name, area, note,
+        kind: $("#spKind").value, photo: "", createdAt: serverTimestamp() });
+      $("#spName").value = ""; $("#spArea").value = ""; $("#spNote").value = "";
+      toast("投好了。同城的人在「约在哪」里会看到");
+    }catch(e){ toast("没发出去:" + fbError(e)); }
+  });
+  host.querySelectorAll("[data-spdel]").forEach(b=>b.addEventListener("click", async ()=>{
+    try{ await delDoc(doc(db,"spots",b.dataset.spdel)); toast("已撤掉"); }
+    catch(e){ toast("撤不掉:" + fbError(e)); }
+  }));
+}
+
 /* ================= 送点什么 (REQ-035) =================
 
    定位:帮不擅长送礼的人**避免踩雷**,不是导购。
@@ -3361,6 +3705,20 @@ async function loadPlaces(){
     const r = await fetch("places.json", { cache:"force-cache" });
     placesDb = r.ok ? await r.json() : { places: [] };
   }catch(e){ placesDb = { places: [] }; }
+  // 用户在「城市漫游」投的地方也进候选池 (REQ-039 的一石二鸟)。
+  // 这些**天生带着推荐语**,而 OSM 那批没有 —— 所以它们排在前面,
+  // 而且直接算「有人看过」。投稿人是真去过的,这比我们标注的还硬。
+  try{
+    const snap = await getDocs(query(collection(db,"spots"), limit(200)));
+    const mine = [];
+    snap.forEach(d=>{
+      const v = d.data();
+      mine.push({ id:"spot"+d.id, city:v.city, name:v.name, kind:v.kind,
+                  area:v.area||"", cuisine:"", hours:"", osm:"",
+                  noise:"ok", firstDate:true, why:v.note, byUser:true });
+    });
+    placesDb = { ...placesDb, places: mine.concat(placesDb.places||[]) };
+  }catch(e){ /* 读不到就只用 OSM 那批,不打扰用户 */ }
   return placesDb;
 }
 /* 两个人所在的城市。不同城就返回空 —— 与其推一个对方去不了的地方,
@@ -3387,10 +3745,12 @@ function venueHtml(v){
   const facts = [v.area, v.hours && `营业 ${v.hours}`, v.cuisine].filter(Boolean).join(" · ");
   const seen = v.why && v.noise;
   return `<div class="vn">
-    <div class="vn-t">${esc(v.name)}${seen ? `<span class="vn-ok">我们看过</span>` : ""}</div>
+    <div class="vn-t">${esc(v.name)}${v.byUser
+      ? `<span class="vn-ok">站里的人投的</span>`
+      : (seen ? `<span class="vn-ok">我们看过</span>` : "")}</div>
     ${facts ? `<div class="vn-f">${esc(facts)}</div>` : ""}
     ${seen ? `<div class="vn-w">${esc(v.why)}</div>` : ""}
-    <a class="vn-a" href="${esc(v.osm)}" target="_blank" rel="noopener">在地图上看</a>
+    ${v.osm ? `<a class="vn-a" href="${esc(v.osm)}" target="_blank" rel="noopener">在地图上看</a>` : ""}
   </div>`;
 }
 
@@ -5818,6 +6178,7 @@ function isNew(u){
   return ms > 0 && (Date.now() - ms) < 24*60*60*1000;
 }
 function renderFeed(){
+  renderWeeklyPeek();
   renderDaily();
   const self = selfCardHtml(myCard);
   if(!allUsers.length){
@@ -6743,9 +7104,10 @@ async function renderNotes(host, notes, opts){
 let unsubReplies = null, openReplyId = null;
 
 function replyPath(id, opts){
-  return opts.wallUid
-    ? ["walls", opts.wallUid, "msgs", id, "replies"]
-    : ["posts", id, "replies"];
+  if(opts.wallUid) return ["walls", opts.wallUid, "msgs", id, "replies"];
+  // 深度问答复用同一套回复机制 (REQ-039) —— 结构一样,没必要写第二遍
+  if(opts.coll === "asks") return ["asks", id, "replies"];
+  return ["posts", id, "replies"];
 }
 
 function toggleReplies(id, host, opts){
@@ -7540,11 +7902,24 @@ async function fetchProfile(uid){
   const live = allUsers.find(u=>u.uid===uid);   // 广场是实时的,优先用它
   if(live) return live;
   if(profileCache.has(uid)) return profileCache.get(uid);
-  const s = await getDoc(doc(db,"users",uid));
-  const p = s.exists() ? s.data() : null;
-  if(p) profileCache.set(uid, p);
-  return p;
+  /* 读失败和**读不完**都必须吞掉。调用方大多是
+     `Promise.all(ids.map(fetchProfile))` —— 一个人注销了,整个 Promise.all
+     就 reject;而网络不通时 Firestore 的 getDoc 会一直**挂着**不报错,
+     那个 Promise.all 就永远不 resolve。两种情况的表现是一样的:
+     那一整栏一片空白,而且不报错、不转圈,看上去像功能坏了。
+
+     所以既 catch 也超时。宁可少显示一个人的名字,也不要整栏消失。 */
+  try{
+    const s = await Promise.race([
+      getDoc(doc(db,"users",uid)),
+      new Promise((_, rej)=>setTimeout(()=>rej(new Error("timeout")), PROFILE_TIMEOUT))
+    ]);
+    const p = s.exists() ? s.data() : null;
+    if(p) profileCache.set(uid, p);
+    return p;
+  }catch(e){ return null; }
 }
+const PROFILE_TIMEOUT = 6000;
 // 邮箱只在双向心动后才读得到;规则拒绝时静默降级,不弹错。
 async function fetchContact(uid){
   if(contactCache.has(uid)) return contactCache.get(uid);
