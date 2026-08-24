@@ -769,6 +769,21 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 真实地点 (REQ-034) ---------- */
+  .vn-box{display:flex;flex-direction:column;gap:6px;margin-top:var(--s3)}
+  .vn{background:var(--surface-2);border-radius:var(--r-xs);padding:var(--s2) var(--s3)}
+  .vn-t{font-family:var(--cute);font-size:13.5px;color:var(--ink);display:flex;
+    align-items:center;gap:6px;flex-wrap:wrap}
+  .vn-ok{font-family:var(--sans);font-size:10.5px;color:var(--ink);background:var(--mint-soft);
+    border:1.5px solid var(--outline);border-radius:var(--pill);padding:0 7px}
+  .vn-f{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);margin-top:2px;line-height:1.7}
+  .vn-w{font-family:var(--sans);font-size:12px;color:var(--ink);margin-top:3px;line-height:1.75}
+  .vn-a{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);text-decoration:underline;
+    display:inline-block;margin-top:4px}
+  .dt-city{font-family:var(--sans);font-size:12px;line-height:1.8;color:var(--ink-soft);
+    background:var(--butter-soft);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
+    margin-top:var(--s3)}
+
   /* ---------- 送点什么 (REQ-035) ---------- */
   .gf-card{border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface);
     padding:var(--s3) var(--s4);margin-bottom:var(--s2)}
@@ -2973,14 +2988,19 @@ function openDatePlan(peer){
   const stop = ()=>{ if(unsubDate){ try{ unsubDate(); }catch(e){} unsubDate = null; } };
   mask.addEventListener("click", stop);
   stop();
+  // 地点库(92K)按需拉,拉完重画一次 —— 不阻塞第一次渲染
+  loadPlaces().then(()=>{ if($("#dtBody") && lastPlan !== undefined)
+    renderDatePlan(lastPlan, peer, ref); });
   unsubDate = onSnapshot(ref,
     snap=>renderDatePlan(snap.exists() ? snap.data() : null, peer, ref),
     err=>{ const b = $("#dtBody"); if(b) b.innerHTML =
       `<div class="empty" style="padding:20px">读不到:${esc(fbError(err))}</div>`; });
 }
 
+let lastPlan;
 function renderDatePlan(d, peer, ref){
   const box = $("#dtBody"); if(!box) return;
+  lastPlan = d;
   if(!d){
     box.innerHTML = `
       <div class="empty" style="padding:20px 6px;line-height:2">
@@ -2991,6 +3011,7 @@ function renderDatePlan(d, peer, ref){
     return;
   }
   const opts = d.opts || [], votes = d.votes || {};
+  const city = pairCity(peer), pid = pairIdWith(peer.uid);
   const mineV = votes[me.uid], theirsV = votes[peer.uid];
   const both = mineV && theirsV;
   const same = both && mineV === theirsV;
@@ -2999,10 +3020,12 @@ function renderDatePlan(d, peer, ref){
       const marks = [];
       if(mineV === o.id)   marks.push("你选了");
       if(theirsV === o.id) marks.push(`${esc(peer.name||"TA")}选了`);
+      const vs = venuesFor(o.id, city, pid);
       return `<div class="dt-card${mineV===o.id?" on":""}" data-opt="${esc(o.id)}">
         <div class="dt-l">${esc(o.label)}${marks.length
           ? `<span class="dt-mark">${marks.join(" · ")}</span>` : ""}</div>
         <div class="dt-w">${esc(o.why)}</div>
+        ${vs.length ? `<div class="vn-box">${vs.map(venueHtml).join("")}</div>` : ""}
       </div>`;
     }).join("")}
     <div class="dt-state">${
@@ -3011,6 +3034,8 @@ function renderDatePlan(d, peer, ref){
       : mineV ? `你投完了,在等 ${esc(peer.name||"TA")}。`
       : theirsV ? `${esc(peer.name||"TA")} 已经投了,轮到你。`
       : "两个人都还没投。"}</div>
+    ${city ? "" : `<div class="dt-city">你们填的城市不一样,所以这里只给场景、不给具体地点 ——
+      推一个对方去不了的地方没有意义。先在私信里说清楚在谁那边见。</div>`}
     <div class="dt-acts">
       <button class="mm-btn" id="dtAgain">换一批</button>
       <button class="mm-btn" id="dtDrop">撤掉计划</button>
@@ -3046,9 +3071,65 @@ async function newPlan(peer, ref, prev){
   }catch(e){ toast("开不了:" + fbError(e)); console.error(e); }
 }
 
-const PLACE_NOTE = `<div class="dt-note">这里给的是<b>场景</b>,不是店名。
-  我们手上没有一份可信的店铺库 —— 编一个店名和地址出来,可能把你们送到
-  一家上个月就关门的店。具体哪一家,你们在自己城市里挑。</div>`;
+const PLACE_NOTE = `<div class="dt-note">
+  地点来自 <b>OpenStreetMap</b>(ODbL,© OpenStreetMap 贡献者)。
+  这些店是真实存在的,但<b>我们没有实地去过</b> —— 营业时间以现场为准,
+  出门前查一下。标着「我们看过」的那几家才是有人真的去过并写了推荐语的。</div>`;
+
+/* 真实地点 (REQ-034)。名字、街道、营业时间来自 OpenStreetMap ——
+   ODbL 允许存和再分发,条件是署名,所以数据源写在面板上。
+
+   为什么不用 Google Places:要一个开了结算的 key(花钱 + 控制台权限),
+   而且 Google 的条款不允许把 Places 内容长期缓存成自己的库 ——
+   那是许可问题,不只是钱的问题。
+
+   **只收录找得到的**:OSM 里很多点只有一个名字,没有街道也没有营业时间。
+   「我推荐 hoF」而你搜不到它在哪,等于没推荐。所以导入时就过滤掉了。
+
+   noise / firstDate / why 三个字段留给人标 —— 那三样 OSM 没有,
+   编出来就是编了一条商家信息给人当真。没标注的照样显示,
+   但只显示客观信息,并写明我们没去过。                            */
+const SCENE_KIND = { cafe:"cafe", brunch:"cafe", share:"food", book:"books",
+                     museum:"museum", climb:"climb", walk:"walk", run:"walk" };
+let placesDb = null;
+async function loadPlaces(){
+  if(placesDb) return placesDb;
+  try{
+    const r = await fetch("places.json", { cache:"force-cache" });
+    placesDb = r.ok ? await r.json() : { places: [] };
+  }catch(e){ placesDb = { places: [] }; }
+  return placesDb;
+}
+/* 两个人所在的城市。不同城就返回空 —— 与其推一个对方去不了的地方,
+   不如什么都不推,让他们先聊清楚要在谁那边见。 */
+function pairCity(peer){
+  const a = (myProfile && myProfile.city) || "", b = (peer && peer.city) || "";
+  return (a && b && a === b) ? a : "";
+}
+function venuesFor(sceneId, city, seedStr){
+  if(!city || !placesDb) return [];
+  const kind = SCENE_KIND[sceneId];
+  if(!kind) return [];
+  const pool = placesDb.places.filter(p=>p.city === city && p.kind === kind);
+  if(!pool.length) return [];
+  // 标注过的优先。其余按 pairId 定序,同一对人每次看到的是同几家。
+  const seed = dayHash(seedStr + sceneId);
+  return pool
+    .map((p,i)=>({ p, done: (p.why && p.noise) ? 0 : 1, tie:(seed + i*2654435761) % 997 }))
+    .sort((a,b)=> (a.done - b.done) || (a.tie - b.tie))
+    .slice(0,2)
+    .map(x=>x.p);
+}
+function venueHtml(v){
+  const facts = [v.area, v.hours && `营业 ${v.hours}`, v.cuisine].filter(Boolean).join(" · ");
+  const seen = v.why && v.noise;
+  return `<div class="vn">
+    <div class="vn-t">${esc(v.name)}${seen ? `<span class="vn-ok">我们看过</span>` : ""}</div>
+    ${facts ? `<div class="vn-f">${esc(facts)}</div>` : ""}
+    ${seen ? `<div class="vn-w">${esc(v.why)}</div>` : ""}
+    <a class="vn-a" href="${esc(v.osm)}" target="_blank" rel="noopener">在地图上看</a>
+  </div>`;
+}
 
 /* ================= 等待态一律说明在等什么 (REQ-009) =================
 
