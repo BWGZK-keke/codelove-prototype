@@ -769,6 +769,17 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 送点什么 (REQ-035) ---------- */
+  .gf-card{border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface);
+    padding:var(--s3) var(--s4);margin-bottom:var(--s2)}
+  .gf-t{font-family:var(--cute);font-size:15px;color:var(--ink);display:flex;
+    align-items:baseline;justify-content:space-between;gap:var(--s3)}
+  .gf-p{font-family:var(--mono);font-size:12px;color:var(--ink-soft);flex:0 0 auto}
+  .gf-w{font-family:var(--sans);font-size:13px;line-height:1.85;color:var(--ink-soft);margin-top:4px}
+  .gf-c{font-family:var(--sans);font-size:12px;line-height:1.8;color:var(--ink);
+    background:var(--butter-soft);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
+    margin-top:var(--s2)}
+
   /* ---------- 约在哪 (REQ-034) ---------- */
   .dt-card{border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface);
     padding:var(--s3) var(--s4);margin-bottom:var(--s2);cursor:pointer;
@@ -2780,6 +2791,108 @@ function renderDaily(){
   const more = document.getElementById("dlMore"), less = document.getElementById("dlLess");
   if(more) more.addEventListener("click", ()=>{ topOpen = true;  renderDaily(); });
   if(less) less.addEventListener("click", ()=>{ topOpen = false; renderDaily(); });
+}
+
+/* ================= 送点什么 (REQ-035) =================
+
+   定位:帮不擅长送礼的人**避免踩雷**,不是导购。
+   **不做电商、不接联盟链接** —— 一旦有返佣,推荐就不可信。
+
+   四条硬性红线在 Worker 侧的 checkGift() 里,而且是**确定性的后置检查**,
+   不是只写在提示词里:提示词是请求,不是保证。模型偶尔会「顺手」给个牌子
+   或链接,而这四条恰恰是出了错就有真实后果的 —— 推一瓶香水给刚认识的人,
+   那一次见面就毁了。检查不过就不发出来,宁可没有建议。
+
+   为什么理由必须引用对方资料里的具体一项:一条「送本书吧,大家都喜欢」
+   等于没建议。能追溯到「TA 标了科幻」才是这个功能存在的意义。      */
+const GIFT_OCCASIONS = [
+  ["first",    "第一次见面"],
+  ["birthday", "生日"],
+  ["festival", "节日"],
+  ["sorry",    "道歉"],
+];
+const GIFT_BUDGETS = ["¥100 以内", "¥100–300", "¥300–500", "¥500–1000"];
+
+function giftAbout(u){
+  return [
+    u.name ? `昵称:${u.name}` : "",
+    u.age ? `年龄:${u.age}` : "",
+    u.role || u.industry ? `职业:${dot([u.role, u.industry, u.level])}` : "",
+    u.city ? `城市:${u.city}` : "",
+    (u.stack||[]).length ? `标签:${u.stack.join("、")}` : "",
+    u.bio ? `自我介绍:${u.bio}` : "",
+    parseTwin(u.twin) ? `MBTI:${parseTwin(u.twin).type}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function openGift(u){
+  let occasion = "first", budget = GIFT_BUDGETS[1];
+  const seg = () => `
+    <div class="field"><label>什么场合</label>
+      <div class="ai-seg gf-occ" style="flex-wrap:wrap">${GIFT_OCCASIONS.map(([k,l])=>
+        `<button type="button" data-o="${k}"${occasion===k?' class="on"':""}>${esc(l)}</button>`).join("")}</div></div>
+    <div class="field"><label>预算</label>
+      <div class="ai-seg gf-bud" style="flex-wrap:wrap">${GIFT_BUDGETS.map(b=>
+        `<button type="button" data-b="${esc(b)}"${budget===b?' class="on"':""}>${esc(b)}</button>`).join("")}</div>
+      <div class="hint">${occasion === "first"
+        ? "第一次见面单件不会超过 ¥500 —— 贵重礼物是压力,不是心意。"
+        : "价位和场合相称就好,不用拿贵重程度表达心意。"}</div></div>`;
+
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="qz-head"><div class="qz-title">送 ${esc(u.name||"TA")} 点什么</div>
+        <div class="qz-sub">三条建议,每条都会说清楚为什么适合 TA。</div></div>
+      <div id="gfForm">${seg()}</div>
+      <div id="gfOut"></div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">算了</button>
+        <button class="btn btn-coral" id="gfGo">想三个</button>
+      </div>
+      <div class="dt-note">这里不卖东西,也没有任何购买链接和返佣 ——
+        有返佣的推荐就不可信了。四条红线在服务端强制:不提奢侈品牌型号、
+        不推香水内衣化妆品、第一次见面不超过 ¥500、不给链接。</div>
+    </div>
+  </div>`;
+
+  const bind = ()=>{
+    const host = $("#gfForm");
+    host.querySelectorAll(".gf-occ button").forEach(b=>b.addEventListener("click", ()=>{
+      occasion = b.dataset.o; host.innerHTML = seg(); bind();
+    }));
+    host.querySelectorAll(".gf-bud button").forEach(b=>b.addEventListener("click", ()=>{
+      budget = b.dataset.b; host.innerHTML = seg(); bind();
+    }));
+  };
+  bind();
+
+  $("#gfGo").addEventListener("click", async ()=>{
+    const btn = $("#gfGo"); btn.disabled = true; btn.textContent = "在想…";
+    $("#gfOut").innerHTML = waiting("在照着 TA 的资料想三个",
+      "想完还要过一遍红线检查,过不了就不给你 —— 大约十几秒");
+    try{
+      const out = await callProxy("/gift", {
+        about: giftAbout(u), occasion, budget, lang: curLang()
+      });
+      const items = (out && out.items) || [];
+      if(!items.length) throw new Error("没想出来,再试一次");
+      $("#gfOut").innerHTML = `
+        <div class="rp-k" style="margin-top:14px">三个方向</div>
+        ${items.map(it=>`
+          <div class="gf-card">
+            <div class="gf-t">${esc(it.category||"")}
+              <span class="gf-p">${esc(it.price||"")}</span></div>
+            <div class="gf-w">${esc(it.why||"")}</div>
+            ${it.caution ? `<div class="gf-c">${esc(it.caution)}</div>` : ""}
+          </div>`).join("")}`;
+    }catch(e){
+      // 红线拦下来的时候要说清楚是被拦了,而不是含糊地说「失败」——
+      // 用户会以为是网络问题,反复重试。
+      $("#gfOut").innerHTML = `<div class="empty" style="padding:20px;line-height:1.9">
+        ${esc(e.message || "没成")}</div>`;
+    }
+    btn.disabled = false; btn.textContent = "换三个";
+  });
 }
 
 /* ================= 约在哪 (REQ-034) =================
@@ -7113,6 +7226,7 @@ async function renderMatches(){
       <button class="btn-chat" data-chat="${esc(u.uid)}" data-nm="${esc(u.name)}"
         data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 发消息</button>
       <button class="btn-chat" data-date="${esc(u.uid)}">约在哪</button>
+      <button class="btn-chat" data-gift="${esc(u.uid)}">送点什么</button>
     </div>`).join("")
     : `<div class="empty"><div class="big">✨</div>还没有匹配<br>去广场多发几个心动吧</div>`;
 
@@ -7126,6 +7240,10 @@ async function renderMatches(){
   $("#matchList").querySelectorAll("[data-date]").forEach(b=>
     b.addEventListener("click", ()=>{
       const u = matches.find(x=>x.uid === b.dataset.date); if(u) openDatePlan(u);
+    }));
+  $("#matchList").querySelectorAll("[data-gift]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = matches.find(x=>x.uid === b.dataset.gift); if(u) openGift(u);
     }));
 
   // 谁心动了你 (REQ-007)。这一栏是那句话存在的意义 ——
