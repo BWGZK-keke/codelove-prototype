@@ -813,6 +813,15 @@
   .dl-why{font-family:var(--sans);font-size:13px;line-height:1.8;color:var(--ink);
     background:var(--surface-2);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
     margin-top:var(--s3)}
+  .dl-card.mm{background:var(--rose-soft);border-color:var(--outline)}
+  .dl-src{font-family:var(--cute);font-size:11px;color:var(--ink);background:var(--surface);
+    border:1.5px solid var(--outline);border-radius:var(--pill);padding:1px 8px;
+    margin-left:5px;vertical-align:2px;white-space:nowrap}
+  .dl-more{display:block;width:100%;font-family:var(--cute);font-size:13px;color:var(--ink);
+    cursor:pointer;background:var(--surface);border:1.5px solid var(--outline);
+    border-radius:var(--pill);padding:9px 0;margin-bottom:var(--s3);
+    transition:background var(--dur) var(--ease)}
+  .dl-more:hover{background:var(--butter-soft)}
   .dl-foot{font-family:var(--sans);font-size:12px;color:var(--ink-faint);
     text-align:center;padding:var(--s2) 0 var(--s5);line-height:1.7}
 
@@ -2586,22 +2595,30 @@ function openPaywall(key){
   </div>`;
 }
 
-/* ================= 每天三位 (REQ-006) =================
+/* ================= 推荐:算法 + 红娘,一份名单 (REQ-006 / REQ-030) ===========
 
-   广场是可以一直往下翻的,这本身没问题 —— 但「一直翻」和「认真看」是
-   两种状态,负向清单里明写着不做无限滑卡。所以每天先给三位,当天固定:
-   **今天看过了就是看过了**,刷新、重开、换设备都是同样三位。
+   文档把「每天 3 位」和「自动 Top-8 + 红娘覆盖 + 混合形态」写成两条需求。
+   照字面做会得到两个并排的推荐列表,内容还高度重叠 —— 用户得先搞清楚
+   这两栏有什么区别,而它们的区别只是长度。
 
-   为什么是三位:这个数字要小到能一个一个读完。给十位等于没给。
+   所以合成一份:**一条排好序的名单,默认只展开前三位**。
+     · 前三位 = 文档要的「每天 3 位」,当天固定,刷新不换。
+     · 展开 = 文档要的「Top-8」。
+     · 红娘推荐的人**置顶并标出来**,这就是「覆盖」和「混合形态」——
+       同一份名单里,算法挑的和真人挑的并排,各自写清楚是谁挑的、为什么。
+
+   为什么默认只给三位:负向清单里明写着不做无限滑卡。「一直翻」和
+   「认真看」是两种状态,先给三位是让人停下来读完。想看更多是主动动作。
 
    当天固定怎么做到的:先按契合度取前若干位,再用 hash(uid + 日期) 决定
-   从中拿哪三位 —— 同一个人同一天算出来的顺序一定一样,不依赖存储。
-   本地再存一份,是为了让当天新注册的人不会把你已经看到的三位挤掉。
+   从中拿哪几位 —— 同一个人同一天算出来的顺序一定一样,不依赖存储。
+   本地再存一份,是为了让当天新注册的人不会把你已经看到的挤掉。
 
    为什么不是服务端的 recommendations/ 集合:那要 Worker 拿服务账号定时
    跑一遍,见 REQ-010。客户端算的代价是换台设备可能重算 —— 但因为算法是
-   确定的,重算出来通常还是同样三位。这一点写在界面上,不含糊。      */
-const DAILY_N = 3, DAILY_POOL = 12, DAILY_KEY = "cl_daily";
+   确定的,重算出来通常还是同一批。这一点写在界面上,不含糊。      */
+const DAILY_N = 3, TOP_N = 8, DAILY_POOL = 24, DAILY_KEY = "cl_daily";
+let topOpen = false;
 
 function todayKey(){
   const d = new Date();
@@ -2609,44 +2626,66 @@ function todayKey(){
 }
 /* 名字不能叫 hash32:下面 AI 缓存那里已经有一个同名函数,而且它返回的是
    36 进制**字符串**。函数声明会提升,后声明的那个会赢 —— 于是这里拿到的是
-   字符串,`(seed + i*2654435761) % n` 直接变成 NaN,每天的三位会全空。 */
+   字符串,`(seed + i*2654435761) % n` 直接变成 NaN,推荐会全空。 */
 function dayHash(str){
   let h = 5381;
   for(let i=0;i<str.length;i++) h = ((h*33) ^ str.charCodeAt(i)) >>> 0;
   return h >>> 0;
 }
 
-function dailyPicks(){
+/* 红娘推荐的人 —— REQ-030 里的「覆盖」。来自我自己那张牵线单,
+   每一位都带着红娘写的 ≥50 字理由(REQ-014 在规则里卡死的那个)。 */
+function mmRecs(){
+  const raw = (myConcierge && myConcierge.recs) || [];
+  return raw.map(r=>{
+    const uid = typeof r === "string" ? r : (r && r.uid);
+    const u = allUsers.find(x=>x.uid === uid);
+    if(!u || uid === me.uid) return null;
+    return { u, src:"mm", why: (typeof r === "string" ? "" : (r.why||"")) };
+  }).filter(Boolean);
+}
+
+/* 算法挑的那部分。当天固定,并且和红娘那部分去重。 */
+function autoPicks(exclude){
   if(!myProfile) return [];
   const day = todayKey();
   const cached = readJson(uidKey(DAILY_KEY), null);
   if(cached && cached.d === day && Array.isArray(cached.uids)){
-    const found = cached.uids.map(u=>allUsers.find(x=>x.uid === u)).filter(Boolean);
+    const found = cached.uids
+      .filter(u=>!exclude.has(u))
+      .map(u=>allUsers.find(x=>x.uid === u)).filter(Boolean);
     // 缓存里的人可能注销了或者隐身了,少了就照少的显示,不偷偷补人
-    if(found.length) return found;
+    if(found.length) return found.map(u=>({ u, src:"auto", why:autoReason(u) }));
   }
   const pool = allUsers
-    .filter(u=>u.uid !== me.uid && !myLikes.has(u.uid) && !myBlocks.has(u.uid))
+    .filter(u=>u.uid !== me.uid && !myLikes.has(u.uid) && !myBlocks.has(u.uid) && !exclude.has(u.uid))
     .map(u=>({u, s:ruleScore(u)}))
     .sort((a,b)=>b.s - a.s)
     .slice(0, DAILY_POOL)
     .map(x=>x.u);
-  // 从前 12 位里按 hash 挑 3 位 —— 只取前 3 的话,这三个人会连续出现很多天
+  // 从前 24 位里按 hash 挑 —— 只取最高的几位的话,这几个人会连续出现很多天
   const seed = dayHash(me.uid + day);
   const idx = [];
-  for(let i=0;i<pool.length && idx.length<DAILY_N;i++){
+  for(let i=0;i<pool.length && idx.length<TOP_N;i++){
     const j = (seed + i*2654435761) % pool.length;
     if(!idx.includes(j)) idx.push(j);
   }
   const picks = idx.map(i=>pool[i]).filter(Boolean);
   try{ localStorage.setItem(uidKey(DAILY_KEY),
         JSON.stringify({d:day, uids:picks.map(u=>u.uid)})); }catch(e){}
-  return picks;
+  return picks.map(u=>({ u, src:"auto", why:autoReason(u) }));
 }
 
-/* 匹配理由:拿得分最高的那一维的 note。不编新话 ——
+/* 混合形态:红娘挑的置顶,算法挑的补齐到 8 位。 */
+function topPicks(){
+  const mm = mmRecs();
+  const seen = new Set(mm.map(x=>x.u.uid));
+  return mm.concat(autoPicks(seen)).slice(0, TOP_N);
+}
+
+/* 算法给的理由:拿得分最高的那一维的 note。不编新话 ——
    理由必须是算分时真的用上的东西,否则就是编给用户听的。 */
-function dailyReason(u){
+function autoReason(u){
   const parts = ruleParts(u);
   if(!parts.length) return "把自己的资料填完,才算得出你们合不合适";
   const best = parts.slice().sort((a,b)=>(b.got/b.max||0)-(a.got/a.max||0))[0];
@@ -2656,40 +2695,58 @@ function dailyReason(u){
 function renderDaily(){
   const host = $("#dailyBox"); if(!host) return;
   if(!myProfile || !allUsers.length){ host.innerHTML = ""; return; }
-  const picks = dailyPicks();
-  if(!picks.length){ host.innerHTML = ""; return; }
+  const all = topPicks();
+  if(!all.length){ host.innerHTML = ""; return; }
+  const shown = topOpen ? all : all.slice(0, DAILY_N);
+  const rest = all.length - shown.length;
+  const mmName = (MATCHMAKERS.find(m=>m.id === (myConcierge||{}).matchmaker)||{}).name;
+
   host.innerHTML = `
     <div class="dl-head">
-      <div class="dl-t">今天的${picks.length === DAILY_N ? "三位" : `${picks.length}位`}</div>
+      <div class="dl-t">${topOpen ? `为你挑的 ${all.length} 位`
+        : `今天的${shown.length === DAILY_N ? "三位" : `${shown.length}位`}`}</div>
       <div class="dl-s">当天固定。明天换一批 —— 刷新不会换,这是有意的。</div>
     </div>
-    ${picks.map(u=>`
-      <div class="dl-card">
+    ${shown.map(x=>{
+      const u = x.u;
+      return `
+      <div class="dl-card${x.src === "mm" ? " mm" : ""}">
         <div class="dl-top">
           <span class="ava-tap" data-dlopen="${esc(u.uid)}">${avatarHtml(u)}</span>
           <div style="flex:1;min-width:0">
-            <div class="dl-nm">${esc(u.name)}${u.age?` · ${u.age}`:""}</div>
+            <div class="dl-nm">${esc(u.name)}${u.age?` · ${u.age}`:""}
+              ${x.src === "mm" ? `<span class="dl-src">${
+                esc(mmName ? mmName + " 挑的" : "红娘挑的")}</span>` : ""}</div>
             <div class="dl-mt">${esc(dot([u.role, u.city, u.edu])) || "未公开更多信息"}</div>
           </div>
           <div class="dl-sc">${compat(u)}<span>%</span></div>
         </div>
-        <div class="dl-why">${esc(dailyReason(u))}</div>
+        ${x.why ? `<div class="dl-why">${esc(x.why)}</div>` : ""}
         <div class="lk-acts">
           <button class="mm-btn" data-dlopen2="${esc(u.uid)}">${ICON_FILE}看资料</button>
           <button class="mm-btn go" data-dllike="${esc(u.uid)}">心动</button>
         </div>
-      </div>`).join("")}
-    <div class="dl-foot">看完这三位再往下翻广场 —— 慢一点通常更准。</div>`;
+      </div>`;
+    }).join("")}
+    ${rest > 0
+      ? `<button class="dl-more" id="dlMore">还有 ${rest} 位 —— 展开看看</button>`
+      : (topOpen && all.length > DAILY_N
+          ? `<button class="dl-more" id="dlLess">收起,先看前 ${DAILY_N} 位</button>`
+          : "")}
+    <div class="dl-foot">${topOpen
+      ? "这几位是按契合度排的,红娘挑的排在最前面。看完再往下翻广场。"
+      : "看完这几位再往下翻广场 —— 慢一点通常更准。"}</div>`;
 
-  const open = uid => { const u = picks.find(x=>x.uid === uid); if(u) openTwinPortrait(u); };
+  const find = uid => (all.find(x=>x.u.uid === uid)||{}).u;
   host.querySelectorAll("[data-dlopen]").forEach(b=>
-    b.addEventListener("click", ()=>open(b.dataset.dlopen)));
+    b.addEventListener("click", ()=>{ const u = find(b.dataset.dlopen); if(u) openTwinPortrait(u); }));
   host.querySelectorAll("[data-dlopen2]").forEach(b=>
-    b.addEventListener("click", ()=>open(b.dataset.dlopen2)));
+    b.addEventListener("click", ()=>{ const u = find(b.dataset.dlopen2); if(u) openTwinPortrait(u); }));
   host.querySelectorAll("[data-dllike]").forEach(b=>
-    b.addEventListener("click", ()=>{
-      const u = picks.find(x=>x.uid === b.dataset.dllike); if(u) openLikeCompose(u);
-    }));
+    b.addEventListener("click", ()=>{ const u = find(b.dataset.dllike); if(u) openLikeCompose(u); }));
+  const more = document.getElementById("dlMore"), less = document.getElementById("dlLess");
+  if(more) more.addEventListener("click", ()=>{ topOpen = true;  renderDaily(); });
+  if(less) less.addEventListener("click", ()=>{ topOpen = false; renderDaily(); });
 }
 
 /* ================= 等待态一律说明在等什么 (REQ-009) =================
