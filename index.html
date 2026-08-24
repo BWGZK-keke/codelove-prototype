@@ -310,6 +310,9 @@
   .mm-btn svg{width:14px;height:14px}
   .mm-btn.go{background:var(--accent-soft);border-color:var(--outline)}
   .mm-btn:active{transform:translateY(1px)}
+  .mm-sort{font-family:var(--cute);font-size:12.5px;color:var(--ink);cursor:pointer;
+    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
+    padding:4px 10px;margin-left:auto}
   .mm-empty{font-size:13px;color:var(--ink-faint);padding:14px 2px;line-height:1.9}
 
   /* 申请徽章的两条路。走不了的那条是灰的、不给点 —— 假装能点更糟 */
@@ -745,6 +748,53 @@
     margin-bottom:2px}
   .mt-acts{display:flex;gap:var(--s2);margin-top:var(--s6)}
   .mt-acts .btn{flex:1}
+
+  /* ---------- 结算 (REQ-013) ---------- */
+  .st-row{display:flex;gap:var(--s2);margin-bottom:var(--s3)}
+  .st-cell{flex:1;background:var(--surface);border:var(--bw) solid var(--outline);
+    border-radius:var(--r-sm);padding:var(--s3);text-align:center;box-shadow:var(--sh)}
+  .st-n{font-family:var(--cute);font-size:19px;color:var(--ink)}
+  .st-k{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+
+  /* ---------- 候选面板与推荐理由 (REQ-014) ---------- */
+  .rc-row{display:flex;align-items:center;gap:var(--s3);cursor:pointer;
+    border:1.5px solid var(--line);border-radius:var(--r-sm);
+    padding:var(--s2) var(--s3);margin-bottom:6px;background:var(--surface)}
+  .rc-row:hover{background:var(--surface-2)}
+  .rc-row.on{background:var(--butter-soft);border-color:var(--outline)}
+  .rc-row .ava,.rc-row .ava-emoji{width:38px;height:38px;font-size:19px;flex-shrink:0}
+  .rc-pick{font-family:var(--cute);font-size:12px;color:var(--ink-soft);flex:0 0 auto}
+  .rc-row.on .rc-pick{color:var(--ink)}
+  .rec-why{font-family:var(--sans);font-size:13px;line-height:1.85;color:var(--ink);
+    background:var(--surface-2);border-radius:var(--r-xs);
+    padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
+
+  /* ---------- 档位 (REQ-011) ---------- */
+  .pl-now{background:var(--mint-soft);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+    padding:var(--s3) var(--s4);margin-bottom:var(--s3)}
+  .pl-now-t{font-family:var(--cute);font-size:15px;color:var(--ink)}
+  .pl-now-s{font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.8}
+  .pl-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+    padding:var(--s4);box-shadow:var(--sh);margin-bottom:var(--s3)}
+  .pl-card.on{background:var(--butter-soft)}
+  .pl-top{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3)}
+  .pl-nm{font-family:var(--cute);font-size:16.5px;color:var(--ink)}
+  .pl-pr{font-family:var(--mono);font-size:13px;color:var(--ink-soft)}
+  .pl-line{font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.8}
+  .pl-has{list-style:none;margin:var(--s3) 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+  .pl-has li{font-family:var(--sans);font-size:13px;color:var(--ink);line-height:1.7;
+    padding-left:16px;position:relative}
+  .pl-has li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;
+    border-radius:50%;background:var(--accent)}
+  .pl-never{border:1.5px dashed var(--outline);border-radius:var(--r-sm);
+    padding:var(--s4);background:var(--surface-2)}
+  .pl-never-t{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
+  .pl-never ul{list-style:none;margin:var(--s2) 0 0;padding:0}
+  .pl-never li{font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);line-height:1.9;
+    padding-left:16px;position:relative}
+  .pl-never li::before{content:"×";position:absolute;left:2px;color:var(--rose)}
+  .pl-never-s{font-family:var(--sans);font-size:12px;color:var(--ink-faint);
+    margin-top:var(--s3);line-height:1.8}
 
   /* ---------- 每天三位 (REQ-006) ---------- */
   .dl-head{margin:var(--s5) 0 var(--s3)}
@@ -1273,6 +1323,10 @@
       <div class="form-sub">配一个自己的 AI,帮你想私信怎么回。用你自己的 API Key,按量计费</div>
       <div class="card" id="aiCard"></div>
 
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">档位</div></div>
+      <div class="form-sub">内测期间全部功能不锁。这里写清楚将来会怎么算,免得到时候突然冒出来</div>
+      <div id="planBox"></div>
+
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">我拉黑的人</div></div>
       <div class="form-sub">拉黑后:对方不会出现在你的广场,也无法给你留言或私信</div>
       <div id="blockList"></div>
@@ -1319,6 +1373,11 @@
         <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">红娘工作台</div></div>
         <div class="form-sub">指名你的申请会出现在这里,含申请人邮箱</div>
         <div id="mmDesk"></div>
+
+        <div class="sec-head" style="margin-top:24px"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span>
+          <div class="form-title">结算</div></div>
+        <div class="form-sub">牵成一对算一条。这两份数据你自己写不了 —— 由服务端在确认双方真的匹配之后写</div>
+        <div id="mmSettle"></div>
 
         <div class="sec-head" style="margin-top:24px"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span>
           <div class="form-title">验证申请</div></div>
@@ -2164,6 +2223,7 @@ async function enterApp(){
   renderTwinCard();
   renderMmSeen();
   renderMyVerify();
+  loadEntitlement();
   $("#uidText").textContent = me.uid;
   startListeners();
   subscribeBoard();
@@ -2417,6 +2477,113 @@ function renderTopAva(){
     photo: (myProfile && myProfile.photo !== undefined) ? myProfile.photo : (me.photoURL||""),
     gender: myProfile && myProfile.gender
   });
+}
+
+/* ================= 档位与付费墙 (REQ-011) =================
+
+   三条硬规矩,都是负向清单里明写的:
+     1. **不做付费插队。** 花钱买不到「排在别人前面」——那会让广场变成
+        竞价排名,而这个产品卖的是「不用比价」。所以下面每一档里都没有
+        「优先展示」这种权益。
+     2. **不用促销语气。** 不写「立省」「限时」「超值」,不放倒计时。
+     3. **拦截必须说明为什么。** 一个只说「升级解锁」的弹窗等于什么都没说。
+        每次拦下来都要讲清楚:拦的是哪件事、为什么这件事要钱、哪一档包含它。
+
+   内测期间 Worker 里 BETA_ALL_ACCESS = true,所有人按最高档算。界面上就
+   如实说「现在不锁」,**不放一个点了没反应的付费按钮** —— 那比不放更糟。
+
+   档位的真相在服务端:entitlements/{uid} 由 Worker 写,客户端一个字都写不了
+   (见 firestore.rules)。前端只读它,不自己记一份 —— 两边迟早对不上。  */
+const TIERS = [
+  { id:"free", name:"免费", price:"¥0",
+    line:"够用。交友这件事本身不收钱。",
+    has:["完整资料与广场","心动、匹配、私信","契合度分数和逐维报告",
+         "AI 分身对话:每天 40 条","恋人测评与 MBTI"] },
+  { id:"plus", name:"Plus", price:"¥39 / 月",
+    line:"给愿意在这上面多花点心思的人。",
+    has:["免费档全部","AI 分身对话:每天 400 条","换更强的模型(Claude Sonnet / GPT-5)",
+         "分身对分身的十轮模拟","隐身浏览"] },
+  { id:"signature", name:"红娘服务", price:"按单计费",
+    line:"真人一对一。不是订阅,是一次牵线一次的钱。",
+    has:["Plus 全部","专属红娘一对一","红娘按你的要求筛人、约人",
+         "最强模型(Claude Opus)"] },
+];
+/* 各档**都不包含**的东西。写出来比不写重要 ——
+   用户最想知道的往往是「花了钱能不能插队」。 */
+const TIER_NEVER = ["优先展示 / 排在别人前面","看谁心动过我(这个免费就有)",
+                    "无限次数的滑卡","把别人的联系方式买下来"];
+
+let myEntitle = null;   // entitlements/{uid} 的快照,服务端说了算
+async function loadEntitlement(){
+  try{
+    const d = await getDoc(doc(db,"entitlements",me.uid));
+    myEntitle = d.exists() ? d.data() : null;
+  }catch(e){ myEntitle = null; }
+  renderPlans();
+}
+// 内测期间 Worker 给所有人放行(BETA_ALL_ACCESS),前端要说的是同一件事
+function currentTier(){ return (myEntitle && myEntitle.tier) || "beta"; }
+
+function renderPlans(){
+  const host = $("#planBox"); if(!host) return;
+  const cur = currentTier();
+  host.innerHTML = `
+    <div class="pl-now">
+      <div class="pl-now-t">${cur === "beta" ? "内测:全部功能不锁"
+        : `当前:${esc((TIERS.find(t=>t.id===cur)||{}).name || cur)}`}</div>
+      <div class="pl-now-s">${cur === "beta"
+        ? "现在没有任何一处要付费。等到真的开始收费,会提前说,不会某天突然锁上。"
+        : `档位由服务端记录,这里显示的就是结算时认的那一份。`}</div>
+    </div>
+    ${TIERS.map(t=>`
+      <div class="pl-card${t.id === cur ? " on" : ""}">
+        <div class="pl-top">
+          <div class="pl-nm">${esc(t.name)}</div>
+          <div class="pl-pr">${esc(t.price)}</div>
+        </div>
+        <div class="pl-line">${esc(t.line)}</div>
+        <ul class="pl-has">${t.has.map(h=>`<li>${esc(h)}</li>`).join("")}</ul>
+      </div>`).join("")}
+    <div class="pl-never">
+      <div class="pl-never-t">哪一档都买不到</div>
+      <ul>${TIER_NEVER.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+      <div class="pl-never-s">付费插队会让广场变成竞价排名,而这个产品卖的正是
+        「不用比价」。这一条不会因为收入压力改掉。</div>
+    </div>`;
+}
+
+/* 拦截时的说明。**每次拦下来都要讲清楚**:拦的是哪件事、为什么这件事要钱、
+   哪一档包含它。只说「升级解锁」的弹窗等于什么都没说。            */
+const GATES = {
+  model:    { what:"换更强的模型", why:"Claude 和 GPT 的每次调用都是真金白银,免费档用的是成本最低的那个", tier:"plus" },
+  simulate: { what:"分身对分身的十轮模拟", why:"一次模拟要生成十轮对话再单独点评一次,大约相当于二十次普通对话", tier:"plus" },
+  invisible:{ what:"隐身浏览", why:"这一项不花服务器成本,放在 Plus 是因为它是偏好而不是必需", tier:"plus" },
+  concierge:{ what:"专属红娘", why:"背后是真人在花时间筛人、约人,这部分是人力成本", tier:"signature" },
+};
+function openPaywall(key){
+  const g = GATES[key]; if(!g) return;
+  const t = TIERS.find(x=>x.id === g.tier) || {};
+  const beta = currentTier() === "beta";
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()">
+      <div class="qz-head"><div class="qz-title">${esc(g.what)}</div>
+        <div class="qz-sub">${beta ? "内测期间这一项没锁。下面说的是将来会怎么算。"
+                                   : `这一项包含在「${esc(t.name)}」里。`}</div></div>
+      <div class="rp-lead"><span class="rp-k">为什么这一项要钱</span>${esc(g.why)}</div>
+      <div class="pl-card" style="margin-top:12px">
+        <div class="pl-top"><div class="pl-nm">${esc(t.name||"")}</div>
+          <div class="pl-pr">${esc(t.price||"")}</div></div>
+        <ul class="pl-has">${(t.has||[]).map(h=>`<li>${esc(h)}</li>`).join("")}</ul>
+      </div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn btn-coral" style="width:100%"
+          onclick="this.closest('.modal-mask').remove()">${beta ? "知道了,先用着" : "知道了"}</button>
+      </div>
+      ${beta ? "" : `<div class="hint" style="margin-top:10px;text-align:center">
+        付款通道还没开通 —— 见 REQ-012。</div>`}
+    </div>
+  </div>`;
 }
 
 /* ================= 每天三位 (REQ-006) =================
@@ -3858,7 +4025,13 @@ function flowHtml(st){
 function flowClientHtml(c){
   if(!c) return "";
   const st = c.status || "pending";
-  const recs = (c.recs||[]).map(uid=>allUsers.find(u=>u.uid===uid)).filter(Boolean);
+  // recs 现在是 {uid, why} (REQ-014)。老数据是裸 uid 字符串,一起兼容 ——
+  // 那时候还不要求写理由,不能因为改了格式就让人的历史推荐读不出来。
+  const recs = (c.recs||[]).map(r=>{
+    const uid = typeof r === "string" ? r : (r && r.uid);
+    const u = allUsers.find(x=>x.uid === uid);
+    return u ? { ...u, why: (typeof r === "string" ? "" : (r.why||"")) } : null;
+  }).filter(Boolean);
   let body = "";
   if(st === "matched"){
     body = `<div class="hint" style="line-height:1.9">🎉 已标记为配对成功。祝顺利!<br>
@@ -3873,7 +4046,8 @@ function flowClientHtml(c){
         ${c.picked===u.uid
           ? `<span class="badge b-amber">已选</span>`
           : `<button class="reply-btn" data-pick="${esc(u.uid)}">选 TA</button>`}
-      </div>`).join("");
+      </div>
+      ${u.why ? `<div class="rec-why">${esc(u.why)}</div>` : ""}`).join("");
     if(c.picked) body += `<div class="ai-acts" style="margin-top:10px">
         <button class="btn btn-ghost" data-flow="retry">没成,换一批</button>
         <button class="btn btn-coral" data-flow="matched">配对成功</button></div>`;
@@ -3915,41 +4089,152 @@ function bindFlowClient(host){
 }
 
 // 红娘这边:挑 1-3 个人推给申请人
+/* 候选面板 (REQ-014)。
+
+   原来是一格一格的名字按钮 —— 广场上人一多就没法用,而且推出去的只有
+   三个名字。申请人拿到三个名字却不知道为什么是这三个,只能凭头像挑,
+   那红娘这一环就白设了。
+
+   所以两件事一起做:**能筛**(关键词/性别/学历/行业/城市/年龄),
+   以及**每一位都要写至少 50 字的理由**。50 字不是随口定的:
+   「这个人也在上海做后端,挺合适」是 20 字左右,它达不到。
+   规则里同样卡着 50,前端这层只是为了给一句能看懂的话。          */
+const REC_WHY_MIN = 50, REC_WHY_MAX = 500;
+
 function openRecPicker(req){
-  const chosen = new Set(req.recs||[]);
-  const pool = allUsers.filter(u=>u.uid !== req.uid);
+  // uid -> 理由。已经推过的那批把理由带回来,改一轮不用重写。
+  const chosen = new Map();
+  (req.recs||[]).forEach(r=>{
+    if(typeof r === "string") chosen.set(r, "");     // 老数据:那时候还不要理由
+    else if(r && r.uid) chosen.set(r.uid, r.why||"");
+  });
+  let f = { q:"", gender:"", edu:"", industry:"", city:"", min:"", max:"" };
+
+  const pool = () => allUsers.filter(u=>{
+    if(u.uid === req.uid) return false;
+    if(f.q){
+      const hay = [u.name,u.city,u.role,u.school,(u.stack||[]).join(" ")]
+        .filter(Boolean).join(" ").toLowerCase();
+      if(!hay.includes(f.q.toLowerCase())) return false;
+    }
+    if(f.gender && u.gender !== f.gender) return false;
+    if(f.edu && u.edu !== f.edu) return false;
+    if(f.industry && u.industry !== f.industry) return false;
+    if(f.city && !(u.city||"").includes(f.city)) return false;
+    if(f.min && (!u.age || u.age < +f.min)) return false;
+    if(f.max && (!u.age || u.age > +f.max)) return false;
+    return true;
+  });
+
+  const opt = (arr, cur) => ['<option value="">不限</option>']
+    .concat(arr.map(x=>`<option ${cur===x?"selected":""}>${esc(x)}</option>`)).join("");
+
   $("#modalHost").innerHTML = `
   <div class="modal-mask" onclick="this.remove()">
-    <div class="modal wide" onclick="event.stopPropagation()">
-      <div class="mr-nm">推荐给这位申请人</div>
-      <div class="mr-meta">最多选 3 位,选完点确认</div>
-      <div class="pick-grid" id="recGrid">${pool.map(u=>
-        `<button type="button" data-u="${esc(u.uid)}"${chosen.has(u.uid)?' class="on"':""}>${esc(u.name)}</button>`).join("")
-        || `<div class="hint">广场还没有别的用户</div>`}</div>
-      <div class="hint" id="recCount"></div>
-      <div class="modal-actions" style="margin-top:12px">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto">
+      <div class="qz-head"><div class="qz-title">挑人</div>
+        <div class="qz-sub">最多 3 位。每一位都要写清楚为什么是 TA —— 申请人会看到这段话。</div></div>
+      <div class="field"><input id="rcQ" placeholder="名字、城市、职位、学校、标签…" maxlength="20"></div>
+      <div class="row2">
+        <div class="field"><label>性别</label><select id="rcGender">${opt(GENDERS)}</select></div>
+        <div class="field"><label>学历</label><select id="rcEdu">${opt(EDU)}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>行业</label><select id="rcInd">${opt(INDUSTRY)}</select></div>
+        <div class="field"><label>城市</label><input id="rcCity" maxlength="12" placeholder="不限"></div>
+      </div>
+      <div class="field"><label>年龄</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="rcMin" type="number" min="18" max="60" placeholder="18" style="min-width:0">
+          <span style="color:var(--ink-faint)">–</span>
+          <input id="rcMax" type="number" min="18" max="60" placeholder="60" style="min-width:0"></div></div>
+      <div id="rcList"></div>
+      <div id="rcWhy"></div>
+      <div class="modal-actions" style="margin-top:14px">
         <button class="btn btn-ghost" onclick="this.closest('.modal-mask').remove()">取消</button>
         <button class="btn btn-coral" id="recSave">确认推荐</button>
       </div>
     </div>
   </div>`;
-  const count = ()=> $("#recCount").textContent = `已选 ${chosen.size} / 3`;
-  count();
-  $("#recGrid").querySelectorAll("button").forEach(b=>b.addEventListener("click", ()=>{
-    const u = b.dataset.u;
-    if(chosen.has(u)){ chosen.delete(u); b.classList.remove("on"); }
-    else if(chosen.size >= 3){ toast("最多 3 位"); return; }
-    else { chosen.add(u); b.classList.add("on"); }
-    count();
-  }));
+
+  const drawList = ()=>{
+    const list = pool();
+    $("#rcList").innerHTML = `
+      <div class="rp-k" style="margin-top:10px">已选 ${chosen.size} / 3 · 符合条件 ${list.length} 人</div>
+      ${list.slice(0,40).map(u=>`
+        <div class="rc-row${chosen.has(u.uid)?" on":""}" data-u="${esc(u.uid)}">
+          ${avatarHtml(u)}
+          <div class="rec-info"><div class="rec-nm">${esc(dot([u.name, u.age]))}</div>
+            <div class="rec-mt">${esc(dot([u.edu, u.role, u.industry, u.city]))}</div></div>
+          <span class="rc-pick">${chosen.has(u.uid)?"已选":"选 TA"}</span>
+        </div>`).join("") ||
+        `<div class="empty" style="padding:20px">没人符合这些条件。放宽一两项试试。</div>`}
+      ${list.length > 40 ? `<div class="hint">只显示前 40 位,再筛细一点。</div>` : ""}`;
+    $("#rcList").querySelectorAll(".rc-row").forEach(el=>el.addEventListener("click", ()=>{
+      const uid = el.dataset.u;
+      if(chosen.has(uid)) chosen.delete(uid);
+      else if(chosen.size >= 3){ toast("最多 3 位"); return; }
+      else chosen.set(uid, "");
+      drawList(); drawWhy();
+    }));
+  };
+
+  const drawWhy = ()=>{
+    const box = $("#rcWhy");
+    if(!chosen.size){ box.innerHTML = ""; return; }
+    box.innerHTML = `
+      <div class="rp-k" style="margin-top:14px">为什么是 TA</div>
+      <div class="hint" style="margin-bottom:8px">这段话申请人看得到。至少 ${REC_WHY_MIN} 字 ——
+        「这个人不错」达不到,而只给名字等于让人凭头像挑。</div>
+      ${[...chosen.keys()].map(uid=>{
+        const u = allUsers.find(x=>x.uid === uid) || {name:"未知用户"};
+        const txt = chosen.get(uid) || "";
+        return `<div class="field">
+          <label>${esc(u.name)}</label>
+          <textarea data-why="${esc(uid)}" maxlength="${REC_WHY_MAX}" rows="3"
+            placeholder="TA 哪一点和申请人对得上?具体到资料里的内容。">${esc(txt)}</textarea>
+          <div class="hint"><span data-c="${esc(uid)}">${txt.length}</span> / ${REC_WHY_MAX}</div>
+        </div>`;
+      }).join("")}`;
+    box.querySelectorAll("[data-why]").forEach(ta=>ta.addEventListener("input", ()=>{
+      chosen.set(ta.dataset.why, ta.value);
+      const c = box.querySelector(`[data-c="${ta.dataset.why}"]`);
+      if(c) c.textContent = ta.value.trim().length;
+    }));
+  };
+
+  ["rcQ","rcGender","rcEdu","rcInd","rcCity","rcMin","rcMax"].forEach(id=>{
+    const el = $("#"+id); if(!el) return;
+    el.addEventListener("input", ()=>{
+      f = { q:$("#rcQ").value.trim(), gender:$("#rcGender").value, edu:$("#rcEdu").value,
+            industry:$("#rcInd").value, city:$("#rcCity").value.trim(),
+            min:$("#rcMin").value, max:$("#rcMax").value };
+      drawList();
+    });
+  });
+  drawList(); drawWhy();
+
   $("#recSave").addEventListener("click", async ()=>{
     if(!chosen.size){ toast("至少选一位"); return; }
+    const recs = [];
+    for(const [uid, why] of chosen){
+      const u = allUsers.find(x=>x.uid === uid) || {name:"这一位"};
+      const w = (why||"").trim();
+      if(w.length < REC_WHY_MIN){
+        toast(`${u.name} 的理由还差 ${REC_WHY_MIN - w.length} 字`); return;
+      }
+      recs.push({uid, why:w});
+    }
+    const btn = $("#recSave"); btn.disabled = true; btn.textContent = "推荐中…";
     try{
       await setDoc(doc(db,"concierge",req.uid),
-        {status:"recommended", recs:[...chosen], round:(req.round||0)+1}, {merge:true});
+        {status:"recommended", recs, round:(req.round||0)+1}, {merge:true});
       toast("已推荐给申请人");
       $("#modalHost").innerHTML = "";
-    }catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
+    }catch(e){
+      toast("操作失败: "+fbError(e)); console.error(e);
+      btn.disabled = false; btn.textContent = "确认推荐";
+    }
   });
 }
 
@@ -6060,7 +6345,10 @@ const ICON_SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
 
 let deskData = { list: [], profs: {}, mails: {}, known: false };
-let mmStage = -1;              // 看板上选中的那一摊,-1 = 全部
+let mmStage = -1;                   // 看板上选中的那一摊,-1 = 全部
+// 工作台的排序 (REQ-014)。默认最急的在前 —— 新单不一定是最该动的那一单。
+const MM_SORTS = { urgent:"最急的在前", old:"等得最久", new:"最新提交", stage:"按阶段" };
+let mmSort = "urgent";
 const SLA_MS = 24*3600*1000;
 
 function deskLate(r){
@@ -6082,8 +6370,19 @@ function renderDesk(){
 
   const stageOf = r => flowIndex(r.status);
   const counts = FLOW.map((_,i)=>list.filter(r=>stageOf(r)===i).length);
-  const shown = mmStage < 0 ? list : list.filter(r=>stageOf(r)===mmStage);
   const late = list.filter(deskLate).length;
+  // 排序 (REQ-014)。默认「最急的在前」而不是「最新的在前」——
+  // 工作台是用来干活的,新单不一定是最该动的那一单。
+  const ms = r => (r.createdAt && r.createdAt.toMillis) ? r.createdAt.toMillis() : 0;
+  const shown = (mmStage < 0 ? list.slice() : list.filter(r=>stageOf(r)===mmStage))
+    .sort((a,b)=>{
+      if(mmSort === "new")  return ms(b) - ms(a);
+      if(mmSort === "old")  return ms(a) - ms(b);
+      if(mmSort === "stage") return stageOf(a) - stageOf(b);
+      // urgent:先超时的,再按等得久的
+      const la = deskLate(a) ? 0 : 1, lb = deskLate(b) ? 0 : 1;
+      return la !== lb ? la - lb : ms(a) - ms(b);
+    });
 
   host.innerHTML = `
     ${late ? `<div class="mm-sla">${ICON_CLOCK}
@@ -6092,6 +6391,8 @@ function renderDesk(){
       <button class="mm-tab${mmStage<0?" on":""}" data-stage="-1">全部 ${list.length}</button>
       ${FLOW.map((f,i)=>`<button class="mm-tab${mmStage===i?" on":""}" data-stage="${i}">${
         esc(f.t)} ${counts[i]}</button>`).join("")}
+      <select class="mm-sort" id="mmSortSel">${Object.entries(MM_SORTS).map(([k,v])=>
+        `<option value="${k}"${mmSort===k?" selected":""}>${esc(v)}</option>`).join("")}</select>
     </div>
     ${shown.length ? shown.map(r=>{
       const u = profs[r.uid] || {name:"未知用户",gender:"",photo:""};
@@ -6124,6 +6425,8 @@ function renderDesk(){
 
   host.querySelectorAll("[data-stage]").forEach(b=>
     b.addEventListener("click", ()=>{ mmStage = +b.dataset.stage; renderDesk(); }));
+  const sel = $("#mmSortSel");
+  if(sel) sel.addEventListener("change", ()=>{ mmSort = sel.value; renderDesk(); });
   host.querySelectorAll("[data-mmfile]").forEach(b=>
     b.addEventListener("click", ()=>openClientFile(b.dataset.mmfile)));
   host.querySelectorAll("[data-mmchat]").forEach(b=>
@@ -6264,6 +6567,56 @@ function subscribeMatchmakerDesk(){
   );
   subscribeMmApplyDesk();
   subscribeVerifyDesk();
+  renderSettle();
+}
+
+/* 结算页 (REQ-013 / REQ-014)。
+
+   两份数据都是**只读**的:引荐记录和打款记录客户端一个字都写不了
+   (见 firestore.rules)。理由很直白 —— 能自己写引荐记录就等于能自己
+   给自己发钱。所以这一页只负责把服务端认的那份数字显示出来,
+   显示不出来就如实说读不到,不用前端自己算一个看着像的数。
+
+   打款那半边还没有真的通道(REQ-012 卡在 Stripe 账号),所以这里
+   写明「还没有打款记录」而不是画一个假的余额。                      */
+async function renderSettle(){
+  const host = $("#mmSettle"); if(!host) return;
+  const mmId = (MATCHMAKERS.find(m=>m.uid === me.uid)||{}).id;
+  if(!mmId){ host.innerHTML = ""; return; }
+  host.innerHTML = waiting("在读你的引荐和打款记录", "这两份都是服务端写的,只读");
+  let intros = [], pays = [];
+  try{
+    const [a,b] = await Promise.all([
+      getDocs(query(collection(db,"introductions"), where("matchmaker","==",mmId), limit(100))),
+      getDocs(query(collection(db,"payouts"),       where("matchmaker","==",mmId), limit(100))),
+    ]);
+    a.forEach(d=>intros.push({id:d.id, ...d.data()}));
+    b.forEach(d=>pays.push({id:d.id, ...d.data()}));
+  }catch(e){
+    host.innerHTML = `<div class="empty" style="padding:22px">读不到结算数据:${esc(fbError(e))}<br>
+      规则要求 matchmaker 字段等于你的红娘 ID。</div>`;
+    return;
+  }
+  const done = intros.filter(x=>x.status === "matched").length;
+  const paid = pays.filter(p=>p.status === "paid").reduce((s,p)=>s + (+p.amount||0), 0);
+  const due  = pays.filter(p=>p.status !== "paid").reduce((s,p)=>s + (+p.amount||0), 0);
+  host.innerHTML = `
+    <div class="st-row">
+      <div class="st-cell"><div class="st-n">${done}</div><div class="st-k">牵成</div></div>
+      <div class="st-cell"><div class="st-n">¥${paid}</div><div class="st-k">已打款</div></div>
+      <div class="st-cell"><div class="st-n">¥${due}</div><div class="st-k">待打款</div></div>
+    </div>
+    ${intros.length ? intros.map(x=>{
+      const a = deskData.profs[x.a], b = deskData.profs[x.b];
+      return `<div class="mm-card">
+        <div class="mm-nm">${esc((a&&a.name)||x.a)} × ${esc((b&&b.name)||x.b)}
+          <span class="badge ${x.status==="matched"?"b-green":"b-amber"}">${
+            x.status === "matched" ? "已牵成" : esc(x.status||"进行中")}</span></div>
+        <div class="mm-mt">${esc(timeAgo(x.createdAt))}</div>
+      </div>`;
+    }).join("") : `<div class="mm-empty">还没有引荐记录。牵成一对之后服务端会写一条进来。</div>`}
+    ${pays.length ? "" : `<div class="mm-empty">还没有打款记录 —— 付款通道还没开通(REQ-012)。
+      这里不会替你算一个看着像的余额。</div>`}`;
 }
 
 /* 验证申请的待办 (REQ-075)。
