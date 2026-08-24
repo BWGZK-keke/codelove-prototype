@@ -769,6 +769,26 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 约在哪 (REQ-034) ---------- */
+  .dt-card{border:1.5px solid var(--line);border-radius:var(--r-sm);background:var(--surface);
+    padding:var(--s3) var(--s4);margin-bottom:var(--s2);cursor:pointer;
+    transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+  .dt-card:hover{background:var(--surface-2)}
+  .dt-card.on{background:var(--butter-soft);border-color:var(--outline)}
+  .dt-l{font-family:var(--cute);font-size:15px;color:var(--ink);display:flex;
+    align-items:center;gap:6px;flex-wrap:wrap}
+  .dt-mark{font-family:var(--sans);font-size:11px;color:var(--ink-soft);
+    background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--pill);
+    padding:1px 8px}
+  .dt-w{font-family:var(--sans);font-size:12.5px;line-height:1.8;color:var(--ink-soft);
+    margin-top:3px}
+  .dt-state{font-family:var(--sans);font-size:13px;line-height:1.85;color:var(--ink);
+    background:var(--mint-soft);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
+    margin-top:var(--s3)}
+  .dt-acts{display:flex;gap:var(--s2);margin-top:var(--s3)}
+  .dt-note{font-family:var(--sans);font-size:11.5px;line-height:1.8;color:var(--ink-faint);
+    margin-top:var(--s4);border-top:1.5px solid var(--line);padding-top:var(--s3)}
+
   /* ---------- 分身技能 (REQ-031) ---------- */
   .sk-n{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-left:6px}
   .sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -1492,7 +1512,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
          sendEmailVerification, reload, deleteUser,
          reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
+import { getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc as delDoc, collection, query, where, limit, orderBy, onSnapshot, serverTimestamp, deleteDoc, deleteField }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -2761,6 +2781,161 @@ function renderDaily(){
   if(more) more.addEventListener("click", ()=>{ topOpen = true;  renderDaily(); });
   if(less) less.addEventListener("click", ()=>{ topOpen = false; renderDaily(); });
 }
+
+/* ================= 约在哪 (REQ-034) =================
+
+   一次给三个提议,两个人各投一票。
+
+   **种子库里是「场景」,不是店名。** 这是一个刻意的取舍,写在界面上:
+   我们手上没有一份可信的店铺数据(哪家还开着、几点打烊、人均多少),
+   让模型生成一个店名和地址是几秒钟的事 —— 代价是把两个人送到一个
+   不存在的地方,或者送到一家上个月就关门的店。那不是「AI 出错」,
+   那是我们编了一条商家信息给人当真。
+
+   场景不会过期,而且它解决的是第一次见面真正的难题:去哪儿能听清对方
+   说话、冷场了有没有东西兜着、要不要提前订。具体哪一家,两个人自己
+   在自己城市里挑,那本来也该他们自己定。
+
+   接真实店铺库的口子留着(每条种子有 city / venue 两个字段),
+   要什么见 REQ-034 的备注。
+
+   三条从哪来:按两人共同标签加权 —— 都写着攀岩就该看到岩馆,
+   而不是随机抽三个。权重之外用 pairId 做种子,同一对人打开看到的是同一组。 */
+const PLACE_SEEDS = [
+  { id:"cafe",    label:"安静能说话的咖啡馆", tags:[],
+    why:"第一次见面,能听清对方说话比气氛重要。人声太吵会让两个人都累。" },
+  { id:"walk",    label:"走得动的一段路",     tags:[],
+    why:"边走边聊,冷场了也有风景兜着,而且随时可以自然结束。" },
+  { id:"share",   label:"有共享菜的馆子",     tags:["咖啡","美食","做饭"],
+    why:"点菜本身就是一次小小的合作,能看出对方怎么和人商量事情。" },
+  { id:"book",    label:"书店待一会儿,再喝杯东西", tags:["读书","写作"],
+    why:"有共同话题时最省力:看到什么就聊什么,不用硬找题目。" },
+  { id:"museum",  label:"看个展",             tags:["摄影","设计","艺术","画画"],
+    why:"有东西可看,不必一直说话,但看完有的聊。" },
+  { id:"climb",   label:"岩馆",               tags:["攀岩","健身","运动"],
+    why:"一起做一件需要互相看着的事,比对坐着更快熟起来。" },
+  { id:"board",   label:"桌游",               tags:["桌游","游戏","棋"],
+    why:"规则替你们撑住了前半小时,不用担心没话说。" },
+  { id:"brunch",  label:"周末的早午餐",       tags:[],
+    why:"白天、有明确结束时间,压力比晚饭低不少。" },
+  { id:"craft",   label:"手作或者陶艺课",     tags:["手工","陶艺","烘焙"],
+    why:"两个人都是新手,谁都不用扮演内行。" },
+  { id:"run",     label:"沿江跑一段 / City walk", tags:["跑步","骑行","徒步"],
+    why:"运动标签重合的话,这是最不尴尬的一次见面。" },
+];
+
+function pairIdWith(uid){ return [me.uid, uid].sort().join("_"); }
+
+/* 挑三个:共同标签命中的排前面,其余按 pairId 定序。
+   同一对人每次打开看到的是同一组 —— 每次都换会让人以为在抽奖。 */
+function pickPlaces(peer){
+  const mine = new Set((myProfile?.stack||[]).map(x=>String(x).toLowerCase()));
+  const theirs = new Set((peer?.stack||[]).map(x=>String(x).toLowerCase()));
+  const both = [...theirs].filter(t=>mine.has(t));
+  const seed = dayHash(pairIdWith(peer.uid));
+  return PLACE_SEEDS
+    .map((p,i)=>{
+      const hit = p.tags.some(t=>both.some(b=>b.includes(t.toLowerCase()) || t.toLowerCase().includes(b)));
+      return { p, hit, tie:(seed + i*2654435761) % 997 };
+    })
+    .sort((a,b)=> (b.hit - a.hit) || (a.tie - b.tie))
+    .slice(0,3)
+    .map(x=>({ id:x.p.id, label:x.p.label, why:x.p.why }));
+}
+
+let unsubDate = null;
+function openDatePlan(peer){
+  const pid = pairIdWith(peer.uid);
+  const ref = doc(db,"dates",pid);
+  $("#modalHost").innerHTML = `
+  <div class="modal-mask" onclick="this.remove()">
+    <div class="modal wide" onclick="event.stopPropagation()" style="max-height:86vh;overflow-y:auto">
+      <div class="qz-head"><div class="qz-title">和 ${esc(peer.name||"TA")} 约在哪</div>
+        <div class="qz-sub">三个提议,两个人各投一票。投完两边都看得到。</div></div>
+      <div id="dtBody">${waiting("在读你们的约会计划", "只有你们两个人看得到")}</div>
+    </div>
+  </div>`;
+  // 面板关掉就退订,不然一晚上开几次会挂一串监听
+  const mask = $("#modalHost").querySelector(".modal-mask");
+  const stop = ()=>{ if(unsubDate){ try{ unsubDate(); }catch(e){} unsubDate = null; } };
+  mask.addEventListener("click", stop);
+  stop();
+  unsubDate = onSnapshot(ref,
+    snap=>renderDatePlan(snap.exists() ? snap.data() : null, peer, ref),
+    err=>{ const b = $("#dtBody"); if(b) b.innerHTML =
+      `<div class="empty" style="padding:20px">读不到:${esc(fbError(err))}</div>`; });
+}
+
+function renderDatePlan(d, peer, ref){
+  const box = $("#dtBody"); if(!box) return;
+  if(!d){
+    box.innerHTML = `
+      <div class="empty" style="padding:20px 6px;line-height:2">
+        还没有计划。<br>点下面开一组提议,${esc(peer.name||"TA")} 那边会立刻看到。</div>
+      <button class="btn btn-coral" style="width:100%" id="dtNew">给我三个提议</button>
+      ${PLACE_NOTE}`;
+    $("#dtNew").addEventListener("click", ()=>newPlan(peer, ref));
+    return;
+  }
+  const opts = d.opts || [], votes = d.votes || {};
+  const mineV = votes[me.uid], theirsV = votes[peer.uid];
+  const both = mineV && theirsV;
+  const same = both && mineV === theirsV;
+  box.innerHTML = `
+    ${opts.map(o=>{
+      const marks = [];
+      if(mineV === o.id)   marks.push("你选了");
+      if(theirsV === o.id) marks.push(`${esc(peer.name||"TA")}选了`);
+      return `<div class="dt-card${mineV===o.id?" on":""}" data-opt="${esc(o.id)}">
+        <div class="dt-l">${esc(o.label)}${marks.length
+          ? `<span class="dt-mark">${marks.join(" · ")}</span>` : ""}</div>
+        <div class="dt-w">${esc(o.why)}</div>
+      </div>`;
+    }).join("")}
+    <div class="dt-state">${
+      same ? `你们都选了「${esc((opts.find(o=>o.id===mineV)||{}).label||"")}」—— 定了。`
+      : both ? `两个人选的不一样。这里不替你们决定 —— 去私信里说一句,谁更想去哪。`
+      : mineV ? `你投完了,在等 ${esc(peer.name||"TA")}。`
+      : theirsV ? `${esc(peer.name||"TA")} 已经投了,轮到你。`
+      : "两个人都还没投。"}</div>
+    <div class="dt-acts">
+      <button class="mm-btn" id="dtAgain">换一批</button>
+      <button class="mm-btn" id="dtDrop">撤掉计划</button>
+    </div>
+    ${PLACE_NOTE}`;
+
+  box.querySelectorAll("[data-opt]").forEach(el=>el.addEventListener("click", async ()=>{
+    try{
+      await updateDoc(ref, { votes: { ...votes, [me.uid]: el.dataset.opt }, updatedAt: serverTimestamp() });
+    }catch(e){ toast("投不上:" + fbError(e)); console.error(e); }
+  }));
+  $("#dtAgain").addEventListener("click", ()=>newPlan(peer, ref, opts));
+  $("#dtDrop").addEventListener("click", async ()=>{
+    if(!confirm("撤掉之后两边都看不到这个计划了。继续?")) return;
+    try{ await delDoc(ref); toast("已撤掉"); }
+    catch(e){ toast("撤不掉:" + fbError(e)); }
+  });
+}
+
+async function newPlan(peer, ref, prev){
+  let opts = pickPlaces(peer);
+  // 换一批:确保和上一批不一样,否则「换一批」按钮点了像没反应
+  if(prev && prev.length){
+    const used = new Set(prev.map(o=>o.id));
+    const rest = PLACE_SEEDS.filter(p=>!used.has(p.id))
+      .map(p=>({id:p.id, label:p.label, why:p.why}));
+    if(rest.length) opts = rest.slice(0,3);
+  }
+  const [a,b] = [me.uid, peer.uid].sort();
+  try{
+    // 换一批要把票清掉 —— 提议变了旧票就没有意义(规则里也卡着这一条)
+    await setDoc(ref, { a, b, opts, votes:{}, updatedAt: serverTimestamp() });
+  }catch(e){ toast("开不了:" + fbError(e)); console.error(e); }
+}
+
+const PLACE_NOTE = `<div class="dt-note">这里给的是<b>场景</b>,不是店名。
+  我们手上没有一份可信的店铺库 —— 编一个店名和地址出来,可能把你们送到
+  一家上个月就关门的店。具体哪一家,你们在自己城市里挑。</div>`;
 
 /* ================= 等待态一律说明在等什么 (REQ-009) =================
 
@@ -6937,6 +7112,7 @@ async function renderMatches(){
       </div>
       <button class="btn-chat" data-chat="${esc(u.uid)}" data-nm="${esc(u.name)}"
         data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 发消息</button>
+      <button class="btn-chat" data-date="${esc(u.uid)}">约在哪</button>
     </div>`).join("")
     : `<div class="empty"><div class="big">✨</div>还没有匹配<br>去广场多发几个心动吧</div>`;
 
@@ -6947,6 +7123,10 @@ async function renderMatches(){
     }));
   $("#matchList").querySelectorAll("[data-chat]").forEach(b=>
     b.addEventListener("click", ()=>openChat(b.dataset.chat, b.dataset.nm, b.dataset.ph, b.dataset.gd)));
+  $("#matchList").querySelectorAll("[data-date]").forEach(b=>
+    b.addEventListener("click", ()=>{
+      const u = matches.find(x=>x.uid === b.dataset.date); if(u) openDatePlan(u);
+    }));
 
   // 谁心动了你 (REQ-007)。这一栏是那句话存在的意义 ——
   // 写了没人看得到,就只是一道白加的门槛。
