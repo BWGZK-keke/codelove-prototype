@@ -769,6 +769,12 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 对方那边几点 (REQ-038) ---------- */
+  .clk{display:inline-block;font-family:var(--sans);font-size:11px;color:var(--ink-soft);
+    background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--pill);
+    padding:0 8px;margin-top:3px}
+  .clk.night{color:var(--rose);background:var(--rose-soft);border-color:var(--rose)}
+
   /* ---------- 约会三段式 (REQ-036) ---------- */
   .dt-hint{font-family:var(--sans);font-size:12px;line-height:1.85;color:var(--ink-soft);
     margin-top:var(--s2)}
@@ -1974,8 +1980,15 @@ const MARITAL  = ["未婚","离异","丧偶","不想说"];
      off     → 哪儿都不写,只留在 profiles/{uid} 的私人底稿里
 
    这不是「拉出来再不显示」。选了非公开,广场拉全量也带不出那个值。   */
+/* 结构化地区 (REQ-038)。国家一级用枚举:它决定合规分区和时区,不能随手填。
+   省/州和城市留成自由文本 —— 城市名太多枚举不完,而且「张江」「浦东」
+   这种说法列不进任何一张表。 */
+const COUNTRIES = ["中国大陆","中国香港","中国澳门","中国台湾","美国","加拿大",
+                   "英国","澳大利亚","新西兰","新加坡","日本","韩国","德国",
+                   "法国","荷兰","瑞士","其他"];
 const VIS_FIELDS = [
-  ["age","年龄"], ["edu","学历"], ["city","城市"], ["role","具体职位"],
+  ["age","年龄"], ["edu","学历"], ["country","国家/地区"], ["region","省/州"],
+  ["city","城市"], ["role","具体职位"],
   ["industry","行业"], ["level","职级"], ["org","单位类型"], ["school","学校"],
   ["marital","婚姻状态"], ["stack","标签"], ["bio","自我介绍"]
 ];
@@ -1983,6 +1996,32 @@ const VIS_TIERS = [["pub","公开"], ["matched","匹配后"], ["mm","仅红娘"]
 const VIS_DEFAULT = "pub";
 function visOf(vis, k){ return (vis && vis[k]) || VIS_DEFAULT; }
 // 卡片上有值才拼进去,免得渲染出「Alice · 」或者「Alice · 0」这种半截
+/* 对方那边现在几点 (REQ-038)。
+
+   时区是浏览器自己报的,用户不用填。存它的用途只有一个:让人别在对方
+   凌晨三点发消息还以为对方醒着。异地和海外用户之间这是真实存在的尴尬。
+
+   只在**和自己不同**的时候显示 —— 同城的人不需要被告知现在几点。
+   时区名不认识就什么都不显示,不猜。 */
+function peerClock(u){
+  const tz = u && u.tz;
+  if(!tz) return "";
+  try{
+    const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if(!mine || mine === tz) return "";
+    const now = new Date();
+    const f = new Intl.DateTimeFormat("zh-CN", { hour:"2-digit", minute:"2-digit",
+                                                 hour12:false, timeZone: tz });
+    const hh = +new Intl.DateTimeFormat("en-US", { hour:"numeric", hour12:false,
+                                                   timeZone: tz }).format(now);
+    const t = f.format(now);
+    // 22 点到 8 点之间标出来 —— 那才是这个功能真正要说的那句话
+    return (hh >= 22 || hh < 8)
+      ? `<span class="clk night">TA 那边 ${esc(t)},多半睡了</span>`
+      : `<span class="clk">TA 那边 ${esc(t)}</span>`;
+  }catch(e){ return ""; }
+}
+
 function dot(parts){ return parts.filter(x => x !== undefined && x !== null && x !== "").join(" · "); }
 // 选择器:第一项是「未填」,老用户不会被强行按上一个不属于他的标签
 const optList = (arr, cur) => ['<option value="">未填</option>']
@@ -2079,10 +2118,21 @@ function renderProfileForm(host, data, isNew){
       <div class="row2">
         <div class="field"><label>学历 *</label>
           <select id="f-edu">${EDU.map(e=>`<option ${d.edu===e?"selected":""}>${e}</option>`).join("")}</select></div>
+        <div class="field"><label>国家/地区</label>
+          <select id="f-country">${optList(COUNTRIES, d.country)}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>省 / 州</label>
+          <input id="f-region" maxlength="20" value="${esc(d.region||"")}" placeholder="如:上海市 / 加州"></div>
         <div class="field"><label>城市 *</label>
           <input id="f-city" maxlength="12" value="${esc(d.city||"")}" placeholder="如:上海">
           <div class="hint">最多 12 个字</div></div>
       </div>
+      <label class="chk"><input type="checkbox" id="f-remote" ${d.remote?"checked":""}>
+        <span>可以接受异地</span></label>
+      <div class="hint" style="margin:-2px 0 10px">
+        勾了之后,不同城的人在你的推荐里不会因为「异地」被压分 ——
+        这是一个开关,不是一档偏好:异地能不能接受,本来就没有中间态。</div>
       <div class="field"><label>学校</label>
         <input id="f-school" maxlength="20" value="${esc(d.school||"")}" placeholder="如:上海交通大学">
         <div class="hint">谁能看到,在最后一步逐项选。</div></div>
@@ -2245,6 +2295,7 @@ async function saveProfile(host,isNew){
   // 今天把城市藏起来、明天想公开,不用重新再填一遍。
   const all = {
     age, city, role, edu: v("f-edu"), marital: v("f-marital"),
+    country: v("f-country"), region: v("f-region"),
     industry: v("f-industry"), level: v("f-level"), org: v("f-org"),
     school: v("f-school"),
     stack: v("f-stack").split(/\s+/).filter(Boolean).slice(0,8),
@@ -2255,6 +2306,13 @@ async function saveProfile(host,isNew){
   // 隐身时,原本设成「公开」的字段落到「匹配后」那一档 —— 否则一开隐身,
   // 已经匹配的人那边也跟着一片空白,那不是隐身,是消失。
   const tierOf = k => (invisible && vis[k] === "pub") ? "matched" : vis[k];
+  // remote 和 tz 不进可见性分档:
+  //   remote 是给排序用的,藏起来它就不起作用了,那还不如别有这个开关;
+  //   tz 由浏览器自己报,用途只有「对方那边现在几点」—— 一个时区名
+  //     暴露不了什么,而藏起来的代价是有人半夜三点收到消息。
+  const remote = !!host.querySelector("#f-remote")?.checked;
+  const tz = (()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; }
+                    catch(e){ return ""; } })().slice(0,40);
   const bucket = t => {
     const o = { uid: me.uid, updatedAt: serverTimestamp() };
     for(const [k] of VIS_FIELDS) if(tierOf(k) === t && all[k] !== "" ) o[k] = all[k];
@@ -2271,6 +2329,9 @@ async function saveProfile(host,isNew){
   const data = {
     name, gender: v("f-gender"),
     photo: v("f-photo"), twin: invisible ? "" : twinString(),
+    // 这两个不受可见性分档影响,也不受隐身影响 ——
+    // 隐身是「不出现在广场」,不是「让已经匹配的人半夜收到消息」
+    remote, ...(tz ? { tz } : {}),
     invisible, vis,
     hidden: VIS_FIELDS.filter(([k])=>invisible || vis[k] !== "pub").map(([k])=>k),
     uid: me.uid, updatedAt: serverTimestamp()
@@ -2803,7 +2864,7 @@ function renderDaily(){
             <div class="dl-nm">${esc(u.name)}${u.age?` · ${u.age}`:""}
               ${x.src === "mm" ? `<span class="dl-src">${
                 esc(mmName ? mmName + " 挑的" : "红娘挑的")}</span>` : ""}</div>
-            <div class="dl-mt">${esc(dot([u.role, u.city, u.edu])) || "未公开更多信息"}</div>
+            <div class="dl-mt">${esc(dot([u.role, u.city, u.edu])) || "未公开更多信息"}${peerClock(u)}</div>
           </div>
           <div class="dl-sc">${compat(u)}<span>%</span></div>
         </div>
@@ -3601,14 +3662,34 @@ function ruleDims(u){
   const mb = mbtiFit(parseTwin(twinString()), parseTwin(u.twin));
   if(mb) dims.push({ key:"mbti", label:"MBTI 互补", got01: mb.score, note: mb.note });
 
-  // 城市和年龄合成一维:文档把它们算一档,而且单独看年龄意义不大
-  if(u.city || u.age){
-    const sameCity = !!(u.city && u.city === myProfile.city);
+  /* 城市和年龄合成一维:文档把它们算一档,而且单独看年龄意义不大。
+
+     结构化之后分三档而不是两档 (REQ-038):同城 > 同省/同国 > 跨国。
+     原来只有「同城 / 不同城」,于是「都在上海」和「一个上海一个纽约」
+     被算成同一件事,那显然不对。
+
+     **可接受异地** 是个开关不是权重:任何一方勾了,距离这一项就不再压分。
+     勾了还给人压分,那这个开关就是摆设。 */
+  if(u.city || u.age || u.country){
+    const sameCity    = !!(u.city && u.city === myProfile.city);
+    const sameRegion  = !!(u.region && u.region === myProfile.region);
+    const sameCountry = !!(u.country && u.country === myProfile.country);
+    const okRemote    = !!(u.remote || myProfile.remote);
     const ad = (u.age && myProfile.age) ? Math.abs(u.age - myProfile.age) : null;
-    const cityPart = u.city ? (sameCity ? 1 : .22) : .5;
-    const agePart  = ad === null ? .5 : Math.max(0, 1 - ad/12);
+    let cityPart;
+    if(sameCity)            cityPart = 1;
+    else if(!u.city && !u.country) cityPart = .5;      // 对方没填,不奖不罚
+    else if(okRemote)       cityPart = 1;              // 有人接受异地,距离不再压分
+    else if(sameRegion)     cityPart = .6;
+    else if(sameCountry)    cityPart = .4;
+    else                    cityPart = .18;
+    const agePart = ad === null ? .5 : Math.max(0, 1 - ad/12);
+    const where = u.city || u.region || u.country || "";
+    const mineWhere = myProfile.city || myProfile.region || myProfile.country || "—";
     dims.push({ key:"geo", label:"地域与年龄", got01: cityPart*.6 + agePart*.4,
-      note: [sameCity ? `都在${u.city}` : (u.city ? `你在${myProfile.city||"—"},TA 在${u.city}` : ""),
+      note: [sameCity ? `都在${u.city}`
+             : (where ? (okRemote ? `你在${mineWhere},TA 在${where} —— 有人接受异地,这一项不扣分`
+                                  : `你在${mineWhere},TA 在${where}`) : ""),
              ad === null ? "" : (ad === 0 ? "同岁" : `相差 ${ad} 岁`)].filter(Boolean).join(" · ") });
   }
 
@@ -5719,6 +5800,7 @@ function selfCardHtml(u){
         <div class="uname">${esc(dot([u.name, u.age]))}
           <span class="badge b-indigo">👤 这是你</span></div>
         <div class="umeta">${esc(dot([u.role, u.level, u.org, u.city])) || "未公开更多信息"}</div>
+        ${peerClock(u)}
       </div>
     </div>
     <div class="ucard-body">
