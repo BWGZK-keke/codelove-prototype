@@ -2043,7 +2043,7 @@ document.querySelectorAll("[data-lp]").forEach(el=>
   el.addEventListener("click", ()=>lpGo(el.dataset.lp)));
 document.querySelectorAll("[data-lp-login]").forEach(el=>
   el.addEventListener("click", ()=>show("view-login")));
-$("#lpLogin").addEventListener("click", ()=>show("view-login"));
+$("#lpLogin").addEventListener("click", ()=>{ show("view-login"); trySignupStart(); });
 ["#lpLang","#lpLang2"].forEach(s=>$(s).addEventListener("click", toggleLang));
 $("#loginBack").addEventListener("click", ()=>show("view-landing"));
 applyLang(curLang());
@@ -2660,6 +2660,7 @@ async function saveProfile(host,isNew){
                               twin:twinString(), uid:me.uid}, vis,
                   hidden: data.hidden };
     toast(isNew ? "资料已提交,我们会看一遍" : "已保存");
+    if(isNew) trackOnce("profile_done");
     // 存上了才清草稿。写失败还清掉的话,人就要从第一步重填一遍。
     if(isNew){ obDraftClear(); enterApp(); setTimeout(openWelcomeQuizzes, 700); }
   }catch(e){ toast("保存失败: "+fbError(e)); console.error(e); }
@@ -2669,6 +2670,8 @@ async function saveProfile(host,isNew){
 /* ---------- main app ---------- */
 async function enterApp(){
   show("view-app");
+  track("app_open");   // 按 uid+日期 去重,算 7 日留存
+  flushPendingEvents();
   renderVerifyBanner();
   renderTopAva();
   $("#topName").textContent = myProfile.name;
@@ -3244,6 +3247,61 @@ function copySiteLink(){
   navigator.clipboard.writeText(url)
     .then(()=>toast("链接已复制,发给朋友就行"))
     .catch(()=>toast("复制不了,手动copy地址栏那一串"));
+}
+
+/* ================= 内测埋点 (REQ-054) =================
+
+   文档写得很直接:**内测开始前必须先埋点,否则数据补不回来**。
+   留存和「首次匹配中位时长」都是拿时间戳算的 —— 漏掉的那几天永远算不出来。
+
+   要盯的指标(文档里那张表)和对应的事件:
+     注册完成率        signup_start → profile_done
+     7 日留存          app_open(按 uid+日期 去重)
+     首次匹配中位时长  profile_done → match_made
+     匹配后发起对话率  match_made → chat_started
+     对话超 10 轮比例  chat_deep
+     举报率            report_sent
+
+   两条自律:
+     · **不带 PII。** 只有 uid + 事件名 + 一个数字 + 一个短枚举。
+       规则里也卡了 hasOnly,想顺手塞「方便排查」的字段是塞不进去的。
+     · **失败就算了。** 埋点写不进去绝不能影响用户正在做的事 ——
+       它是我们要的数据,不是用户要的功能。所以全部 catch 掉,不提示。 */
+const EV_KEY = "cl_ev";     // 本地记「今天/这件事已经报过了」,避免重复计数
+/* signup_start 有个时序问题:点「登录/注册」那一刻还没有 me,
+   track() 会直接 return —— 而注册完成率的**分母**恰恰就是这个事件。
+   所以先在本地记一个标记,等登录之后补报。 */
+const EV_PENDING = "cl_ev_pending";
+function trySignupStart(){
+  try{ localStorage.setItem(EV_PENDING, "1"); }catch(e){}
+}
+function flushPendingEvents(){
+  try{
+    if(localStorage.getItem(EV_PENDING)){
+      localStorage.removeItem(EV_PENDING);
+      trackOnce("signup_start");
+    }
+  }catch(e){}
+}
+function track(name, extra){
+  if(!me) return;
+  // app_open 这类每天只该记一次。文档 ID 带上日期,重复写同一个 ID
+  // 会被规则的 update:false 挡掉 —— 正好当成天然的去重。
+  const daily = name === "app_open";
+  const id = daily ? `${me.uid}_${name}_${todayKey()}`
+                   : `${me.uid}_${name}_${Date.now().toString(36)}`;
+  const payload = { uid: me.uid, name, at: serverTimestamp(), ...(extra||{}) };
+  setDoc(doc(db,"events",id), payload).catch(()=>{});
+}
+/* 只报一次的那些(比如「填完资料」)。本地记一笔,省掉一次没必要的写。
+   本地记丢了也没关系 —— 规则挡不住重复的非 daily 事件,
+   但重复计数在指标上是可以去重的,而漏记不行。所以宁可多报。 */
+function trackOnce(name, extra){
+  const st = readJson(uidKey(EV_KEY), {});
+  if(st[name]) return;
+  st[name] = 1;
+  try{ localStorage.setItem(uidKey(EV_KEY), JSON.stringify(st)); }catch(e){}
+  track(name, extra);
 }
 
 /* ================= 用户反馈 (REQ-041) =================
@@ -4273,9 +4331,10 @@ async function likeUser(uid, name, note){
     if(likedMe.has(uid)){
       likedMe.add(uid);
       renderFeed();
-      if(!matchNotified.has(uid)){ matchNotified.add(uid); showMatchModal(name, uid); }
+      if(!matchNotified.has(uid)){ matchNotified.add(uid); showMatchModal(name, uid); track("match_made"); }
     }else{
       toast(`已向 ${name} 发送心动`);
+      track("like_sent");
     }
   }catch(e){ myLikes.delete(uid); renderFeed(); toast("操作失败: "+fbError(e)); console.error(e); }
 }
@@ -5476,6 +5535,7 @@ function openReportSheet({ target, name, kind = "user", contextId = "", excerpt 
         reason, detail, excerpt: excerpt.slice(0,1000),
         status: "open", createdAt: serverTimestamp()
       });
+      track("report_sent", { v: reason });
       $("#modalHost").innerHTML = "";
       toast("收到了,我们会看。要立刻不受打扰的话请拉黑。");
     }catch(e){
@@ -5507,6 +5567,7 @@ async function publishTwin(){
   try{
     await setDoc(doc(db,"users",me.uid), {...myProfile, twin:s, updatedAt:serverTimestamp()}, {merge:true});
     myProfile.twin = s;
+    trackOnce("quiz_done", { v: "twin" });
   }catch(e){
     // 规则里还没放行 twin 字段时会被拒 —— 本地照样能用,只是别人看不到
     toast("分身没能同步到资料:" + fbError(e)); console.error(e);
@@ -6833,6 +6894,10 @@ async function sendMsg(){
   inp.value = "";                       // 先清空,发失败再填回去
   try{
     await postMsg(text, false);
+    // 匹配后发起对话率 / 对话深度 (REQ-054)。curChatMsgs 是本地已加载的那一段,
+    // 不完全等于全部轮数 —— 指标看的是分布,差一两条不影响。
+    trackOnce("chat_started");
+    if(curChatMsgs.length + 1 >= 10) trackOnce("chat_deep", { n: curChatMsgs.length + 1 });
   }catch(e){
     inp.value = text;
     toast("发送失败: "+fbError(e));
@@ -7965,6 +8030,7 @@ async function callConcierge(mm, note){
       uid:me.uid, matchmaker:mm, note:note||"", status:"pending", createdAt:serverTimestamp()
     });
     toast("已呼叫红娘");
+    track("concierge_ask");
   }catch(e){ toast("呼叫失败: "+fbError(e)); console.error(e); if(btn) btn.disabled=false; }
 }
 async function cancelConcierge(){
