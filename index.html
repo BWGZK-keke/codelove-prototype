@@ -119,6 +119,11 @@
   }
 
   *{margin:0;padding:0;box-sizing:border-box}
+  /* 去掉全站框线之后 (REQ-090) 必须补这一条:`<button>` 和表单控件的
+     边框是**浏览器给的默认值**(2px 黑),原来一直被各自的 border 盖着,
+     一删就冒出来了 —— 底部标签栏上五个黑框就是这么来的。
+     统一在这里清掉,而不是回去给每个控件补一句 border:none。 */
+  button,input,select,textarea{border:none}
   html{-webkit-text-size-adjust:100%}
   body{font-family:var(--cute);background:var(--bg);color:var(--ink);min-height:100vh;
     -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.7;letter-spacing:.01em}
@@ -164,7 +169,7 @@
   }
 
   /* ---------- 按钮:实心 + 描边 + 硬投影 ---------- */
-  .btn,.btn-pill{border:var(--bw) solid var(--outline);border-radius:var(--pill);
+  .btn,.btn-pill{border-radius:var(--pill);
     font-family:var(--cute);font-size:15px;font-weight:400;padding:11px 20px;cursor:pointer;
     box-shadow:var(--sh);
     transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease),
@@ -173,11 +178,13 @@
   .btn:active{transform:translateY(3px);box-shadow:0 0 0 rgba(0,0,0,0)}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .btn-coral{background:var(--accent);color:var(--accent-ink)}
-  .btn-ghost{background:var(--surface);color:var(--ink)}
+    /* 去掉描边之后 (REQ-090),幽灵按钮在白卡片上就没边界了 ——
+     换成比卡片深一档的填充。它不是线,但一样说得清「这是个可点的东西」。 */
+  .btn-ghost{background:var(--surface-2);color:var(--ink)}
   .btn-indigo{background:var(--sky);color:var(--ink)}
   .liked-flag{background:var(--rose);color:var(--ink)}
   .g-btn{display:flex;align-items:center;gap:12px;background:var(--surface);
-    border:var(--bw) solid var(--outline);border-radius:var(--pill);padding:14px 30px;
+    border-radius:var(--pill);padding:14px 30px;
     font-size:16px;cursor:pointer;box-shadow:var(--sh-lg);font-family:var(--cute);color:var(--ink)}
   .g-btn:active{transform:translateY(3px)}
   .g-btn svg{width:20px;height:20px}
@@ -187,28 +194,29 @@
 
   /* ---------- 标签 ---------- */
   .badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 10px;
-    border-radius:var(--pill);border:1.5px solid var(--outline);white-space:nowrap;color:var(--ink)}
+    border-radius:var(--pill);white-space:nowrap;color:var(--ink)}
   .b-green{background:var(--mint-soft)}
   .b-indigo{background:var(--sky-soft)}
   .b-amber{background:var(--butter-soft)}
   /* 标签里常有中文(攀岩、咖啡),等宽字体没有中文字形会掉到很难看的 fallback,
      所以跟全站统一用 --cute */
   .tok{font-family:var(--cute);font-size:11.5px;color:var(--ink);background:var(--surface-2);
-    border:1.5px solid var(--outline);border-radius:var(--pill);padding:3px 10px}
+    border-radius:var(--pill);padding:3px 10px}
 
   /* ---------- 顶栏 ---------- */
-  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);
+    box-shadow:0 1px 12px -8px rgba(74,55,40,.5);
     backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-    border-bottom:var(--bw) solid var(--outline);padding:13px 18px;
+    padding:13px 18px;
     display:flex;justify-content:space-between;align-items:center}
   .logo{font-family:var(--cute);font-size:22px;letter-spacing:.01em}
   .logo em{color:var(--rose);font-style:normal}
   .topbar .me-chip{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink-soft);
     background:none;border:none;font-family:var(--cute);cursor:pointer;padding:0}
   .topbar .me-chip:hover{color:var(--ink)}
-  #topAva img{width:32px;height:32px;border-radius:50%;border:var(--bw) solid var(--outline);object-fit:cover;display:block}
+  #topAva img{width:32px;height:32px;border-radius:50%;object-fit:cover;display:block}
   #topAva .ava-emoji{width:32px;height:32px;font-size:17px}
-  .topbar img{width:32px;height:32px;border-radius:50%;border:var(--bw) solid var(--outline);object-fit:cover}
+  .topbar img{width:32px;height:32px;border-radius:50%;object-fit:cover}
 
   /* ---------- 登录 ---------- */
   .login{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
@@ -217,7 +225,7 @@
   .login .slogan{font-size:17px;color:var(--ink);margin-bottom:12px}
   .login .code-line{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);
     margin-bottom:42px;white-space:nowrap;background:var(--surface);
-    border:1.5px dashed var(--outline);border-radius:var(--pill);padding:7px 18px}
+    border-radius:var(--pill);padding:7px 18px}
   .login .tip{margin-top:26px;font-size:12.5px;color:var(--ink-soft);max-width:300px;line-height:1.9}
 
   /* ---------- 邮箱登录 ---------- */
@@ -231,10 +239,10 @@
   /* 发信结果:成了显示时间,没成显示原因。两种都要说,不能只留一片空白 */
   /* 未验证提示条。不是弹窗 —— 它要一直在那儿,但不能挡住任何操作 */
   .vb{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:12.5px;
-    line-height:1.6;background:var(--butter-soft);border-bottom:1.5px solid var(--outline);
+    line-height:1.6;background:var(--butter-soft);
     color:var(--ink)}
   .vb-go{flex:0 0 auto;font-family:var(--cute);font-size:12px;cursor:pointer;
-    background:var(--surface);border:1.5px solid var(--outline);border-radius:var(--pill);
+    background:var(--surface);border-radius:var(--pill);
     padding:4px 12px;color:var(--ink)}
   .vb-go:active{transform:translateY(1px)}
 
@@ -258,7 +266,26 @@
   .auth-note .who{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:7px}
 
   /* ---------- 表单 ---------- */
-  .form-title{font-family:var(--cute);font-size:27px;margin:28px 0 6px;letter-spacing:.01em}
+  /* ================= 小标题的设计 (REQ-092) =================
+
+     原来的标题就是一行大字加一行小字 —— 排版上没错,但读起来像文档目录,
+     整页看下去全是同一种节奏。这里给它两样东西,都不是「线」:
+
+       1. **马克笔划痕**。标题文字底下压一道半透明色块,只盖住下半截,
+          像用荧光笔划过 —— 手账风本来就该有这个,而且它是**块**不是线,
+          和刚去掉全站框线的方向一致。
+       2. **一枚色点**。每个小节前面一个实心圆点,颜色按小节轮换
+          (杏橘/玫瑰/薄荷/奶黄),扫一眼就知道换了一节。
+          比图标便宜:不用为每个小节想一个图案,也不会图案选错反而添乱。
+
+     大标题(页名)用马克笔,小节标题用色点 —— 两级各有各的记号,
+     不靠字号硬撑层级。 */
+  .form-title{font-family:var(--cute);font-size:27px;margin:28px 0 6px;letter-spacing:.01em;
+    display:inline-block;padding:0 4px;
+    /* 荧光笔用背景渐变画,不用绝对定位的伪元素:伪元素要靠 z-index:-1 压到
+       文字底下,而那依赖祖先有没有建立层叠上下文 —— 换个容器就失效。
+       渐变是画在元素自己的背景层上的,文字永远在它上面。 */
+    background:linear-gradient(transparent 58%, var(--accent-soft) 58%, var(--accent-soft) 92%, transparent 92%)}
   .form-sub{font-size:13.5px;color:var(--ink-soft);margin-bottom:20px}
   .field{margin-bottom:16px}
   .field label{display:block;font-size:13px;margin-bottom:7px;color:var(--ink)}
@@ -286,7 +313,7 @@
     padding:12px 14px;background:var(--surface-2)}
   .vis-box summary{font-family:var(--cute);font-size:13.5px;color:var(--ink);
     cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .vis-sum{font-size:11.5px;color:var(--ink-soft);border:1.5px solid var(--outline);
+  .vis-sum{font-size:11.5px;color:var(--ink-soft);
     border-radius:var(--pill);padding:2px 10px;background:var(--surface);white-space:nowrap}
   .vis-row{display:flex;align-items:center;gap:10px;margin-top:8px}
   .vis-k{flex:0 0 62px;font-size:12.5px;color:var(--ink-soft)}
@@ -339,7 +366,7 @@
   .mm-sla svg{width:15px;height:15px;flex:0 0 auto}
   .mm-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .mm-tab{font-family:var(--cute);font-size:12.5px;cursor:pointer;color:var(--ink-soft);
-    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
+    background:var(--surface);border-radius:var(--pill);
     padding:5px 12px}
   .mm-tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
   .mm-card{background:var(--surface);
@@ -359,12 +386,12 @@
   .mm-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
   .mm-btn{display:inline-flex;align-items:center;gap:5px;font-family:var(--cute);font-size:12.5px;
     cursor:pointer;color:var(--ink);background:var(--surface-2);
-    border:1.5px solid var(--line);border-radius:var(--pill);padding:6px 12px}
+    border-radius:var(--pill);padding:6px 12px}
   .mm-btn svg{width:14px;height:14px}
   .mm-btn.go{background:var(--accent-soft);border-color:var(--outline)}
   .mm-btn:active{transform:translateY(1px)}
   .mm-sort{font-family:var(--cute);font-size:12.5px;color:var(--ink);cursor:pointer;
-    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
+    background:var(--surface);border-radius:var(--pill);
     padding:4px 10px;margin-left:auto}
   .mm-empty{font-size:13px;color:var(--ink-faint);padding:14px 2px;line-height:1.9}
 
@@ -377,7 +404,7 @@
   .vr-tick svg{width:16px;height:16px}
   .vr-row.on .vr-tick{color:var(--ink)}
   .vr-off{font-family:var(--cute);font-size:11px;color:var(--ink-faint);
-    border:1.5px solid var(--line);border-radius:var(--pill);padding:1px 7px;vertical-align:2px}
+    border-radius:var(--pill);padding:1px 7px;vertical-align:2px}
 
   .rep-list{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
@@ -392,16 +419,17 @@
 
   /* ---------- 底部导航:参考图那排描边药丸 ---------- */
   .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
-    border-top:var(--bw) solid var(--outline);display:flex;
+    box-shadow:0 -2px 16px -10px rgba(74,55,40,.6);
+    display:flex;
     padding:9px 0 max(11px,env(safe-area-inset-bottom));z-index:30}
   .tabbar-inner{max-width:560px;margin:0 auto;display:flex;width:100%;padding:0 6px;gap:3px}
   .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;
-    color:var(--ink-soft);cursor:pointer;border:1.5px solid transparent;background:none;
+    color:var(--ink-soft);cursor:pointer;background:none;
     font-family:var(--cute);padding:5px 0;border-radius:var(--pill);transition:.14s}
   .tab .ico{display:flex;align-items:center;justify-content:center;height:21px}
   .tab .ico svg{width:20px;height:20px;stroke:currentColor;fill:none;
     stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-  .tab.on{color:var(--ink);background:var(--accent);border-color:var(--outline);box-shadow:0 2px 0 var(--outline)}
+  .tab.on{color:var(--ink);background:var(--accent)}
 
   /* ================= 桌面端双栏 (REQ-048) =================
 
@@ -421,7 +449,7 @@
      解决的是「手机布局硬拉宽」,详情仍然走弹窗。 */
   @media(min-width:1000px){
     .tabbar{top:0;bottom:0;right:auto;width:196px;border-top:none;
-      border-right:var(--bw) solid var(--outline);align-items:stretch;
+      align-items:stretch;
       padding:var(--s5) 0}
     .tabbar-inner{flex-direction:column;max-width:none;gap:var(--s1);
       padding:0 var(--s3);align-items:stretch}
@@ -453,7 +481,7 @@
     margin-bottom:var(--s3);box-shadow:var(--sh);overflow:hidden}
   .ucard-top{padding:var(--s3) var(--s4) 0;display:flex;gap:var(--s3);align-items:center}
   .ava,.ava-emoji{width:46px;height:46px;border-radius:50%;flex-shrink:0;object-fit:cover;
-    border:var(--bw) solid var(--outline);background:var(--butter-soft);
+    background:var(--butter-soft);
     display:flex;align-items:center;justify-content:center;font-size:23px}
   .uname{font-family:var(--cute);font-size:15.5px;display:flex;align-items:center;gap:6px;
     flex-wrap:wrap;line-height:1.45}
@@ -465,7 +493,7 @@
   .stack{display:flex;flex-wrap:wrap;gap:7px}
   .compat{display:flex;flex-direction:column;align-items:center;justify-content:center;
     width:46px;height:46px;border-radius:50%;background:var(--butter);
-    border:var(--bw) solid var(--outline);box-shadow:var(--sh);
+    box-shadow:var(--sh);
     font-family:var(--cute);color:var(--ink);line-height:1;flex-shrink:0}
   .compat b{font-size:16px;display:block;font-weight:400}
   .compat span{font-size:9.5px;display:block;margin-top:3px;color:var(--ink)}
@@ -473,7 +501,7 @@
   .ucard-actions .btn{flex:1;font-size:14.5px;padding:11px}
   .self-card{background:linear-gradient(180deg,var(--rose-soft),var(--surface) 58%)}
   .self-note{font-size:12.5px;color:var(--ink-soft);line-height:1.85;margin-top:14px;
-    border-top:1.5px dashed var(--outline);padding-top:12px}
+    padding-top:12px}
 
   /* ---------- 匹配 ---------- */
   /* 改成两行 (REQ-085):一行头像 + 名字,一行动作。
@@ -488,12 +516,12 @@
   .contact-box.reveal{cursor:pointer;display:flex;align-items:center;gap:8px}
   .contact-box.reveal:hover{background:var(--butter-soft)}
   .reveal-hint{margin-left:auto;font-family:var(--cute);font-size:10.5px;
-    border:1.5px solid var(--outline);border-radius:var(--pill);padding:1px 8px;background:var(--surface)}
+    border-radius:var(--pill);padding:1px 8px;background:var(--surface)}
   .contact-box{font-family:var(--mono);font-size:11.5px;background:var(--mint-soft);
     color:var(--ink);border-radius:var(--pill);
     padding:6px 13px;margin-top:9px;display:inline-block;word-break:break-all}
   /* 发消息按钮直接摆在卡片右侧:flex-shrink:0 保证窄屏不会被文字挤扁 */
-  .btn-chat{background:var(--accent);color:var(--ink);border:var(--bw) solid var(--outline);
+  .btn-chat{background:var(--accent);color:var(--ink);
     border-radius:var(--pill);padding:9px 16px;font-size:14px;cursor:pointer;
     font-family:var(--cute);box-shadow:var(--sh);flex-shrink:0;white-space:nowrap}
   .btn-chat:active{transform:translateY(3px);box-shadow:none}
@@ -501,8 +529,16 @@
   /* ---------- 章节标题 ---------- */
   .sec-head{display:flex;align-items:center;gap:9px;margin-top:28px}
   .sec-head .form-title{margin:0}
-  .sec-ico{color:var(--accent);display:inline-flex;flex:0 0 auto}
-  .sec-ico svg{width:15px;height:15px}
+  /* 小节前面那枚色点。原来是一个星芒 SVG,五个小节全一样,
+     等于没有区分。改成实心圆点并按小节轮换颜色。 */
+  .sec-ico{color:var(--accent);display:inline-flex;flex:0 0 auto;align-items:center}
+  .sec-ico svg{display:none}
+  .sec-ico::before{content:"";width:9px;height:9px;border-radius:50%;
+    background:currentColor;display:block}
+  .sec-head:nth-of-type(4n+1) .sec-ico{color:var(--accent)}
+  .sec-head:nth-of-type(4n+2) .sec-ico{color:var(--rose)}
+  .sec-head:nth-of-type(4n+3) .sec-ico{color:var(--mint)}
+  .sec-head:nth-of-type(4n)   .sec-ico{color:var(--butter)}
 
   /* ---------- 星芒 ---------- */
   .sparkle{position:absolute;color:var(--butter);opacity:.7;pointer-events:none;
@@ -527,9 +563,9 @@
   .note-name{font-family:var(--cute);font-size:16px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .note-meta{font-size:11.5px;color:var(--ink-soft);margin-top:1px}
   .note-time{font-size:11px;color:var(--ink);background:var(--surface-2);
-    border:1.5px solid var(--outline);border-radius:var(--pill);padding:2px 10px;white-space:nowrap}
+    border-radius:var(--pill);padding:2px 10px;white-space:nowrap}
   .note-body{font-size:14.5px;line-height:1.9;margin-top:11px;padding-top:11px;
-    border-top:1.5px dashed var(--outline);white-space:pre-wrap;word-break:break-word}
+    white-space:pre-wrap;word-break:break-word}
   .note-del{position:absolute;right:14px;bottom:12px;border:none;background:none;
     font-size:11.5px;color:var(--ink-faint);cursor:pointer;font-family:var(--cute);padding:3px 6px}
   .note-del:hover{color:var(--rose)}
@@ -550,7 +586,7 @@
   /* ---------- toast ---------- */
   .toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(10px);
     background:var(--surface);color:var(--ink);font-size:14px;padding:12px 22px;
-    border:var(--bw) solid var(--outline);border-radius:var(--pill);
+    border-radius:var(--pill);
     opacity:0;pointer-events:none;transition:.24s;z-index:99;max-width:88vw;
     box-shadow:var(--sh-lg);font-family:var(--cute)}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -561,7 +597,7 @@
     padding:26px;animation:fade .2s ease}
   @keyframes fade{from{opacity:0}to{opacity:1}}
   .modal{background:var(--surface);border-radius:24px;padding:34px 26px 26px;text-align:center;
-    max-width:340px;width:100%;border:var(--bw) solid var(--outline);box-shadow:var(--sh-lg);
+    max-width:340px;width:100%;box-shadow:var(--sh-lg);
     animation:pop .3s cubic-bezier(.2,1.2,.4,1)}
   @keyframes pop{from{opacity:0;transform:translateY(14px) scale(.94)}to{opacity:1;transform:none}}
   .modal .hearts{font-size:44px;line-height:1}
@@ -574,7 +610,7 @@
   /* ---------- 私信 / 留言墙 ---------- */
   #view-chat,#view-wall{position:fixed;inset:0;display:flex;flex-direction:column;
     background:var(--bg);z-index:60}
-  .chat-head{background:var(--surface);border-bottom:var(--bw) solid var(--outline);
+  .chat-head{background:var(--surface);
     padding:11px 13px;display:flex;align-items:center;gap:11px;flex-shrink:0}
   .chat-head .back{border:none;background:none;font-size:28px;line-height:1;cursor:pointer;
     color:var(--ink);padding:0 6px;font-family:var(--cute)}
@@ -582,7 +618,7 @@
   .chat-head .nm{font-family:var(--cute);font-size:17px}
   .chat-head .sub{font-size:11.5px;color:var(--mint)}
   .sub-rose{color:var(--rose)!important}
-  .head-act{margin-left:auto;border:1.5px solid var(--outline);background:var(--surface);
+  .head-act{margin-left:auto;background:var(--surface);
     color:var(--ink-soft);border-radius:var(--pill);padding:5px 13px;font-size:12px;
     cursor:pointer;font-family:var(--cute)}
   .head-act:hover{background:var(--rose-soft);color:var(--ink)}
@@ -593,7 +629,7 @@
   .msg.mine{align-self:flex-end;align-items:flex-end}
   .msg.theirs{align-self:flex-start;align-items:flex-start}
   .bubble{padding:10px 15px;border-radius:18px;font-size:15px;line-height:1.7;
-    word-break:break-word;white-space:pre-wrap;border:var(--bw) solid var(--outline);
+    word-break:break-word;white-space:pre-wrap;
     box-shadow:var(--sh)}
   .msg.mine .bubble{background:var(--accent);color:var(--ink);border-bottom-right-radius:6px}
   .msg.theirs .bubble{background:var(--surface);border-bottom-left-radius:6px}
@@ -602,7 +638,7 @@
     font-size:46px;line-height:1.15;padding:0 2px}
 
   /* ---------- 表情 ---------- */
-  .emoji-panel{background:var(--surface);border-top:var(--bw) solid var(--outline);
+  .emoji-panel{background:var(--surface);
     max-height:214px;overflow-y:auto;padding:12px 14px;flex-shrink:0}
   .emoji-panel-inner{max-width:560px;margin:0 auto}
   .emoji-cat{font-size:11.5px;color:var(--ink-soft);margin:12px 0 6px}
@@ -611,7 +647,7 @@
   .emoji-grid button{border:none;background:none;font-size:23px;line-height:1.25;padding:5px 0;
     cursor:pointer;border-radius:var(--r-xs);font-family:var(--cute)}
   .emoji-grid button:hover{background:var(--surface-2)}
-  .chat-bar{background:var(--surface);border-top:var(--bw) solid var(--outline);flex-shrink:0;
+  .chat-bar{background:var(--surface);flex-shrink:0;
     padding:11px 14px max(11px,env(safe-area-inset-bottom))}
   .chat-bar-inner{max-width:560px;margin:0 auto;display:flex;gap:9px;align-items:center}
   /* min-width:0 是关键:flex 项默认 min-width:auto,不会收缩到比内容更窄,
@@ -620,12 +656,12 @@
     padding:11px 17px;font-size:15px;font-family:var(--cute);background:var(--bg);color:var(--ink)}
   .chat-bar input:focus{outline:none;background:var(--surface);box-shadow:var(--sh)}
   .chat-bar input::placeholder{color:var(--ink-faint)}
-  .chat-bar button{flex-shrink:0;border:var(--bw) solid var(--outline);background:var(--accent);color:var(--ink);
+  .chat-bar button{flex-shrink:0;background:var(--accent);color:var(--ink);
     border-radius:var(--pill);padding:11px 21px;font-size:15px;cursor:pointer;
     font-family:var(--cute);box-shadow:var(--sh)}
   .chat-bar button:active{transform:translateY(3px);box-shadow:none}
   .chat-bar button:disabled{opacity:.45;cursor:not-allowed}
-  .chat-bar .emoji-btn{border:1.5px solid var(--outline);background:var(--surface);
+  .chat-bar .emoji-btn{background:var(--surface);
     font-size:20px;line-height:1;cursor:pointer;padding:7px 10px;font-family:var(--cute);
     border-radius:var(--pill);box-shadow:none;color:var(--ink)}
   .chat-bar .emoji-btn.on{background:var(--butter)}
@@ -640,12 +676,12 @@
 
   /* ---------- 回复 ---------- */
   .note-foot{display:flex;align-items:center;gap:10px;margin-top:11px}
-  .reply-btn{border:1.5px solid var(--outline);background:var(--surface-2);color:var(--ink);
+  .reply-btn{background:var(--surface-2);color:var(--ink);
     border-radius:var(--pill);padding:4px 13px;font-size:12px;cursor:pointer;font-family:var(--cute)}
   .reply-btn:hover{background:var(--butter-soft)}
   .note-del{position:static!important;margin-left:auto;border:none;background:none;
     font-size:12px;color:var(--ink-faint);cursor:pointer;font-family:var(--cute);padding:4px 6px}
-  .replies{margin-top:12px;padding-top:12px;border-top:1.5px dashed var(--outline)}
+  .replies{margin-top:12px;padding-top:12px;}
   .reply{display:flex;gap:10px;align-items:flex-start;margin-bottom:11px}
   .reply .ava,.reply .ava-emoji{width:30px;height:30px;font-size:15px;border-width:1.5px}
   .reply-main{flex:1;min-width:0;background:var(--surface-2);
@@ -668,7 +704,7 @@
     cursor:pointer;box-shadow:var(--sh)}
   .uid-box code{flex:1;min-width:0;font-family:var(--mono);font-size:12px;color:var(--ink);
     word-break:break-all;line-height:1.5}
-  .uid-copy{flex-shrink:0;font-size:12px;color:var(--ink-soft);border:1.5px solid var(--outline);
+  .uid-copy{flex-shrink:0;font-size:12px;color:var(--ink-soft);
     border-radius:var(--pill);padding:3px 12px;background:var(--surface-2)}
   .uid-box:active{transform:translateY(3px);box-shadow:none}
 
@@ -679,7 +715,7 @@
     box-shadow:var(--sh);transition:transform .1s ease,background .15s ease}
   .mm-card:active{transform:translateY(3px);box-shadow:none}
   .mm-card.on{background:var(--accent)}
-  .mm-ava{width:44px;height:44px;border-radius:50%;border:var(--bw) solid var(--outline);
+  .mm-ava{width:44px;height:44px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 7px;
     background:var(--butter-soft)}
   .mm-name{font-size:14.5px;line-height:1.3}
@@ -695,7 +731,7 @@
   #view-landing{position:fixed;inset:0;overflow-y:auto;background:var(--bg);z-index:55;
     display:flex;flex-direction:column;-webkit-overflow-scrolling:touch}
   .lp-nav{position:sticky;top:0;z-index:10;background:rgba(253,243,231,.92);
-    backdrop-filter:blur(10px);border-bottom:var(--bw) solid var(--outline)}
+    backdrop-filter:blur(10px);}
   .lp-nav-in{max-width:1060px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:8px}
   .lp-logo{font-family:var(--cute);font-size:23px;color:var(--ink);cursor:pointer;
     letter-spacing:.01em;margin-right:8px;white-space:nowrap}
@@ -706,12 +742,12 @@
   .lp-links button{transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
   .lp-links button:hover{background:var(--surface-2);color:var(--ink)}
   .lp-links button.on{background:var(--accent);color:var(--ink);
-    border:1.5px solid var(--outline);box-shadow:0 2px 0 var(--outline)}
-  .lp-lang{border:1.5px solid var(--outline);background:var(--surface);border-radius:var(--pill);
+    box-shadow:0 2px 0 var(--outline)}
+  .lp-lang{background:var(--surface);border-radius:var(--pill);
     font-family:var(--mono);font-size:11.5px;color:var(--ink);cursor:pointer;padding:6px 12px;
     white-space:nowrap}
   .lp-lang:hover{background:var(--butter-soft)}
-  .lp-cta{border:var(--bw) solid var(--outline);background:var(--accent);color:var(--ink);
+  .lp-cta{background:var(--accent);color:var(--ink);
     border-radius:var(--pill);font-family:var(--cute);font-size:14px;cursor:pointer;
     padding:8px 18px;box-shadow:0 3px 0 var(--outline);white-space:nowrap}
   .lp-cta{transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
@@ -727,10 +763,10 @@
      眼睛回到行首会找错行 —— 这是长行最典型的代价。 */
   .lp-sub{line-height:1.9;color:var(--ink-soft);max-width:34em;margin:0 auto var(--s4)}
   .lp-code{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);
-    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
+    background:var(--surface);border-radius:var(--pill);
     display:inline-block;padding:7px 17px;margin:8px 0 26px}
   .lp-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .lp-btn{border:var(--bw) solid var(--outline);border-radius:var(--pill);font-family:var(--cute);
+  .lp-btn{border-radius:var(--pill);font-family:var(--cute);
     font-size:15.5px;cursor:pointer;padding:13px 30px;box-shadow:0 4px 0 var(--outline);
     background:var(--accent);color:var(--ink)}
   .lp-btn.ghost{background:var(--surface)}
@@ -755,14 +791,14 @@
     padding:var(--s5);box-shadow:var(--sh);display:flex;flex-direction:column;
     transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
   .lp-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
-  .lp-ico{width:48px;height:48px;border-radius:50%;border:var(--bw) solid var(--outline);
+  .lp-ico{width:48px;height:48px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;margin-bottom:var(--s4);color:var(--ink);
     flex:0 0 auto}
   .lp-ico svg{width:24px;height:24px}
   /* 准入:三步一列,不做卡片,留白比装饰重要 */
   .lp-gate{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:2px}
   .lp-gate-row{display:flex;gap:var(--s4);align-items:flex-start;padding:var(--s5) var(--s1)}
-  .lp-gate-row + .lp-gate-row{border-top:1.5px solid var(--line)}
+  .lp-gate-row + .lp-gate-row{}
   .lp-gate-ico{flex:0 0 34px;height:34px;color:var(--ink-soft);display:flex;
     align-items:center;justify-content:center}
   .lp-gate-ico svg{width:22px;height:22px}
@@ -778,7 +814,7 @@
   .lp-team h3{font-family:var(--cute);font-size:16.5px;font-weight:400;margin:0 0 var(--s2);
     color:var(--ink);text-wrap:balance}
   .lp-team p{font-family:var(--sans);font-size:13.5px;line-height:1.85;color:var(--ink-soft);margin:0}
-  .lp-badge{display:inline-block;background:var(--mint-soft);border:1.5px solid var(--outline);
+  .lp-badge{display:inline-block;background:var(--mint-soft);
     border-radius:var(--pill);font-size:11.5px;padding:3px 11px;color:var(--ink);margin-top:9px}
 
   .lp-foot-in a{display:block;background:none;border:0;padding:0;cursor:pointer;
@@ -788,12 +824,12 @@
 
   .lp-soon{opacity:.62}
   .lp-soon .lp-ico{background:var(--surface-2)}
-  .lp-pill{display:inline-block;border:1.5px solid var(--outline);border-radius:var(--pill);
+  .lp-pill{display:inline-block;border-radius:var(--pill);
     font-size:11.5px;padding:3px 11px;margin-top:11px;background:var(--butter-soft);color:var(--ink)}
 
   .lp-final{text-align:center;background:var(--surface);
     border-radius:var(--r);padding:var(--s7) var(--s5);box-shadow:var(--sh-lg);margin-top:var(--s8)}
-  .lp-foot{border-top:var(--bw) solid var(--outline);background:var(--surface-2);margin-top:auto}
+  .lp-foot{background:var(--surface-2);margin-top:auto}
   .lp-foot-in{max-width:1060px;margin:0 auto;padding:34px 20px;display:flex;gap:34px;flex-wrap:wrap}
   .lp-foot h4{font-family:var(--cute);font-size:14px;margin:0 0 11px;color:var(--ink);font-weight:400}
   .lp-foot button{display:block;border:none;background:none;font-family:var(--cute);font-size:13px;
@@ -894,6 +930,19 @@
     margin-top:6px;max-width:30em;margin-left:auto;margin-right:auto}
   .es-go{margin-top:var(--s4)}
 
+  /* ---------- 社区规则 (REQ-052) ---------- */
+  .rl-age{font-family:var(--sans);font-size:13px;line-height:1.85;color:var(--ink);
+    background:var(--butter-soft);border-radius:var(--r-xs);padding:var(--s3)}
+  .rl-list{list-style:none;margin:var(--s2) 0 0;padding:0}
+  .rl-list li{font-family:var(--sans);font-size:13px;line-height:1.9;color:var(--ink);
+    padding-left:16px;position:relative}
+  .rl-list li::before{content:"×";position:absolute;left:2px;color:var(--rose-ink)}
+  .rl-d{background:var(--surface);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
+    margin-top:6px}
+  .rl-t{font-family:var(--cute);font-size:13.5px;color:var(--ink)}
+  .rl-x{font-family:var(--sans);font-size:12.5px;line-height:1.85;color:var(--ink-soft);
+    margin-top:2px}
+
   /* ---------- 用户反馈 (REQ-041) ---------- */
   .fb-card{background:var(--surface-2);
     border-radius:var(--r-sm);padding:var(--s4);margin:var(--s5) 0 var(--s2)}
@@ -904,12 +953,12 @@
     margin-top:4px}
   .fb-opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:var(--s3)}
   .fb-o{font-family:var(--cute);font-size:12.5px;color:var(--ink);cursor:pointer;
-    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
+    background:var(--surface);border-radius:var(--pill);
     padding:5px 12px;transition:background var(--dur) var(--ease)}
   .fb-o.on{background:var(--accent);border-color:var(--outline)}
   .fb-nps{display:flex;gap:4px;flex-wrap:wrap;margin-top:var(--s3)}
   .fb-n{font-family:var(--mono);font-size:12.5px;color:var(--ink);cursor:pointer;
-    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-xs);
+    background:var(--surface);border-radius:var(--r-xs);
     width:30px;height:30px;padding:0}
   .fb-n.on{background:var(--accent);border-color:var(--outline)}
   .fb-note{width:100%;margin-top:var(--s3);min-height:56px;font-family:var(--sans);
@@ -921,7 +970,7 @@
     border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin-top:var(--s2)}
   .fb-mine{font-family:var(--sans);font-size:12px;color:var(--ink-faint);line-height:1.8}
   .fb-rep{font-family:var(--sans);font-size:13.5px;color:var(--ink);line-height:1.85;
-    margin-top:5px;padding-top:var(--s2);border-top:1.5px solid var(--line)}
+    margin-top:5px;padding-top:var(--s2);}
   .fb-by{font-family:var(--sans);font-size:11px;color:var(--ink-faint);margin-top:4px}
 
   /* ---------- 生活栏目 (REQ-039) ---------- */
@@ -935,15 +984,6 @@
   .wk-t{font-family:var(--sans);font-size:14px;line-height:1.9;color:var(--ink)}
   .wk-by{font-family:var(--sans);font-size:11.5px;color:var(--ink-faint);margin-top:5px}
   .wk-nm{color:var(--ink-soft);cursor:pointer;text-decoration:underline}
-  .wk-peek{background:var(--butter-soft);
-    border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin:var(--s5) 0 var(--s2);
-    cursor:pointer;box-shadow:var(--sh);transition:transform var(--dur) var(--ease)}
-  .wk-peek:hover{transform:translateY(-1px)}
-  .wk-peek-k{font-family:var(--sans);font-size:11px;color:var(--ink-soft);
-    letter-spacing:.14em;text-transform:uppercase}
-  .wk-peek-q{font-family:var(--cute);font-size:15.5px;line-height:1.5;color:var(--ink);
-    margin-top:3px;text-wrap:balance}
-  .wk-peek-go{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:6px}
   .ask-card{background:var(--surface);
     border-radius:var(--r-sm);padding:var(--s3) var(--s4);box-shadow:var(--sh);
     margin-top:var(--s3)}
@@ -957,7 +997,7 @@
 
   /* ---------- 对方那边几点 (REQ-038) ---------- */
   .clk{display:inline-block;font-family:var(--sans);font-size:11px;color:var(--ink-soft);
-    background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--pill);
+    background:var(--surface-2);border-radius:var(--pill);
     padding:0 8px;margin-top:3px}
   .clk.night{color:var(--rose-ink);background:var(--rose-soft);border-color:var(--rose-ink)}
 
@@ -966,7 +1006,7 @@
     margin-top:var(--s2)}
   .dt-slot{display:block;width:100%;text-align:left;font-family:var(--cute);font-size:14px;
     color:var(--ink);cursor:pointer;background:var(--surface);
-    border:1.5px solid var(--outline);border-radius:var(--r-sm);
+    border-radius:var(--r-sm);
     padding:var(--s3) var(--s4);margin-top:var(--s2);
     transition:background var(--dur) var(--ease)}
   .dt-slot:hover{background:var(--butter-soft)}
@@ -994,7 +1034,7 @@
   .vn-t{font-family:var(--cute);font-size:13.5px;color:var(--ink);display:flex;
     align-items:center;gap:6px;flex-wrap:wrap}
   .vn-ok{font-family:var(--sans);font-size:10.5px;color:var(--ink);background:var(--mint-soft);
-    border:1.5px solid var(--outline);border-radius:var(--pill);padding:0 7px}
+    border-radius:var(--pill);padding:0 7px}
   .vn-f{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);margin-top:2px;line-height:1.7}
   .vn-w{font-family:var(--sans);font-size:12px;color:var(--ink);margin-top:3px;line-height:1.75}
   .vn-a{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);text-decoration:underline;
@@ -1023,7 +1063,7 @@
   .dt-l{font-family:var(--cute);font-size:15px;color:var(--ink);display:flex;
     align-items:center;gap:6px;flex-wrap:wrap}
   .dt-mark{font-family:var(--sans);font-size:11px;color:var(--ink-soft);
-    background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--pill);
+    background:var(--surface-2);border-radius:var(--pill);
     padding:1px 8px}
   .dt-w{font-family:var(--sans);font-size:12.5px;line-height:1.8;color:var(--ink-soft);
     margin-top:3px}
@@ -1032,13 +1072,13 @@
     margin-top:var(--s3)}
   .dt-acts{display:flex;gap:var(--s2);margin-top:var(--s3)}
   .dt-note{font-family:var(--sans);font-size:11.5px;line-height:1.8;color:var(--ink-faint);
-    margin-top:var(--s4);border-top:1.5px solid var(--line);padding-top:var(--s3)}
+    margin-top:var(--s4);padding-top:var(--s3)}
 
   /* ---------- 分身技能 (REQ-031) ---------- */
   .sk-n{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-left:6px}
   .sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .sk-grid button{display:flex;flex-direction:column;gap:2px;text-align:left;cursor:pointer;
-    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-xs);
+    background:var(--surface);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);color:var(--ink);
     transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
   .sk-grid button:hover{background:var(--surface-2)}
@@ -1064,19 +1104,11 @@
     padding-left:16px;position:relative}
   .pl-has li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;
     border-radius:50%;background:var(--accent)}
-  .pl-never{border-radius:var(--r-sm);
-    padding:var(--s4);background:var(--surface-2)}
-  .pl-never-t{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
-  .pl-never ul{list-style:none;margin:var(--s2) 0 0;padding:0}
-  .pl-never li{font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);line-height:1.9;
-    padding-left:16px;position:relative}
-  .pl-never li::before{content:"×";position:absolute;left:2px;color:var(--rose-ink)}
-  .pl-never-s{font-family:var(--sans);font-size:12px;color:var(--ink-faint);
-    margin-top:var(--s3);line-height:1.8}
 
   /* ---------- 每天三位 (REQ-006) ---------- */
   .dl-head{margin:var(--s5) 0 var(--s3)}
-  .dl-t{font-family:var(--cute);font-size:18px;color:var(--ink)}
+  .dl-t{font-family:var(--cute);font-size:18px;color:var(--ink);display:inline-block;padding:0 4px;
+    background:linear-gradient(transparent 60%, var(--butter-soft) 60%, var(--butter-soft) 93%, transparent 93%)}
   .dl-s{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.7}
   .dl-card{background:var(--surface);border-radius:var(--r-sm);
     padding:var(--s3) var(--s4);box-shadow:var(--sh);margin-bottom:var(--s3)}
@@ -1085,7 +1117,7 @@
   .dl-nm{font-family:var(--cute);font-size:15.5px;color:var(--ink)}
   .dl-mt{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:1px}
   .dl-sc{font-family:var(--cute);font-size:18px;color:var(--ink);flex:0 0 auto;
-    background:var(--butter-soft);border:1.5px solid var(--outline);border-radius:var(--pill);
+    background:var(--butter-soft);border-radius:var(--pill);
     padding:2px 11px}
   .dl-sc span{font-size:11px;color:var(--ink-soft)}
   .dl-why{font-family:var(--sans);font-size:13px;line-height:1.8;color:var(--ink);
@@ -1093,10 +1125,10 @@
     margin-top:var(--s3)}
   .dl-card.mm{background:var(--rose-soft);border-color:var(--outline)}
   .dl-src{font-family:var(--cute);font-size:11px;color:var(--ink);background:var(--surface);
-    border:1.5px solid var(--outline);border-radius:var(--pill);padding:1px 8px;
+    border-radius:var(--pill);padding:1px 8px;
     margin-left:5px;vertical-align:2px;white-space:nowrap}
   .dl-more{display:block;width:100%;font-family:var(--cute);font-size:13px;color:var(--ink);
-    cursor:pointer;background:var(--surface);border:1.5px solid var(--outline);
+    cursor:pointer;background:var(--surface);
     border-radius:var(--pill);padding:9px 0;margin-bottom:var(--s3);
     transition:background var(--dur) var(--ease)}
   .dl-more:hover{background:var(--butter-soft)}
@@ -1118,7 +1150,7 @@
   /* ---------- 注册向导 (REQ-005) ---------- */
   .ob-head{margin-bottom:var(--s5)}
   .ob-bar{height:6px;border-radius:var(--pill);background:var(--surface-2);
-    border:1.5px solid var(--outline);overflow:hidden}
+    overflow:hidden}
   .ob-fill{height:100%;background:var(--accent);width:20%;
     transition:width var(--dur) var(--ease)}
   .ob-meta{display:flex;justify-content:space-between;gap:var(--s3);margin-top:var(--s2);
@@ -1137,14 +1169,14 @@
     background:var(--butter-soft);
     border-radius:var(--r-xs);padding:var(--s2) var(--s3);margin-bottom:var(--s4)}
   .ob-draft button{font-family:var(--cute);font-size:12px;color:var(--ink);cursor:pointer;
-    background:var(--surface);border:1.5px solid var(--outline);
+    background:var(--surface);
     border-radius:var(--pill);padding:2px 10px}
 
   /* ---------- 换头像 ---------- */
   .av-row{display:flex;align-items:center;gap:14px;margin-bottom:18px}
   .av-row .ava,.av-row .ava-emoji{width:64px;height:64px;font-size:31px}
   .av-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:8px;margin:4px 0 6px}
-  .av-pick button{border:1.5px solid var(--outline);background:var(--surface);border-radius:50%;
+  .av-pick button{background:var(--surface);border-radius:50%;
     aspect-ratio:1;font-size:23px;cursor:pointer;font-family:var(--cute);padding:0;
     display:flex;align-items:center;justify-content:center}
   .av-pick button:hover{background:var(--butter-soft)}
@@ -1154,7 +1186,7 @@
   .flow{display:flex;gap:4px;margin:14px 0 6px}
   .flow-s{flex:1;text-align:center;font-size:10.5px;color:var(--ink-faint);line-height:1.5}
   .flow-dot{height:7px;border-radius:var(--pill);background:var(--surface-2);
-    border:1.5px solid var(--outline);margin-bottom:6px}
+    margin-bottom:6px}
   .flow-s.on .flow-dot{background:var(--accent)}
   .flow-s.on{color:var(--ink)}
   .rec{display:flex;align-items:center;gap:11px;
@@ -1166,7 +1198,7 @@
   .rec.picked{background:var(--butter-soft)}
   .pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;
     max-height:240px;overflow-y:auto;margin:10px 0}
-  .pick-grid button{border:1.5px solid var(--outline);background:var(--surface);border-radius:var(--r-sm);
+  .pick-grid button{background:var(--surface);border-radius:var(--r-sm);
     padding:9px 6px;font-family:var(--cute);font-size:12px;cursor:pointer;color:var(--ink);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pick-grid button.on{background:var(--accent);box-shadow:0 2px 0 var(--outline)}
@@ -1174,12 +1206,12 @@
   .lv-row{display:flex;align-items:center;gap:12px;margin-top:11px;cursor:pointer;
     border-radius:var(--r-sm);padding:11px 13px;background:var(--rose-soft)}
   .lv-row:hover{background:var(--butter-soft)}
-  .lv-ico{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--outline);
+  .lv-ico{width:38px;height:38px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:19px;background:var(--surface);flex-shrink:0}
   .lv-t{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
   .lv-s{font-size:11px;color:var(--ink-soft);margin-top:2px;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
-  .lv-go{font-size:11.5px;border:1.5px solid var(--outline);border-radius:var(--pill);
+  .lv-go{font-size:11.5px;border-radius:var(--pill);
     padding:2px 10px;background:var(--surface);color:var(--ink);flex-shrink:0}
   .lv-h{font-family:var(--cute);font-size:14px;margin:16px 0 7px;color:var(--ink);font-weight:400}
   .lv-box{background:var(--surface-2);border-radius:var(--r-xs);
@@ -1193,22 +1225,22 @@
   .twin-card{background:var(--surface);border-radius:var(--r);
     padding:18px;box-shadow:var(--sh);margin-bottom:22px}
   .twin-top{display:flex;align-items:center;gap:13px}
-  .twin-ava{width:52px;height:52px;border-radius:50%;border:var(--bw) solid var(--outline);
+  .twin-ava{width:52px;height:52px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:26px;background:var(--butter-soft);flex-shrink:0}
   .twin-name{font-family:var(--cute);font-size:17px;color:var(--ink)}
   .twin-sub{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.6}
   .twin-type{font-family:var(--mono);font-size:15px;letter-spacing:.1em;color:var(--ink);
-    background:var(--accent);border:1.5px solid var(--outline);border-radius:var(--pill);
+    background:var(--accent);border-radius:var(--pill);
     padding:3px 12px;display:inline-block;margin-top:2px}
   .twin-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-  .twin-tags span{font-size:11.5px;background:var(--surface-2);border:1.5px solid var(--outline);
+  .twin-tags span{font-size:11.5px;background:var(--surface-2);
     border-radius:var(--pill);padding:3px 10px;color:var(--ink)}
-  .quiz-bar{height:7px;background:var(--surface-2);border:1.5px solid var(--outline);
+  .quiz-bar{height:7px;background:var(--surface-2);
     border-radius:var(--pill);overflow:hidden;margin-bottom:16px}
   .quiz-fill{height:100%;background:var(--accent)}
   .quiz-q{font-family:var(--cute);font-size:18px;line-height:1.6;color:var(--ink);margin-bottom:16px}
   .quiz-opts{display:flex;flex-direction:column;gap:9px}
-  .quiz-opts button{border:var(--bw) solid var(--outline);background:var(--surface);color:var(--ink);
+  .quiz-opts button{background:var(--surface);color:var(--ink);
     border-radius:var(--r-sm);padding:13px 15px;font-size:14.5px;font-family:var(--cute);
     cursor:pointer;text-align:left;box-shadow:var(--sh)}
   .quiz-opts button:hover{background:var(--butter-soft)}
@@ -1227,11 +1259,11 @@
   .qz-s{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-top:2px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .qz-go{font-size:12px;color:var(--ink-soft);flex:0 0 auto;
-    border:1.5px solid var(--outline);border-radius:var(--pill);padding:3px 11px;
+    border-radius:var(--pill);padding:3px 11px;
     background:var(--surface)}
 
   /* ---------- 测评报告(自己的和别人的共用一套)---------- */
-  .rp-sec{margin-top:18px;padding-top:16px;border-top:1.5px solid var(--line)}
+  .rp-sec{margin-top:18px;padding-top:16px;}
   .rp-sec:first-of-type{border-top:0;padding-top:6px}
   .rp-h{display:flex;align-items:center;gap:9px;font-family:var(--cute);font-size:14.5px;
     color:var(--ink);margin-bottom:11px}
@@ -1242,7 +1274,12 @@
   .rp-why{display:block;font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin-top:3px}
   .rp-grid{display:flex;flex-direction:column;gap:11px;margin-top:11px;font-size:13.5px;
     color:var(--ink);line-height:1.75}
-  .rp-k{display:block;font-size:11.5px;color:var(--ink-faint);letter-spacing:.06em;margin-bottom:3px}
+  /* 更小一级的标签(「三个方向」「收到的回信」这种)。原来是一行灰字,
+     和正文糊在一起。加大字距 + 一枚小点,让它像个标记而不像一句话。 */
+  .rp-k{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft);
+    letter-spacing:.16em;margin-bottom:5px;text-transform:none}
+  .rp-k::before{content:"";width:5px;height:5px;border-radius:50%;
+    background:var(--accent);flex:0 0 auto}
   .rp-empty{font-size:13px;color:var(--ink-soft);line-height:1.8;padding:4px 0}
 
   /* ---------- 匹配报告 ---------- */
@@ -1251,7 +1288,7 @@
   .mr-head .ava,.mr-head .ava-emoji{width:48px;height:48px;font-size:24px}
   .mr-nm{font-family:var(--cute);font-size:19px;color:var(--ink);line-height:1.3}
   .mr-meta{font-size:12px;color:var(--ink-soft);margin-top:2px}
-  .mr-score{margin-left:auto;text-align:center;border:var(--bw) solid var(--outline);
+  .mr-score{margin-left:auto;text-align:center;
     border-radius:var(--r-sm);padding:6px 11px;background:var(--butter-soft)}
   .mr-score b{font-family:var(--cute);font-size:21px;display:block;font-weight:400;color:var(--ink)}
   .mr-score span{font-size:9.5px;color:var(--ink-soft)}
@@ -1262,7 +1299,7 @@
   .mr-top{display:flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink)}
   .mr-top b{font-weight:400}
   .mr-pts{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
-  .mr-bar{height:8px;border:1.5px solid var(--outline);border-radius:var(--pill);
+  .mr-bar{height:8px;border-radius:var(--pill);
     background:var(--surface-2);overflow:hidden;margin:5px 0 3px}
   .mr-fill{height:100%;background:var(--accent);border-radius:var(--pill)}
   .mr-note{font-size:11px;color:var(--ink-soft);line-height:1.65}
@@ -1282,9 +1319,9 @@
     border-radius:var(--r-xs);padding:7px 11px;margin:10px 0 0}
 
   /* ---------- AI 助手 ---------- */
-  .ai-tag{display:inline-block;background:var(--butter-soft);border:1.5px solid var(--outline);
+  .ai-tag{display:inline-block;background:var(--butter-soft);
     border-radius:var(--pill);padding:0 7px;font-size:10px;margin-left:5px;color:var(--ink)}
-  .chat-bar .ai-btn{border:1.5px solid var(--outline);background:var(--surface);
+  .chat-bar .ai-btn{background:var(--surface);
     border-radius:50%;width:40px;height:40px;padding:0;font-size:19px;flex-shrink:0}
   .chat-bar .ai-btn.busy{background:var(--butter);opacity:.7;cursor:wait}
   /* 输入框上方那条:当前模型 + 当前模式,点开就是配置面板 */
@@ -1292,19 +1329,19 @@
     flex-wrap:nowrap;overflow:hidden}
   .ai-strip #aiChip{min-width:0;flex:0 1 auto}      /* 挤不下时这个先让步 */
   .ai-strip #aiChipMode{flex-shrink:0}              /* 模式按钮永远完整可见 */
-  .ai-chip{border:1.5px solid var(--outline);background:var(--surface);color:var(--ink-soft);
+  .ai-chip{background:var(--surface);color:var(--ink-soft);
     border-radius:var(--pill);padding:5px 12px;font-size:11.5px;cursor:pointer;
     font-family:var(--cute);display:inline-flex;align-items:center;gap:5px;max-width:100%}
   .ai-chip:hover{background:var(--butter-soft);color:var(--ink)}
   .ai-chip.on{background:var(--butter);color:var(--ink)}
   .ai-chip .caret{opacity:.55}
   .ai-chip #aiChipText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px}
-  .ai-panel{background:var(--surface);border-top:var(--bw) solid var(--outline);
+  .ai-panel{background:var(--surface);
     max-height:min(62vh,440px);overflow-y:auto;padding:15px 16px;flex-shrink:0}
   .ai-panel-inner{max-width:560px;margin:0 auto}
   .ai-panel .field{margin-bottom:13px}
   .ai-seg{display:flex;gap:7px}
-  .ai-seg button{flex:1 1 auto;min-width:60px;border:1.5px solid var(--outline);background:var(--bg);color:var(--ink-soft);
+  .ai-seg button{flex:1 1 auto;min-width:60px;background:var(--bg);color:var(--ink-soft);
     border-radius:var(--pill);padding:8px 0;font-size:13px;cursor:pointer;font-family:var(--cute)}
   .ai-seg button.on{background:var(--accent);color:var(--ink);box-shadow:0 2px 0 var(--outline)}
   .ai-note{font-size:11.5px;color:var(--ink-soft);line-height:1.7;margin-top:9px}
@@ -1403,6 +1440,8 @@
             <div><h3 data-i18n="g2_t"></h3><p data-i18n="g2_d"></p></div></div>
           <div class="lp-gate-row"><div class="lp-gate-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16l-6 7v6l-4 2v-8z"/></svg></div>
             <div><h3 data-i18n="g3_t"></h3><p data-i18n="g3_d"></p></div></div>
+          <div class="lp-gate-row"><div class="lp-gate-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 12.5l2 2 4-4.5"/></svg></div>
+            <div><h3 data-i18n="g4_t"></h3><p data-i18n="g4_d"></p></div></div>
         </div>
       </section>
 
@@ -1567,9 +1606,6 @@
         <span class="match-note" id="aiMatchNote"></span>
       </div>
       <div id="feedFilter" class="hidden"></div>
-      <!-- 每周一题 (REQ-039):文档要求「独立入口且首页可见」。
-           放一条,点了跳到生活页 —— 不在广场里就地作答,那会把广场变成信息流。 -->
-      <div id="weeklyPeek"></div>
       <!-- 今天的三位 (REQ-006):当天固定,不刷新、不无限翻 -->
       <div id="dailyBox"></div>
       <div id="feedList"><div class="loading"><div class="spinner"></div>
@@ -1645,6 +1681,12 @@
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">验证</div></div>
       <div class="form-sub">学历、工作、资产证明。验了是加分,不验也能正常用</div>
       <div class="card" id="myVerify"></div>
+
+      <!-- 社区规则 (REQ-052)。条款页里已经写了,但那是一个要跳出去的独立页面 ——
+           App Store 审核和用户都得在**产品里**找得到,所以这儿放一份摘要。 -->
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">社区规则</div></div>
+      <div class="form-sub">这里写清楚什么不能发、举报之后会发生什么</div>
+      <div id="rulesBox"></div>
 
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">提点意见</div></div>
       <div class="form-sub">一次一句就够。被采纳的会有人回你 —— 不是自动回复</div>
@@ -1925,6 +1967,7 @@ const I18N = {
     g1_t:"一人一份资料", g1_d:"邮箱或 Google 账号登录,资料与账号绑定,不能开小号。",
     g2_t:"资料人工过目", g2_d:"提交后我们会看一遍,通常 24 小时内。不通过会告诉你原因和怎么改。",
     g3_t:"可选的资质验证", g3_d:"学历与在职可以用学校或公司邮箱验证。验证是加分项,不是门槛,验了也可以选择不展示。",
+    g4_t:"年满 18 周岁", g4_d:"注册时要明确确认。这是交友产品,不面向未成年人 —— 发现未成年账号会直接删除,不接受申诉。对冒犯性内容我们零容忍,规则和处理时限写在用户协议里。",
     t_title:"关于我们", t_lead:"创始团队来自计算机方向,博士与研究员。这个产品最早是为了解决我们自己的问题 —— 我们就是它的目标用户。",
     t1_t:"系统与安全", t1_d:"分布式系统方向。数据模型与隐私规则由这条线负责:所有隐私承诺都写在服务端,前端改代码绕不过。",
     t2_t:"匹配与模型", t2_d:"机器学习方向。契合度模型、AI 分身、以及每条推荐背后的理由由这条线负责。",
@@ -1961,6 +2004,7 @@ const I18N = {
     g1_t:"One profile per person", g1_d:"Email or Google sign-in, tied to your account. No second accounts.",
     g2_t:"A human reads your profile", g2_d:"We review every submission, usually within 24 hours. If it does not pass we tell you why and what to change.",
     g3_t:"Verification, optional", g3_d:"Degrees and employment can be verified through a school or company email. Verification helps; it is not a gate, and you can verify without displaying it.",
+    g4_t:"18 or older", g4_d:"You confirm this explicitly at sign-up. This is a dating product, not for minors — accounts found to be under 18 are removed, with no appeal. We have zero tolerance for objectionable content; the rules and our response time are in the Terms.",
     t_title:"About us", t_lead:"The founding team comes from computer science \u2014 PhDs and researchers. This started as a fix for our own problem. We are its target users.",
     t1_t:"Systems & security", t1_d:"Distributed systems. Owns the data model and the privacy rules: every privacy promise is enforced server-side, so no front-end change can route around it.",
     t2_t:"Matching & models", t2_d:"Machine learning. Owns the compatibility model, the AI twin, and the reasoning behind every recommendation.",
@@ -2442,11 +2486,23 @@ function renderProfileForm(host, data, isNew){
           </div>`).join("")}
       </details>
       ${isNew ? `
+      <!-- 年龄门 (REQ-052)。App Store 1.2 / 4.3 对交友类要求「明确的年龄确认」,
+           而上面那个年龄输入框不算 —— 它是资料字段,不是一次声明。
+           两个勾分开,是因为它们是两件事:一件是同意条款,一件是声明自己够年龄。
+           合成一个勾的话,将来出事时也说不清用户到底确认过哪一件。 -->
       <label class="chk" style="margin-top:16px">
+        <input type="checkbox" id="f-age18">
+        <span>我已满 <b>18 周岁</b></span>
+      </label>
+      <div class="hint" style="margin:-2px 0 8px">
+        这是交友产品,不面向未成年人。发现未成年账号会直接删除,不接受申诉。</div>
+      <label class="chk">
         <input type="checkbox" id="f-agree">
         <span>我已阅读并同意
           <a href="terms.html" target="_blank" rel="noopener">用户协议</a>与
-          <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a></span>
+          <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a>,
+          其中包含<a href="terms.html#rules" target="_blank" rel="noopener">社区规则</a>
+          和对不当内容的零容忍条款</span>
       </label>` : ""}
     </div>
 
@@ -2519,6 +2575,8 @@ async function saveProfile(host,isNew){
   if(age<18||age>60){ toast("年龄需在 18-60 之间"); return; }
   // 注册时必须主动勾选。光在页脚放个链接不算同意 —— 要的是一个明确动作,
   // 而且要留下时间戳。改资料时不再重复要求。
+  const age18 = host.querySelector("#f-age18");
+  if(isNew && age18 && !age18.checked){ toast("需要确认你已满 18 周岁"); return; }
   const agree = host.querySelector("#f-agree");
   if(isNew && agree && !agree.checked){ toast("请先阅读并勾选用户协议与隐私政策"); return; }
   for(const [label, val] of [["昵称",name],["具体职位",role],["自我介绍",v("f-bio")]]){
@@ -2605,7 +2663,8 @@ async function saveProfile(host,isNew){
       // 而 contacts 只放邮箱。
       setDoc(doc(db,"profiles",me.uid), {
         ...all, vis, uid: me.uid, updatedAt: serverTimestamp(),
-        ...(isNew ? { agreedAt: serverTimestamp(), agreedTo: "terms+privacy" } : {})
+        ...(isNew ? { agreedAt: serverTimestamp(), agreedTo: "terms+privacy+rules",
+                      ageConfirmedAt: serverTimestamp(), ageConfirmed: 18 } : {})
       }, {merge:true}),
       setDoc(doc(db,"contacts",me.uid), {email: me.email||"", updatedAt: serverTimestamp()}, {merge:true})
     ]);
@@ -2634,6 +2693,7 @@ async function enterApp(){
   renderMmSeen();
   renderMyVerify();
   subscribeMyVerify();
+  renderRules();
   renderMyFeedback();
   loadEntitlement();
   $("#uidText").textContent = me.uid;
@@ -2858,6 +2918,7 @@ function renderFeedFilter(){
       mbti: $("#fdMbti").value, verified: $("#fdVerified").checked
     };
     sortFeed(); renderFeed();
+    $("#feedFilter").classList.add("hidden");
   };
   $("#fdGo").addEventListener("click", apply);
   $("#fdQ").addEventListener("keydown", e=>{ if(e.key === "Enter") apply(); });
@@ -2926,11 +2987,6 @@ const TIERS = [
     has:["Plus 全部","专属红娘一对一","红娘按你的要求筛人、约人",
          "最强模型(Claude Opus)"] },
 ];
-/* 各档**都不包含**的东西。写出来比不写重要 ——
-   用户最想知道的往往是「花了钱能不能插队」。 */
-const TIER_NEVER = ["优先展示 / 排在别人前面","看谁心动过我(这个免费就有)",
-                    "无限次数的滑卡","把别人的联系方式买下来"];
-
 let myEntitle = null;   // entitlements/{uid} 的快照,服务端说了算
 async function loadEntitlement(){
   try{
@@ -2962,12 +3018,7 @@ function renderPlans(){
         <div class="pl-line">${esc(t.line)}</div>
         <ul class="pl-has">${t.has.map(h=>`<li>${esc(h)}</li>`).join("")}</ul>
       </div>`).join("")}
-    <div class="pl-never">
-      <div class="pl-never-t">哪一档都买不到</div>
-      <ul>${TIER_NEVER.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-      <div class="pl-never-s">付费插队会让广场变成竞价排名,而这个产品卖的正是
-        「不用比价」。这一条不会因为收入压力改掉。</div>
-    </div>`;
+`;
 }
 
 /* 拦截时的说明。**每次拦下来都要讲清楚**:拦的是哪件事、为什么这件事要钱、
@@ -3209,6 +3260,45 @@ function copySiteLink(){
     .catch(()=>toast("复制不了,手动copy地址栏那一串"));
 }
 
+/* ================= 社区规则 (REQ-052) =================
+
+   条款页(terms.html)里已经写全了,但那是一个要跳出去的独立页面。
+   App Store 1.2 要求的是**产品里**能找到:禁什么、怎么举报、多久处理。
+   用户也一样 —— 真遇到骚扰的时候,没人会想起去翻用户协议。
+
+   所以这里放一份摘要,并且每条都对应产品里真的存在的东西:
+   「发送时就拦下来」对应 contentRejection、「举报」对应 openReportSheet、
+   「拉黑」对应 blocks 集合。写在这儿的每一句都要能指到一处实现,
+   否则它就只是一段免责声明。                                      */
+const RULE_BANNED = [
+  "辱骂、人身攻击、威胁、持续骚扰",
+  "色情内容、性交易、招嫖",
+  "涉及未成年人的任何性相关内容",
+  "诈骗、刷单、投资引流、赌博推广",
+  "歧视性言论(性别、地域、性取向、种族、身体状况等)",
+  "冒充他人,或未经同意公开他人隐私信息",
+  "广告、垃圾信息、批量骚扰",
+];
+const RULE_DEFENSE = [
+  ["发送时就拦",   "明显的辱骂、色情招嫖和诈骗话术,在你点发送的那一刻就会被挡回来。"],
+  ["举报",         "每个人、每条私信和留言旁边都有举报入口。**24 小时内**核实处理,处理结果不会告诉被举报的人,也不会让对方知道是谁举报的。"],
+  ["拉黑",         "随时可以拉黑任何人。拉黑后对方无法心动、留言或私信你,而且**对方不会知道自己被拉黑了** —— 让骚扰者确认这件事,现实中往往招来升级。"],
+];
+function renderRules(){
+  const host = $("#rulesBox"); if(!host) return;
+  host.innerHTML = `
+    <div class="rl-age">本站只面向<b>年满 18 周岁</b>的用户。发现未成年账号会直接删除,不接受申诉。</div>
+    <div class="rp-k" style="margin-top:14px">这些一律禁止,发现即删除并封号</div>
+    <ul class="rl-list">${RULE_BANNED.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    <div class="rp-k" style="margin-top:14px">出了事会怎么处理</div>
+    ${RULE_DEFENSE.map(([t,d])=>`<div class="rl-d">
+      <div class="rl-t">${esc(t)}</div>
+      <div class="rl-x">${d.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</div></div>`).join("")}
+    <div class="hint" style="margin-top:12px;line-height:1.9">
+      完整条款见<a href="terms.html#rules" target="_blank" rel="noopener">用户协议</a>。
+      上面每一条都对应产品里真的存在的东西 —— 不是一段免责声明。</div>`;
+}
+
 /* ================= 用户反馈 (REQ-041) =================
 
    **不做成一个「问卷功能」**,做成贯穿全流程的埋点式反馈。
@@ -3420,21 +3510,6 @@ function switchLife(tab){
   if(tab === "weekly") subWeekly();
   if(tab === "asks")   subAsks();
   if(tab === "spots")  subSpots();
-}
-
-/* 广场上的那一条。只是一个入口,不在这儿就地作答 ——
-   在广场里嵌一个输入框,广场就开始往信息流的方向滑。 */
-function renderWeeklyPeek(){
-  const host = document.getElementById("weeklyPeek"); if(!host) return;
-  host.innerHTML = `
-    <div class="wk-peek" id="wkPeek">
-      <div class="wk-peek-k">本周问题</div>
-      <div class="wk-peek-q">${esc(weeklyQuestion())}</div>
-      <div class="wk-peek-go">去答一句 →</div>
-    </div>`;
-  document.getElementById("wkPeek").addEventListener("click", ()=>{
-    goTab("board"); switchLife("weekly");
-  });
 }
 
 /* ---------- 每周一题 ---------- */
@@ -6616,7 +6691,6 @@ function isNew(u){
   return ms > 0 && (Date.now() - ms) < 24*60*60*1000;
 }
 function renderFeed(){
-  renderWeeklyPeek();
   renderFeedbackCard();
   renderDaily();
   const self = selfCardHtml(myCard);
