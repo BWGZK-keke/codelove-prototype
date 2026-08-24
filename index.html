@@ -73,7 +73,9 @@
     --mint:#7FC7B0; --mint-soft:#DFF3EC;
     --butter:#F2CE6B; --butter-soft:#FDF3D8;
     --sky:#8FC4E8; --sky-soft:#E2F0FA;
-    --sh:0 3px 0 rgba(74,55,40,.13);
+    /* 去掉容器描边之后 (REQ-079),原来那圈硬投影是配着 2px 深棕描边画的,
+       单独留着会像一条脏边。换成一层很淡的柔和投影:层次还在,但不是线。 */
+    --sh:0 2px 10px -4px rgba(74,55,40,.28);
     --sh-lg:0 5px 0 rgba(74,55,40,.16), 0 18px 34px -20px rgba(74,55,40,.5);
     /* 两种字:--cute 是**展示体**(标题、按钮、名字、徽章),--sans 是**正文体**。
        原来两个都指向 ZCOOL KuaiLe —— 一个圆润的展示体拿去排 13px 的长段落,
@@ -120,7 +122,7 @@
       --mint:#7FC7B0; --mint-soft:#1D3029;
       --butter:#F2CE6B; --butter-soft:#382C16;
       --sky:#8FC4E8; --sky-soft:#1D2B36;
-      --sh:0 3px 0 rgba(0,0,0,.45);
+      --sh:0 2px 12px -4px rgba(0,0,0,.55);
       --sh-lg:0 5px 0 rgba(0,0,0,.5), 0 20px 40px -22px rgba(0,0,0,1);
     }
   }
@@ -189,7 +191,7 @@
   .g-btn:active{transform:translateY(3px)}
   .g-btn svg{width:20px;height:20px}
 
-  .card{background:var(--surface);border-radius:var(--r);border:var(--bw) solid var(--outline);
+  .card{background:var(--surface);border-radius:var(--r);
     padding:20px;box-shadow:var(--sh)}
 
   /* ---------- 标签 ---------- */
@@ -341,7 +343,7 @@
     background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
     padding:5px 12px}
   .mm-tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-  .mm-card{background:var(--surface);border:var(--bw) solid var(--outline);
+  .mm-card{background:var(--surface);
     border-radius:var(--r-sm);padding:13px 14px;box-shadow:var(--sh);margin-bottom:10px}
   .mm-card.done{opacity:.6}
   .mm-card.late{border-color:var(--rose)}
@@ -403,7 +405,7 @@
   .tab.on{color:var(--ink);background:var(--accent);border-color:var(--outline);box-shadow:0 2px 0 var(--outline)}
 
   /* ---------- 用户卡片 ---------- */
-  .ucard{background:var(--surface);border-radius:var(--r);border:var(--bw) solid var(--outline);
+  .ucard{background:var(--surface);border-radius:var(--r);
     margin-bottom:16px;box-shadow:var(--sh);overflow:hidden}
   .ucard-top{padding:18px 18px 0;display:flex;gap:14px;align-items:flex-start}
   .ava,.ava-emoji{width:58px;height:58px;border-radius:50%;flex-shrink:0;object-fit:cover;
@@ -414,7 +416,7 @@
   .umeta{font-size:12.5px;color:var(--ink-soft);margin-top:4px}
   .ucard-body{padding:12px 18px 18px}
   .ubio{font-size:14.5px;line-height:1.9;color:var(--ink);margin:14px 0 14px;
-    background:var(--butter-soft);border:1.5px dashed var(--outline);
+    background:var(--butter-soft);
     border-radius:var(--r-sm);padding:11px 14px}
   .stack{display:flex;flex-wrap:wrap;gap:7px}
   .compat{display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -467,7 +469,7 @@
   .compose textarea::placeholder{color:var(--ink-faint)}
   .compose-foot{display:flex;align-items:center;justify-content:space-between;margin-top:13px}
   .compose-foot .hint{margin:0;font-family:var(--mono)}
-  .note{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r);
+  .note{background:var(--surface);border-radius:var(--r);
     padding:16px 18px;margin-bottom:13px;box-shadow:var(--sh);position:relative}
   .note-top{display:flex;align-items:center;gap:11px}
   .note .ava,.note .ava-emoji{width:40px;height:40px;font-size:20px}
@@ -622,7 +624,7 @@
 
   /* ---------- 红娘 ---------- */
   .mm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-  .mm-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+  .mm-card{background:var(--surface);border-radius:var(--r-sm);
     padding:13px 6px;cursor:pointer;font-family:var(--cute);color:var(--ink);
     box-shadow:var(--sh);transition:transform .1s ease,background .15s ease}
   .mm-card:active{transform:translateY(3px);box-shadow:none}
@@ -699,7 +701,7 @@
   .lp-g4{grid-template-columns:repeat(4,1fr)}
   .lp-g3{grid-template-columns:repeat(3,1fr)}
   /* display:flex 是为了等高:四张卡片高低不齐,是一眼看上去「没做完」的地方 */
-  .lp-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r);
+  .lp-card{background:var(--surface);border-radius:var(--r);
     padding:var(--s5);box-shadow:var(--sh);display:flex;flex-direction:column;
     transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
   .lp-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
@@ -721,7 +723,7 @@
   .lp-card p{line-height:1.85;color:var(--ink-soft);margin:0}
   .lp-num{font-family:var(--mono);font-size:12px;color:var(--ink-faint);margin-bottom:9px}
 
-  .lp-team{background:var(--bg-2);border:var(--bw) solid var(--outline);border-radius:var(--r);
+  .lp-team{background:var(--bg-2);border-radius:var(--r);
     padding:var(--s6) var(--s5);box-shadow:var(--sh)}
   .lp-team h3{font-family:var(--cute);font-size:16.5px;font-weight:400;margin:0 0 var(--s2);
     color:var(--ink);text-wrap:balance}
@@ -739,7 +741,7 @@
   .lp-pill{display:inline-block;border:1.5px solid var(--outline);border-radius:var(--pill);
     font-size:11.5px;padding:3px 11px;margin-top:11px;background:var(--butter-soft);color:var(--ink)}
 
-  .lp-final{text-align:center;background:var(--surface);border:var(--bw) solid var(--outline);
+  .lp-final{text-align:center;background:var(--surface);
     border-radius:var(--r);padding:var(--s7) var(--s5);box-shadow:var(--sh-lg);margin-top:var(--s8)}
   .lp-foot{border-top:var(--bw) solid var(--outline);background:var(--surface-2);margin-top:auto}
   .lp-foot-in{max-width:1060px;margin:0 auto;padding:34px 20px;display:flex;gap:34px;flex-wrap:wrap}
@@ -803,7 +805,7 @@
 
   /* ---------- 结算 (REQ-013) ---------- */
   .st-row{display:flex;gap:var(--s2);margin-bottom:var(--s3)}
-  .st-cell{flex:1;background:var(--surface);border:var(--bw) solid var(--outline);
+  .st-cell{flex:1;background:var(--surface);
     border-radius:var(--r-sm);padding:var(--s3);text-align:center;box-shadow:var(--sh)}
   .st-n{font-family:var(--cute);font-size:19px;color:var(--ink)}
   .st-k{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);margin-top:2px}
@@ -835,8 +837,15 @@
     display:block;margin:auto;color:var(--ink)}
   .hearts svg{width:44px;height:44px}
 
+  /* ---------- 空状态 (REQ-047) ---------- */
+  .es-t{font-family:var(--cute);font-size:16px;color:var(--ink);line-height:1.5;
+    text-wrap:balance}
+  .es-b{font-family:var(--sans);font-size:13px;line-height:1.9;color:var(--ink-soft);
+    margin-top:6px;max-width:30em;margin-left:auto;margin-right:auto}
+  .es-go{margin-top:var(--s4)}
+
   /* ---------- 用户反馈 (REQ-041) ---------- */
-  .fb-card{background:var(--surface-2);border:1.5px dashed var(--outline);
+  .fb-card{background:var(--surface-2);
     border-radius:var(--r-sm);padding:var(--s4);margin:var(--s5) 0 var(--s2)}
   .fb-card.done{border-style:solid;background:var(--mint-soft)}
   .fb-q{font-family:var(--cute);font-size:15.5px;color:var(--ink);line-height:1.5;
@@ -858,7 +867,7 @@
     border:1.5px solid var(--line);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
     resize:vertical}
   .fb-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:var(--s3)}
-  .fb-reply{background:var(--surface);border:1.5px solid var(--outline);
+  .fb-reply{background:var(--surface);
     border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin-top:var(--s2)}
   .fb-mine{font-family:var(--sans);font-size:12px;color:var(--ink-faint);line-height:1.8}
   .fb-rep{font-family:var(--sans);font-size:13.5px;color:var(--ink);line-height:1.85;
@@ -876,7 +885,7 @@
   .wk-t{font-family:var(--sans);font-size:14px;line-height:1.9;color:var(--ink)}
   .wk-by{font-family:var(--sans);font-size:11.5px;color:var(--ink-faint);margin-top:5px}
   .wk-nm{color:var(--ink-soft);cursor:pointer;text-decoration:underline}
-  .wk-peek{background:var(--butter-soft);border:var(--bw) solid var(--outline);
+  .wk-peek{background:var(--butter-soft);
     border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin:var(--s5) 0 var(--s2);
     cursor:pointer;box-shadow:var(--sh);transition:transform var(--dur) var(--ease)}
   .wk-peek:hover{transform:translateY(-1px)}
@@ -885,7 +894,7 @@
   .wk-peek-q{font-family:var(--cute);font-size:15.5px;line-height:1.5;color:var(--ink);
     margin-top:3px;text-wrap:balance}
   .wk-peek-go{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:6px}
-  .ask-card{background:var(--surface);border:var(--bw) solid var(--outline);
+  .ask-card{background:var(--surface);
     border-radius:var(--r-sm);padding:var(--s3) var(--s4);box-shadow:var(--sh);
     margin-top:var(--s3)}
   .ask-top{display:flex;align-items:center;justify-content:space-between;gap:var(--s3)}
@@ -911,7 +920,7 @@
     padding:var(--s3) var(--s4);margin-top:var(--s2);
     transition:background var(--dur) var(--ease)}
   .dt-slot:hover{background:var(--butter-soft)}
-  .dt-fixed{background:var(--mint-soft);border:1.5px solid var(--outline);
+  .dt-fixed{background:var(--mint-soft);
     border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin-top:var(--s3)}
   .dt-fx{font-family:var(--cute);font-size:14.5px;color:var(--ink);
     display:flex;gap:var(--s3);align-items:baseline}
@@ -921,7 +930,7 @@
     font-family:var(--sans);font-size:12.5px;line-height:1.8;color:var(--rose-ink);
     background:var(--rose-soft);border-radius:var(--r-xs);padding:var(--s2) var(--s3)}
   .dt-soon svg{width:15px;height:15px;flex:0 0 auto}
-  .dt-cancel{background:var(--surface-2);border:1.5px dashed var(--outline);
+  .dt-cancel{background:var(--surface-2);
     border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin-top:var(--s3);
     font-family:var(--cute);font-size:14px;color:var(--ink)}
   .dt-why{font-family:var(--sans);font-size:13px;color:var(--ink-soft);
@@ -989,11 +998,11 @@
   @media(max-width:380px){ .sk-grid{grid-template-columns:1fr} }
 
   /* ---------- 档位 (REQ-011) ---------- */
-  .pl-now{background:var(--mint-soft);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+  .pl-now{background:var(--mint-soft);border-radius:var(--r-sm);
     padding:var(--s3) var(--s4);margin-bottom:var(--s3)}
   .pl-now-t{font-family:var(--cute);font-size:15px;color:var(--ink)}
   .pl-now-s{font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.8}
-  .pl-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+  .pl-card{background:var(--surface);border-radius:var(--r-sm);
     padding:var(--s4);box-shadow:var(--sh);margin-bottom:var(--s3)}
   .pl-card.on{background:var(--butter-soft)}
   .pl-top{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3)}
@@ -1005,7 +1014,7 @@
     padding-left:16px;position:relative}
   .pl-has li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;
     border-radius:50%;background:var(--accent)}
-  .pl-never{border:1.5px dashed var(--outline);border-radius:var(--r-sm);
+  .pl-never{border-radius:var(--r-sm);
     padding:var(--s4);background:var(--surface-2)}
   .pl-never-t{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
   .pl-never ul{list-style:none;margin:var(--s2) 0 0;padding:0}
@@ -1019,7 +1028,7 @@
   .dl-head{margin:var(--s5) 0 var(--s3)}
   .dl-t{font-family:var(--cute);font-size:18px;color:var(--ink)}
   .dl-s{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.7}
-  .dl-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+  .dl-card{background:var(--surface);border-radius:var(--r-sm);
     padding:var(--s3) var(--s4);box-shadow:var(--sh);margin-bottom:var(--s3)}
   .dl-top{display:flex;align-items:center;gap:var(--s3)}
   .dl-top .ava,.dl-top .ava-emoji{width:46px;height:46px;font-size:23px}
@@ -1045,7 +1054,7 @@
     text-align:center;padding:var(--s2) 0 var(--s5);line-height:1.7}
 
   /* ---------- 收到的心动 (REQ-007) ---------- */
-  .lk-card{background:var(--surface);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
+  .lk-card{background:var(--surface);border-radius:var(--r-sm);
     padding:var(--s3) var(--s4);box-shadow:var(--sh);margin-bottom:var(--s3)}
   .lk-top{display:flex;align-items:center;gap:var(--s3)}
   .lk-top .ava,.lk-top .ava-emoji{width:44px;height:44px;font-size:22px}
@@ -1770,6 +1779,7 @@ const ICON_MIRROR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 const ICON_BAN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5l11 11"/></svg>';
 const ICON_STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5l2.2 5.1 5.3.5-4 3.6 1.2 5.3-4.7-2.8-4.7 2.8 1.2-5.3-4-3.6 5.3-.5z"/></svg>';
 const ICON_PERSON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.5a7.2 7.2 0 0 1 14.4 0"/></svg>';
+const ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l4.5 4.5"/></svg>';
 const ICON_HOURGLASS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5h10M7 19.5h10"/><path d="M7.5 4.5c0 4 4.5 4.6 4.5 7.5s-4.5 3.5-4.5 7.5"/><path d="M16.5 4.5c0 4-4.5 4.6-4.5 7.5s4.5 3.5 4.5 7.5"/></svg>';
 /* 行内小图标的统一包装:跟着字色走、和文字基线对齐。 */
 function ico(svg, cls){ return `<span class="ic ${cls||""}">${svg}</span>`; }
@@ -2573,6 +2583,7 @@ async function enterApp(){
   renderTwinCard();
   renderMmSeen();
   renderMyVerify();
+  subscribeMyVerify();
   renderMyFeedback();
   loadEntitlement();
   $("#uidText").textContent = me.uid;
@@ -2598,6 +2609,7 @@ function stopListeners(){
   if(unsubBoard){ try{ unsubBoard(); }catch(e){} unsubBoard = null; }
   if(unsubDesk){ try{ unsubDesk(); }catch(e){} unsubDesk = null; }
   if(unsubApplyDesk){ try{ unsubApplyDesk(); }catch(e){} unsubApplyDesk = null; }
+  if(unsubMyVerify){ try{ unsubMyVerify(); }catch(e){} unsubMyVerify = null; }
   unsubVerifyDesk.forEach(f=>{ try{ f(); }catch(e){} });
   unsubVerifyDesk = []; vdRows = {};
   $("#mmDeskWrap").classList.add("hidden");
@@ -2722,7 +2734,7 @@ function feedMatches(u){
   if(f.min && (!u.age || u.age < +f.min)) return false;
   if(f.max && (!u.age || u.age > +f.max)) return false;
   // 徽章是按需拉的,缓存里没有就当没有 —— 不为了一个筛选去拉 80 次子集合
-  if(f.verified && !(verifyCache.get(u.uid)||[]).length) return false;
+  if(f.verified && !((verifyCache.get(u.uid)||{}).list||[]).length) return false;
   return true;
 }
 
@@ -3094,6 +3106,57 @@ function renderDaily(){
   const more = document.getElementById("dlMore"), less = document.getElementById("dlLess");
   if(more) more.addEventListener("click", ()=>{ topOpen = true;  renderDaily(); });
   if(less) less.addEventListener("click", ()=>{ topOpen = false; renderDaily(); });
+}
+
+/* 自己的徽章走实时订阅。
+
+   红娘发完徽章,被发的人应该**当场**看到,而不是等下次刷新 ——
+   这是别人替你做的事,你没有任何理由知道该去刷新。
+   一条子集合监听,文档最多三条,成本可以忽略。 */
+let unsubMyVerify = null;
+function subscribeMyVerify(){
+  if(unsubMyVerify || !me) return;
+  unsubMyVerify = onSnapshot(collection(db,"verifications",me.uid,"types"),
+    snap=>{
+      const out = []; snap.forEach(d=>out.push(d.data()));
+      verifyCache.set(me.uid, { list: out, at: Date.now() });
+      renderMyVerify();
+      renderFeed();          // 自己那张卡片上也要跟着出现
+    },
+    err=>console.error(err));
+}
+
+/* ================= 空状态 (REQ-047) =================
+
+   文档的要求是「引导性文案 + **一个明确的下一步动作**」,不要只画个图
+   写「暂无数据」。后半句才是重点:一句「还没有匹配」说的是现状,
+   而人打开这一页是想知道**接下来干什么**。
+
+   所以空状态一律走这个壳:图标 + 一句为什么空 + 一个真的能点的按钮。
+   按钮必须真的做事 —— 摆一个点了没反应的按钮比不摆更糟。
+
+   有一种空状态**不给按钮**:拉黑名单空着。那是好事,不需要引导人去拉黑谁。 */
+function emptyState({ icon, title, body, action, onAction, pad }){
+  const id = "es" + Math.random().toString(36).slice(2, 8);
+  setTimeout(()=>{
+    const b = document.getElementById(id);
+    if(b && onAction) b.addEventListener("click", onAction);
+  }, 0);
+  return `<div class="empty" style="padding:${pad || "40px 22px"}">
+    ${icon ? `<div class="big">${icon}</div>` : ""}
+    <div class="es-t">${esc(title)}</div>
+    ${body ? `<div class="es-b">${body}</div>` : ""}
+    ${action ? `<button class="btn btn-coral btn-pill es-go" id="${id}">${esc(action)}</button>` : ""}
+  </div>`;
+}
+
+/* 复制站点地址。广场空着的时候唯一有意义的动作就是「叫人来」——
+   这个产品在冷启动阶段没有别的解法,与其含糊不如直说。 */
+function copySiteLink(){
+  const url = location.origin + location.pathname;
+  navigator.clipboard.writeText(url)
+    .then(()=>toast("链接已复制,发给朋友就行"))
+    .catch(()=>toast("复制不了,手动copy地址栏那一串"));
 }
 
 /* ================= 用户反馈 (REQ-041) =================
@@ -4651,15 +4714,30 @@ const VERIFY_TYPES = {
 };
 const verifyCache = new Map();
 
+/* 徽章缓存有**过期时间**,而且失败不进缓存。
+
+   之前是「读一次,存一辈子」,于是有两个能把人卡死的坑:
+     · 红娘刚发的徽章,被发的人这一整个会话里都看不到 —— 他打开过一次
+       「我的」页,那时候还没有徽章,空结果就被钉死了,只有整页刷新才好。
+     · 网络抖一下读失败,catch 里也把空数组写进了缓存 —— 之后再也不重试,
+       表现和「这个人没有徽章」一模一样,而且不报错。
+
+   自己的那份另有一条实时订阅(subscribeMyVerify),所以本人是立刻看到的;
+   这里的 TTL 管的是**看别人**的情况。 */
+const VERIFY_TTL = 5*60*1000;
 async function fetchVerified(uid){
-  if(verifyCache.has(uid)) return verifyCache.get(uid);
+  const hit = verifyCache.get(uid);
+  if(hit && Date.now() - hit.at < VERIFY_TTL) return hit.list;
   try{
     const snap = await getDocs(collection(db,"verifications",uid,"types"));
     const out = [];
     snap.forEach(d=>out.push(d.data()));
-    verifyCache.set(uid, out);
+    verifyCache.set(uid, { list: out, at: Date.now() });
     return out;
-  }catch(e){ verifyCache.set(uid, []); return []; }
+  }catch(e){
+    // 失败不写缓存 —— 写了就等于把「读不到」记成了「没有」
+    return (hit && hit.list) || [];
+  }
 }
 
 function verifyBadgesHtml(list){
@@ -4717,8 +4795,10 @@ function openVerifySheet(u, preset){
       });
       // 处理完把待办清掉
       await delDoc(doc(db,"verifyRequests",`${u.uid}_${type}`)).catch(()=>{});
+      // 让本机对这个人的缓存立刻失效。对方那边不靠这个 ——
+      // 他自己有一条实时订阅(subscribeMyVerify),会当场看到。
       verifyCache.delete(u.uid);
-      host.innerHTML = ""; toast("徽章已发放");
+      host.innerHTML = ""; toast("徽章已发放,对方那边会立刻看到");
     }catch(e){
       toast("发放失败:" + fbError(e)); console.error(e);
       btn.disabled = false; btn.textContent = "发放";
@@ -6467,6 +6547,7 @@ function selfCardHtml(u){
           <span class="badge b-indigo">${ico(ICON_PERSON)}这是你</span></div>
         <div class="umeta">${esc(dot([u.role, u.level, u.org, u.city])) || "未公开更多信息"}</div>
         ${peerClock(u)}
+        ${verifyBadgesHtml(((verifyCache.get(me && me.uid)||{}).list)||[])}
       </div>
     </div>
     <div class="ucard-body">
@@ -6489,15 +6570,30 @@ function renderFeed(){
   renderDaily();
   const self = selfCardHtml(myCard);
   if(!allUsers.length){
-    $("#feedList").innerHTML = self + `<div class="empty"><div class="big">${ICON_SEED}</div>
-      目前只有你一个人。<br>广场只展示<b>别人</b>的资料,所以不会重复显示你自己。<br>
-      把网址分享给朋友,TA 注册完你这里会立刻出现 TA。</div>`;
+    $("#feedList").innerHTML = self + emptyState({
+      icon: ICON_SEED,
+      title: "目前只有你一个人",
+      body: "广场只展示<b>别人</b>的资料,所以不会重复显示你自己。<br>" +
+            "冷启动阶段没有别的解法:叫一个人来,你这儿立刻就会出现 TA。",
+      action: "复制邀请链接",
+      onAction: copySiteLink
+    });
     return;
   }
   const shown = allUsers.filter(feedMatches);
   if(!shown.length){
-    $("#feedList").innerHTML = self + `<div class="empty" style="padding:26px 10px">
-      没人符合这些条件。<br>放宽一两项试试,或者点「筛选」里的清空。</div>`;
+    $("#feedList").innerHTML = self + emptyState({
+      icon: ICON_SEARCH,
+      title: "没人符合这些条件",
+      body: "放宽一两项试试 —— 城市和年龄区间通常是卡得最死的两项。",
+      action: "清空筛选",
+      pad: "30px 16px",
+      onAction: ()=>{
+        feedQuery = { sort:"match", q:"", gender:"", edu:"", industry:"", city:"",
+                      min:"", max:"", mbti:"", verified:false };
+        renderFeedFilter(); sortFeed(); renderFeed();
+      }
+    });
     return;
   }
   $("#feedList").innerHTML = self
@@ -6617,8 +6713,15 @@ function renderChat(msgs){
     ? msgs.map(m=>`<div class="msg ${m.from===me.uid?"mine":"theirs"}">
          <div class="bubble${isBigEmoji(m.text)?" big":""}">${esc(m.text)}</div>
          <div class="mtime">${fmtTime(m.createdAt)}${m.ai?`<span class="ai-tag">${ico(ICON_ROBOT)}AI 代回复</span>`:""}</div></div>`).join("")
-    : `<div class="empty" style="padding:44px 20px"><div class="big">${ICON_CHAT}</div>
-         还没有消息<br>你们已经互相心动了,打个招呼吧</div>`;
+    : emptyState({
+        icon: ICON_CHAT,
+        title: "还没有消息",
+        body: "你们已经互相心动了 —— 对方是看过你写的那句话才回的心动。<br>" +
+              "第一句从那句话接下去最省力。",
+        action: "让 AI 帮我想第一句",
+        pad: "40px 20px",
+        onAction: ()=>{ const b = $("#aiSuggest"); if(b) b.click(); }
+      });
   // 只有本来就贴着底部时才自动滚,免得对方发消息把你正在看的历史顶走
   if(atBottom || msgs.length<=1) box.scrollTop = box.scrollHeight;
 }
@@ -8268,7 +8371,14 @@ async function renderMatches(){
       <button class="btn-chat" data-date="${esc(u.uid)}">约在哪</button>
       <button class="btn-chat" data-gift="${esc(u.uid)}">送点什么</button>
     </div>`).join("")
-    : `<div class="empty"><div class="big">${ICON_SPARK}</div>还没有匹配<br>去广场多发几个心动吧</div>`;
+    : emptyState({
+        icon: ICON_HEART,
+        title: "还没有互相心动的人",
+        body: "匹配是双向的:你心动 + TA 也心动。<br>" +
+              "心动要写一句话,所以发出去的每一条都比一次点击更容易被回应。",
+        action: "去广场看看",
+        onAction: ()=>goTab("feed")
+      });
 
   $("#page-matches").querySelectorAll("[data-twin]").forEach(b=>
     b.addEventListener("click", ()=>{
@@ -8330,7 +8440,13 @@ async function renderMatches(){
         <div class="umeta">${esc(dot([u.role, u.city, "等待对方回应中…"]))}</div>
       </div>
     </div>`).join("")
-    : `<div class="empty" style="padding:24px">暂无</div>`;
+    : emptyState({
+        title: "你还没发出过心动",
+        body: "发出去之后这里会显示等待回应的人。对方看得到你写的那句话。",
+        action: "去广场看看",
+        pad: "28px 20px",
+        onAction: ()=>goTab("feed")
+      });
 }
 </script>
 </body>
