@@ -769,6 +769,36 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 用户反馈 (REQ-041) ---------- */
+  .fb-card{background:var(--surface-2);border:1.5px dashed var(--outline);
+    border-radius:var(--r-sm);padding:var(--s4);margin:var(--s5) 0 var(--s2)}
+  .fb-card.done{border-style:solid;background:var(--mint-soft)}
+  .fb-q{font-family:var(--cute);font-size:15.5px;color:var(--ink);line-height:1.5;
+    text-wrap:balance}
+  .fb-h{font-family:var(--sans);font-size:12px;line-height:1.8;color:var(--ink-soft);
+    margin-top:4px}
+  .fb-opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:var(--s3)}
+  .fb-o{font-family:var(--cute);font-size:12.5px;color:var(--ink);cursor:pointer;
+    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--pill);
+    padding:5px 12px;transition:background var(--dur) var(--ease)}
+  .fb-o.on{background:var(--accent);border-color:var(--outline)}
+  .fb-nps{display:flex;gap:4px;flex-wrap:wrap;margin-top:var(--s3)}
+  .fb-n{font-family:var(--mono);font-size:12.5px;color:var(--ink);cursor:pointer;
+    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-xs);
+    width:30px;height:30px;padding:0}
+  .fb-n.on{background:var(--accent);border-color:var(--outline)}
+  .fb-note{width:100%;margin-top:var(--s3);min-height:56px;font-family:var(--sans);
+    font-size:13.5px;line-height:1.8;color:var(--ink);background:var(--surface);
+    border:1.5px solid var(--line);border-radius:var(--r-xs);padding:var(--s2) var(--s3);
+    resize:vertical}
+  .fb-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:var(--s3)}
+  .fb-reply{background:var(--surface);border:1.5px solid var(--outline);
+    border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin-top:var(--s2)}
+  .fb-mine{font-family:var(--sans);font-size:12px;color:var(--ink-faint);line-height:1.8}
+  .fb-rep{font-family:var(--sans);font-size:13.5px;color:var(--ink);line-height:1.85;
+    margin-top:5px;padding-top:var(--s2);border-top:1.5px solid var(--line)}
+  .fb-by{font-family:var(--sans);font-size:11px;color:var(--ink-faint);margin-top:4px}
+
   /* ---------- 生活栏目 (REQ-039) ---------- */
   .lf-pane{min-height:60px}
   .wk-q{font-family:var(--cute);font-size:19px;line-height:1.5;color:var(--ink);
@@ -1420,6 +1450,9 @@
       <div id="feedList"><div class="loading"><div class="spinner"></div>
         <div class="wt-what">在拉广场上的人</div>
         <div class="wt-why">一次最多 80 位,按最近活跃排</div></div></div>
+      <!-- 反馈触点 (REQ-041):页面**底部**一条轻量卡片,不弹窗、可永久关闭。
+           放底部是有意的:它不该抢在内容前面。 -->
+      <div id="fbCard"></div>
     </div>
     <!-- 匹配 -->
     <div id="page-matches" class="hidden">
@@ -1487,6 +1520,10 @@
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">验证</div></div>
       <div class="form-sub">学历、工作、资产证明。验了是加分,不验也能正常用</div>
       <div class="card" id="myVerify"></div>
+
+      <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">提点意见</div></div>
+      <div class="form-sub">一次一句就够。被采纳的会有人回你 —— 不是自动回复</div>
+      <div id="myFeedback"></div>
 
       <div class="sec-head"><span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M3.5 12h17"/><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/></svg></span><div class="form-title">账号</div></div>
       <div class="card">
@@ -2428,6 +2465,7 @@ async function enterApp(){
   renderTwinCard();
   renderMmSeen();
   renderMyVerify();
+  renderMyFeedback();
   loadEntitlement();
   $("#uidText").textContent = me.uid;
   startListeners();
@@ -2948,6 +2986,158 @@ function renderDaily(){
   const more = document.getElementById("dlMore"), less = document.getElementById("dlLess");
   if(more) more.addEventListener("click", ()=>{ topOpen = true;  renderDaily(); });
   if(less) less.addEventListener("click", ()=>{ topOpen = false; renderDaily(); });
+}
+
+/* ================= 用户反馈 (REQ-041) =================
+
+   **不做成一个「问卷功能」**,做成贯穿全流程的埋点式反馈。
+
+   四条铁律,都是文档写死的,而且每一条都有理由:
+     1. **一次只问一个问题**,答完即关。长问卷完成率低于 5%,
+        而且答得完的样本严重偏向闲人 —— 那种数据比没有数据更糟。
+     2. **不弹窗**。出现方式是页面底部的一条轻量卡片。弹窗打断 =
+        和「不打扰」原则直接冲突。
+     3. **可永久关闭**。关了就是关了,不换个说法再问一遍。
+     4. **必须闭环**。提交后立刻告诉人「我们看到了」;被采纳的建议,
+        由红娘回信。这是把用户变成拥护者的最低成本手段 ——
+        也是最容易被跳过的一步,因为它对提问方没有任何即时好处。
+
+   NPS 每 90 天一次,不能更频繁。频繁问 NPS 本身就会拉低 NPS。      */
+const FB_KEY = "cl_fb";      // 本地记「问过了 / 关掉了」,按 uid 隔离
+const NPS_GAP = 90*24*3600*1000;
+const FB_TRIGGERS = {
+  confused7: { q:"到目前为止,最让你困惑的是什么?", kind:"open",
+               hint:"一句话就行。这是注册一周的时候我们最想知道的事。" },
+  match1:    { q:"这次匹配符合预期吗?", kind:"three",
+               opts:["比预期好","差不多","不太像"], hint:"选一个,想补充再写。" },
+  nps:       { q:"有多大可能把 CodeLove 推荐给朋友?", kind:"nps",
+               hint:"0 到 10。我们每 90 天才问一次。" },
+  leave:     { q:"是什么让你想离开?", kind:"pick",
+               opts:["没遇到合适的人","消息太少/没人回","功能不好用","隐私上不放心","已经脱单了"],
+               hint:"选一个,愿意的话多写两句。你的账号会照常注销,这一条不影响它。" },
+  open:      { q:"想说点什么?", kind:"open",
+               hint:"哪儿别扭、哪儿好用,都可以写。" },
+};
+
+function fbState(){ return readJson(uidKey(FB_KEY), {}); }
+function fbMark(k, v){
+  const st = fbState(); st[k] = v === undefined ? Date.now() : v;
+  try{ localStorage.setItem(uidKey(FB_KEY), JSON.stringify(st)); }catch(e){}
+}
+// 关了就是关了。不换个说法再问一遍 —— 那是同一件事换张皮。
+function fbOff(k){ const st = fbState(); return st["off"] || st["done:"+k] || st["skip:"+k]; }
+
+/* 该问哪一条。一次只返回一个 —— 同时冒出两条卡片就是变相的长问卷。 */
+function pickTrigger(){
+  const st = fbState();
+  if(st.off) return null;
+  const created = myProfile && myProfile.createdAt && myProfile.createdAt.toMillis
+    ? myProfile.createdAt.toMillis() : 0;
+  // 注册满 7 天
+  if(created && Date.now() - created > 7*24*3600*1000 && !fbOff("confused7")) return "confused7";
+  // 第一次有匹配之后
+  const matched = [...myLikes].some(u=>likedMe.has(u));
+  if(matched && !fbOff("match1")) return "match1";
+  // NPS:每 90 天一次
+  const lastNps = st["done:nps"] || 0;
+  if(created && Date.now() - created > 14*24*3600*1000
+     && Date.now() - lastNps > NPS_GAP && !st["skip:nps"]) return "nps";
+  return null;
+}
+
+function renderFeedbackCard(){
+  const host = $("#fbCard"); if(!host) return;
+  if(!me || !myProfile){ host.innerHTML = ""; return; }
+  const k = pickTrigger();
+  if(!k){ host.innerHTML = ""; return; }
+  host.innerHTML = fbCardHtml(k, FB_TRIGGERS[k], true);
+  bindFb(host, k, true);
+}
+
+function fbCardHtml(k, t, dismissible){
+  const body =
+    t.kind === "three" || t.kind === "pick"
+      ? `<div class="fb-opts">${t.opts.map(o=>
+          `<button type="button" class="fb-o" data-fbo="${esc(o)}">${esc(o)}</button>`).join("")}</div>`
+    : t.kind === "nps"
+      ? `<div class="fb-nps">${Array.from({length:11},(_,i)=>
+          `<button type="button" class="fb-n" data-fbo="${i}">${i}</button>`).join("")}</div>`
+      : "";
+  return `
+    <div class="fb-card">
+      <div class="fb-q">${esc(t.q)}</div>
+      <div class="fb-h">${esc(t.hint)}</div>
+      ${body}
+      <textarea class="fb-note" maxlength="500" placeholder="${
+        t.kind === "open" ? "写在这里" : "想补充的话(可选)"}"></textarea>
+      <div class="fb-acts">
+        ${dismissible ? `<button class="mm-btn" data-fbskip="1">这次不说</button>
+        <button class="mm-btn" data-fboff="1">别再问我</button>` : ""}
+        <button class="mm-btn go" data-fbsend="1">发送</button>
+      </div>
+    </div>`;
+}
+
+function bindFb(host, k, dismissible){
+  let picked = "";
+  host.querySelectorAll("[data-fbo]").forEach(b=>b.addEventListener("click", ()=>{
+    picked = b.dataset.fbo;
+    host.querySelectorAll("[data-fbo]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+  }));
+  const skip = host.querySelector("[data-fbskip]");
+  if(skip) skip.addEventListener("click", ()=>{ fbMark("skip:"+k); host.innerHTML = ""; });
+  const off = host.querySelector("[data-fboff]");
+  if(off) off.addEventListener("click", ()=>{
+    fbMark("off", true); host.innerHTML = "";
+    toast("不再问了。「我的」页那个入口一直在,想说的时候再来");
+  });
+  host.querySelector("[data-fbsend]").addEventListener("click", async ()=>{
+    const note = host.querySelector(".fb-note").value.trim();
+    if(!picked && !note){ toast("选一个,或者写一句"); return; }
+    const why = contentRejection(note);
+    if(why){ toast(why); return; }
+    try{
+      await addDoc(collection(db,"feedback"),
+        { uid: me.uid, trigger: k, answer: picked, note, at: serverTimestamp() });
+      if(dismissible) fbMark("done:"+k);
+      // 闭环的第一半:立刻让人知道「我们看到了」。
+      // 这一句不是客套 —— 提交完什么反应都没有,下次就不会有人再提。
+      host.innerHTML = `<div class="fb-card done">
+        <div class="fb-q">收到了</div>
+        <div class="fb-h">真的有人会看。如果这条被采纳,会在「我的」页回你一句 ——
+          不是自动回复,是人写的。</div></div>`;
+      renderMyFeedback();
+    }catch(e){ toast("没发出去:" + fbError(e)); console.error(e); }
+  });
+}
+
+/* 「我的」页:常驻入口 + 收到的回信。
+   回信这一栏平时是空的,但它必须在 —— 有地方能收到回信,
+   和「提了石沉大海」是两种完全不同的体验。 */
+async function renderMyFeedback(){
+  const host = $("#myFeedback"); if(!host || !me) return;
+  let rows = [];
+  try{
+    const snap = await getDocs(query(collection(db,"feedback"),
+      where("uid","==",me.uid), limit(30)));
+    snap.forEach(d=>rows.push({id:d.id, ...d.data()}));
+  }catch(e){ /* 读不到就只显示入口 */ }
+  rows.sort((a,b)=>(b.at?.toMillis?.()||0)-(a.at?.toMillis?.()||0));
+  const replied = rows.filter(r=>r.reply);
+  host.innerHTML = `
+    <div id="fbOpen"></div>
+    ${replied.length ? `<div class="rp-k" style="margin-top:14px">收到的回信</div>
+      ${replied.map(r=>`<div class="fb-reply">
+        <div class="fb-mine">你说:${esc(r.note || r.answer)}</div>
+        <div class="fb-rep">${esc(r.reply)}</div>
+        <div class="fb-by">${esc(r.repliedBy||"")} · ${esc(timeAgo(r.repliedAt))}</div>
+      </div>`).join("")}` : ""}
+    ${rows.length ? `<div class="hint" style="margin-top:10px">你一共提过 ${rows.length} 条。
+      ${replied.length ? "" : "还没有回信 —— 被采纳的才会回,不是每条都回。"}</div>` : ""}`;
+  const box = $("#fbOpen");
+  box.innerHTML = fbCardHtml("open", FB_TRIGGERS.open, false);
+  bindFb(box, "open", false);
 }
 
 /* ================= 生活栏目 (REQ-039) =================
@@ -4891,6 +5081,11 @@ function openDeleteAccount(){
         <div class="hint" style="margin-top:6px">这两样都不再和你的账号关联,别人也看不到你是谁。</div>
       </div>
 
+      <!-- 离开前的那一问 (REQ-041 的第四个触点)。刻意放在确认框**之前**、
+           并且明说「不影响注销」—— 拿注销当筹码换反馈是很难看的做法。 -->
+      <div class="rp-k" style="margin-top:16px">走之前,愿意说一句吗</div>
+      <div id="fbLeave"></div>
+
       <div class="field" style="margin-top:14px">
         <label>确认请输入「注销」</label>
         <input id="delConfirm" maxlength="4" placeholder="注销" autocomplete="off"></div>
@@ -4904,6 +5099,10 @@ function openDeleteAccount(){
       </div>
     </div>
   </div>`;
+  // 离开前的那一问。**可选**,而且发不发都不影响注销 ——
+  // 拿注销当筹码换反馈是很难看的做法,所以它在确认框之前,并且说明了这一点。
+  const lv = $("#fbLeave");
+  if(lv){ lv.innerHTML = fbCardHtml("leave", FB_TRIGGERS.leave, false); bindFb(lv, "leave", false); }
   $("#delGo").addEventListener("click", runDeleteAccount);
 }
 
@@ -6179,6 +6378,7 @@ function isNew(u){
 }
 function renderFeed(){
   renderWeeklyPeek();
+  renderFeedbackCard();
   renderDaily();
   const self = selfCardHtml(myCard);
   if(!allUsers.length){
