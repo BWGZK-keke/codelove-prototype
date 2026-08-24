@@ -769,6 +769,19 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 分身技能 (REQ-031) ---------- */
+  .sk-n{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-left:6px}
+  .sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .sk-grid button{display:flex;flex-direction:column;gap:2px;text-align:left;cursor:pointer;
+    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-xs);
+    padding:var(--s2) var(--s3);color:var(--ink);
+    transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+  .sk-grid button:hover{background:var(--surface-2)}
+  .sk-grid button.on{background:var(--mint-soft);border-color:var(--outline)}
+  .sk-l{font-family:var(--cute);font-size:13px}
+  .sk-h{font-family:var(--sans);font-size:11px;color:var(--ink-soft);line-height:1.6}
+  @media(max-width:380px){ .sk-grid{grid-template-columns:1fr} }
+
   /* ---------- 档位 (REQ-011) ---------- */
   .pl-now{background:var(--mint-soft);border:var(--bw) solid var(--outline);border-radius:var(--r-sm);
     padding:var(--s3) var(--s4);margin-bottom:var(--s3)}
@@ -5455,6 +5468,38 @@ const AI_TONES = {
   calm:    { label:"高冷", hint:"话少、克制、不主动追问,但不冷淡失礼。" },
   geek:    { label:"技术宅", hint:"聊技术时可以展开细节,爱用工程师的比喻。" }
 };
+/* ================= 分身技能 (REQ-031) =================
+
+   语气(AI_TONES)决定的是**用什么声音说**,技能决定的是**怎么把话接下去** ——
+   一个是音色,一个是招式,两者是正交的,所以分开选:语气单选,技能最多装 3 个。
+
+   为什么卡在 3 个:装满八个等于什么都没装。模型拿到八条互相拉扯的指令时,
+   给出的东西反而更平庸 —— 挑三个,是逼人想清楚自己想要哪三个。
+
+   **技能只改怎么说,不改说什么。** 这是这一条需求里唯一的硬线:
+   装了「会约」不代表分身可以替本人定时间地点,装了「讲细节」不代表它可以
+   编一段资料里没有的经历。系统提示里为此专门写了一条,和资料冲突时以资料为准。
+
+   为什么这条硬线重要:分身是替本人说话的。它编出来的东西,对面会当成
+   本人说的。那不是「AI 幻觉」,那是替一个真人做了虚假陈述。          */
+const AI_SKILLS = {
+  catch:   { label:"会接话",   hint:"先接住对方最后那句话里的一个具体点,再往下说,不要另起炉灶。" },
+  ask:     { label:"爱提问",   hint:"结尾留一个具体的问题,问的是对方说过的东西,不要问「你呢」这种空问题。" },
+  empathy: { label:"先共情",   hint:"对方带情绪时,先回应情绪再谈事,不要直接给建议。" },
+  detail:  { label:"讲细节",   hint:"举一个具体的例子代替笼统的形容,但例子只能取自本人资料里已有的信息。" },
+  selfmock:{ label:"会自嘲",   hint:"适度自嘲,拿自己开玩笑,不要拿对方开玩笑。" },
+  restrain:{ label:"收得住",   hint:"一次只发一条,不追问、不连发,对方没接话就让它停在那里。" },
+  plain:   { label:"不说套话", hint:"不用网络热词和万能句式(「哈哈哈」「确实」「一起加油」),宁可朴素。" },
+  invite:  { label:"会提议",   hint:"聊到合适的地方可以提议一个方向(比如「有空一起去岩馆」)," +
+                               "但不定具体时间地点,那要本人自己说。" }
+};
+const AI_SKILL_MAX = 3;
+// 存的是 id 数组。老配置里没有这个字段,当成没装技能。
+function aiSkills(c){
+  const raw = (c && c.skills) || [];
+  return raw.filter(k => AI_SKILLS[k]).slice(0, AI_SKILL_MAX);
+}
+
 const AI_LENGTHS = {
   short:  { label:"一句话", hint:"只写一句话,不超过 25 字。" },
   medium: { label:"适中",   hint:"一到两句话。" },
@@ -5463,6 +5508,7 @@ const AI_LENGTHS = {
 
 function aiSystemPrompt(){
   const c = aiCfg(), p = myProfile || {}, extra = (c.persona||"").trim();
+  const skills = aiSkills(c);
   const tone = AI_TONES[c.tone] || AI_TONES.natural;
   const len  = AI_LENGTHS[c.length] || AI_LENGTHS.medium;
   return [
@@ -5480,6 +5526,10 @@ function aiSystemPrompt(){
     "· 不要称呼语、不要署名、不要 Markdown、不要加引号,直接给正文。",
     "· 不要编造资料里没有的经历,不要替本人承诺见面时间,不要给出电话、微信等联系方式。",
     "· 只输出这一条消息本身,不要任何解释。",
+    skills.length ? "\n本人给分身装了这几个技能,它们只影响**怎么说**:\n" +
+      skills.map(k=>"· " + AI_SKILLS[k].hint).join("\n") +
+      "\n技能不得让你引入资料里没有的事实、经历、承诺或联系方式;" +
+      "技能和上面的写作要求冲突时,以写作要求为准。" : "",
     extra ? "\n本人补充的语气要求(优先级高于上面的语气建议):\n" + extra : ""
   ].filter(Boolean).join("\n");
 }
@@ -5814,6 +5864,13 @@ function renderAiForm(box, inChat){
     <div class="field"><label>回复长度</label>
       <div class="ai-seg f-lenseg">${Object.entries(AI_LENGTHS).map(([k,v])=>
         `<button type="button" data-l="${k}"${(c.length||"medium")===k?' class="on"':""}>${esc(v.label)}</button>`).join("")}</div></div>
+    <div class="field"><label>技能 <span class="sk-n">${aiSkills(c).length} / ${AI_SKILL_MAX}</span></label>
+      <div class="sk-grid f-skills">${Object.entries(AI_SKILLS).map(([k,v])=>
+        `<button type="button" data-sk="${k}"${aiSkills(c).includes(k)?' class="on"':""}>
+          <span class="sk-l">${esc(v.label)}</span>
+          <span class="sk-h">${esc(v.hint)}</span></button>`).join("")}</div>
+      <div class="hint">最多装 ${AI_SKILL_MAX} 个 —— 装满八个等于什么都没装。
+        <b>技能只改怎么说,不改说什么</b>:它不会替你编经历,也不会替你定时间地点。</div></div>
     ${inChat ? `<div class="field"><label>分享</label>
       <button class="btn btn-ghost" style="width:100%" type="button" id="lvShare">💞 把我的恋人画像发给 TA</button>
       <div class="hint">作为一条普通消息发出去,不受可见性设置影响</div></div>` : ""}
@@ -5834,6 +5891,7 @@ function renderAiForm(box, inChat){
       model:    q(".f-model").value.trim(),
       tone:     (q(".f-toneseg .on")||{dataset:{}}).dataset.t || "natural",
       length:   (q(".f-lenseg .on")||{dataset:{}}).dataset.l || "medium",
+      skills:   [...box.querySelectorAll(".f-skills .on")].map(b=>b.dataset.sk),
       proxyModel: (q(".f-pmseg .on")||{dataset:{}}).dataset.pm || "deepseek-chat",
       persona:  q(".f-persona").value.trim()
     }));
@@ -5863,6 +5921,20 @@ function renderAiForm(box, inChat){
       b.classList.add("on"); save();
     }));
   });
+
+  // 技能是多选,最多 3 个。装满了再点别的要说清楚为什么点不动,
+  // 而不是让按钮默默没反应。
+  box.querySelectorAll(".f-skills button").forEach(b=>b.addEventListener("click", ()=>{
+    const on = b.classList.contains("on");
+    const cnt = box.querySelectorAll(".f-skills .on").length;
+    if(!on && cnt >= AI_SKILL_MAX){
+      toast(`最多装 ${AI_SKILL_MAX} 个 —— 先卸一个再装`); return;
+    }
+    b.classList.toggle("on");
+    const n = box.querySelector(".sk-n");
+    if(n) n.textContent = `${box.querySelectorAll(".f-skills .on").length} / ${AI_SKILL_MAX}`;
+    save();
+  }));
 
   const modeSeg = q(".f-modeseg");
   if(modeSeg) modeSeg.querySelectorAll("button").forEach(b=>b.addEventListener("click", ()=>{
