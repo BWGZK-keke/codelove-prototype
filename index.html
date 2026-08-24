@@ -6477,7 +6477,8 @@ function openMatchReport(u){
   const rows = parts.map(p=>{
     const pct = p.max ? Math.round(p.got/p.max*100) : 0;
     return `<div class="mr-row">
-      <div class="mr-top"><b>${esc(p.label)}</b><span class="mr-pts">${p.got.toFixed(1)} / ${p.max}</span></div>
+      <div class="mr-top"><b>${esc(p.label)}</b><span class="mr-pts">${
+        p.got.toFixed(1)} / ${p.max.toFixed(1)}</span></div>
       <div class="mr-bar"><div class="mr-fill" style="width:${pct}%"></div></div>
       <div class="mr-note">${esc(p.note)}</div></div>`;
   }).join("");
