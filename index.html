@@ -5052,12 +5052,15 @@ async function renderMyVerify(){
 function iAmMatchmaker(){ return MATCHMAKERS.some(m => m.uid === me?.uid); }
 function thisMonth(){ return new Date().toISOString().slice(0, 7); }
 
-async function logMmView(targetUid){
+async function logMmView(targetUid, action){
   if(!iAmMatchmaker() || !targetUid || targetUid === me.uid) return;
   try{
     await setDoc(doc(db,"mmAudit",`${me.uid}_${targetUid}`), {
       matchmakerUid: me.uid, targetUid, month: thisMonth(),
-      action: "view", at: serverTimestamp()
+      // review 是「为了审核验证材料而看」(REQ-053)。分开记是因为用户
+      // 该看得出这两件事的区别 —— 「有人在审我的材料」和「有人在翻我的资料」
+      // 不是一回事,后者更该让人警觉一点。
+      action: action === "review" ? "review" : "view", at: serverTimestamp()
     });
   }catch(e){ console.error("留痕没写成", e); }
 }
@@ -5074,16 +5077,20 @@ async function renderMmSeen(){
       host.innerHTML = `<div class="hint">本月还没有红娘看过你的资料。</div>`;
       return;
     }
-    const names = rows.map(r=>{
-      const m = MATCHMAKERS.find(x=>x.uid === r.matchmakerUid);
-      return m ? m.name : "一位红娘";
-    });
+    const nameOf = r => (MATCHMAKERS.find(x=>x.uid === r.matchmakerUid)||{}).name || "一位红娘";
+    // 审材料和翻资料分开说 (REQ-053):对用户来说这是两件不同的事,
+    // 前者是他自己申请来的,后者不是。混在一句里说,那条留痕就没什么用。
+    const reviews = rows.filter(r=>r.action === "review");
+    const views   = rows.filter(r=>r.action !== "review");
     host.innerHTML = `
-      <div style="font-size:14px;color:var(--ink);line-height:1.9">
-        本月有 <b>${rows.length}</b> 位红娘看过你的资料:${esc(names.join("、"))}</div>
+      ${views.length ? `<div style="font-size:14px;color:var(--ink);line-height:1.9">
+        本月有 <b>${views.length}</b> 位红娘看过你的资料:${esc(views.map(nameOf).join("、"))}</div>` : ""}
+      ${reviews.length ? `<div style="font-size:14px;color:var(--ink);line-height:1.9;margin-top:6px">
+        另有 <b>${reviews.length}</b> 位在审你提交的验证材料:${esc(reviews.map(nameOf).join("、"))}</div>` : ""}
       <div class="hint" style="margin-top:6px">
-        红娘看你的资料是为了牵线。这条记录你看得到、红娘删不掉 ——
-        想彻底不被看到,可以在资料里把字段设成「不给看」。</div>`;
+        红娘看你的资料是为了牵线,审材料是因为你自己申请了验证。
+        这条记录你看得到、红娘删不掉 —— 想彻底不被看到,
+        可以在资料里把字段设成「不给看」。</div>`;
   }catch(e){
     host.innerHTML = `<div class="hint">读不到查看记录:${esc(fbError(e))}</div>`;
     console.error(e);
@@ -8233,12 +8240,21 @@ async function renderSettle(){
   const done = intros.filter(x=>x.status === "matched").length;
   const paid = pays.filter(p=>p.status === "paid").reduce((s,p)=>s + (+p.amount||0), 0);
   const due  = pays.filter(p=>p.status !== "paid").reduce((s,p)=>s + (+p.amount||0), 0);
+  /* 审核费和牵线分成分开列 (REQ-053)。文档要求「审核按件计费,与牵线分成
+     分开结算」—— 混成一个数的话,红娘看不出这个月的钱是从哪儿来的,
+     也就没法判断值不值得接审核的活。
+     kind 由服务端写(payouts 客户端写不了),没写就按牵线算。 */
+  const feeOf = k => pays.filter(p=>(p.kind||"intro") === k)
+                         .reduce((s,p)=>s + (+p.amount||0), 0);
+  const reviewFee = feeOf("review");
   host.innerHTML = `
     <div class="st-row">
       <div class="st-cell"><div class="st-n">${done}</div><div class="st-k">牵成</div></div>
       <div class="st-cell"><div class="st-n">¥${paid}</div><div class="st-k">已打款</div></div>
       <div class="st-cell"><div class="st-n">¥${due}</div><div class="st-k">待打款</div></div>
     </div>
+    ${reviewFee ? `<div class="hint" style="margin-bottom:var(--s3)">
+      其中审核费 <b>¥${reviewFee}</b>,其余是牵线分成 —— 两样分开结算。</div>` : ""}
     ${intros.length ? intros.map(x=>{
       const a = deskData.profs[x.a], b = deskData.profs[x.b];
       return `<div class="mm-card">
@@ -8316,7 +8332,11 @@ async function renderVerifyDesk(){
   }).join("");
 
   host.querySelectorAll("[data-vdfile]").forEach(b=>
-    b.addEventListener("click", ()=>openClientFile(b.dataset.vdfile)));
+    b.addEventListener("click", ()=>{
+      // 从验证申请点进去的,记成 review —— 这一眼是为了审材料,不是为了牵线
+      logMmView(b.dataset.vdfile, "review");
+      openClientFile(b.dataset.vdfile);
+    }));
   host.querySelectorAll("[data-vdchat]").forEach(b=>
     b.addEventListener("click", ()=>{
       const u = profs[b.dataset.vdchat] || {};
