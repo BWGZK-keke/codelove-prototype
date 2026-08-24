@@ -769,6 +769,20 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 行内图标 (REQ-042) ----------
+     跟着字色走、和文字基线对齐。emoji 做不到这两件事,这正是换掉它的理由。 */
+  .ic{display:inline-block;width:1em;height:1em;vertical-align:-0.14em;
+    margin-right:.34em;color:currentColor;flex:0 0 auto}
+  .ic:last-child{margin-right:0}
+  .ic svg{width:100%;height:100%;display:block}
+  .ic:empty{display:none}
+  /* 空态里的大图标:原来是 38px 的 emoji,现在是同样大小的线条图 */
+  .empty .big{width:38px;height:38px;margin:0 auto 12px;color:var(--ink-faint)}
+  .empty .big svg{width:100%;height:100%}
+  .lv-ico svg,.mm-ava svg,.hearts svg,.twin-ava svg{width:60%;height:60%;
+    display:block;margin:auto;color:var(--ink)}
+  .hearts svg{width:44px;height:44px}
+
   /* ---------- 用户反馈 (REQ-041) ---------- */
   .fb-card{background:var(--surface-2);border:1.5px dashed var(--outline);
     border-radius:var(--r-sm);padding:var(--s4);margin:var(--s5) 0 var(--s2)}
@@ -1437,7 +1451,7 @@
       <div class="form-title">广场</div>
       <div class="form-sub">真实注册用户 · 互相心动即匹配成功</div>
       <div class="match-bar">
-        <button class="ai-chip" id="aiMatchBtn">✨ 用 AI 重新匹配</button>
+        <button class="ai-chip" id="aiMatchBtn"><span class="ic" data-ic="spark"></span>用 AI 重新匹配</button>
         <button class="ai-chip" id="feedFilterBtn">筛选</button>
         <span class="match-note" id="aiMatchNote"></span>
       </div>
@@ -1621,12 +1635,12 @@
   <div class="chat-bar">
     <!-- 仿 Claude VS Code 那条:模型/模式就摆在输入框上方,点一下就能改 -->
     <div class="ai-strip">
-      <button class="ai-chip" id="aiChip" title="配置这个会话用哪个 AI">🤖 <span id="aiChipText">未配置</span> <span class="caret">▾</span></button>
-      <button class="ai-chip" id="aiChipMode" title="✨ 只出草稿 / 🤖 直接替你回复">✨ 建议</button>
+      <button class="ai-chip" id="aiChip" title="配置这个会话用哪个 AI"><span class="ic" data-ic="robot"></span> <span id="aiChipText">未配置</span> <span class="caret">▾</span></button>
+      <button class="ai-chip" id="aiChipMode" title="只出草稿 / 直接替你回复"><span class="ic" data-ic="spark"></span> 建议</button>
     </div>
     <div class="chat-bar-inner">
     <button class="emoji-btn" id="emojiToggle" aria-label="表情" title="表情">😊</button>
-    <button class="ai-btn" id="aiSuggest" aria-label="让 AI 帮我想一句" title="让 AI 帮我想一句">✨</button>
+    <button class="ai-btn" id="aiSuggest" aria-label="让 AI 帮我想一句" title="让 AI 帮我想一句"><span class="ic" data-ic="spark"></span></button>
     <input id="chatInput" placeholder="说点什么…" maxlength="1000" autocomplete="off">
     <button id="chatSend">发送</button>
   </div></div>
@@ -1673,6 +1687,48 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 /* ---------- helpers ---------- */
+/* ================= 图标 (REQ-042) =================
+
+   负向清单里明写着:**emoji 不当功能图标**。理由不是审美洁癖 ——
+   emoji 在不同系统上渲染完全不同(同一个 ✨ 在 Windows、macOS、Android
+   上是三个样子),而且它跟不了字色、缩不了描边粗细,放在按钮里永远是
+   一块贴纸。这是廉价感最大的来源。
+
+   avatar 里的 emoji **不在此列**:那是用户自己挑的头像,是内容不是图标。
+
+   全部集中在这里而不是散在各处 —— 散着的时候,改一个图标要翻五个地方。 */
+const LOVE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M12 20s-7-4.3-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.8C19 15.7 12 20 12 20z"/></svg>';
+const ICON_CHAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3.5V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg>';
+const ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3.5V8h4.5M8.5 12.5h7M8.5 16h4"/></svg>';
+const ICON_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9.5 14.5l5-5"/><path d="M13 7.5l1.6-1.6a3.6 3.6 0 0 1 5.1 5.1L18 12.6"/><path d="M11 16.5l-1.6 1.6a3.6 3.6 0 0 1-5.1-5.1L6 11.4"/></svg>';
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>';
+const ICON_SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.9 5.1L19 11l-5.1 1.9L12 18l-1.9-5.1L5 11l5.1-1.9z"/></svg>';
+const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
+const ICON_ROBOT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M12 4.5V8"/><circle cx="12" cy="3.6" r="1.1"/><path d="M9 12.5v1.5M15 12.5v1.5"/></svg>';
+const ICON_HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.3-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.8C19 15.7 12 20 12 20z"/></svg>';
+const ICON_HEART_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20s-7-4.3-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.8C19 15.7 12 20 12 20z"/></svg>';
+const ICON_PAIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 15.5s-4-2.5-4-5.4A2.4 2.4 0 0 1 8.5 8a2.4 2.4 0 0 1 4 2.1c0 2.9-4 5.4-4 5.4z"/><path d="M15.5 19s-4-2.5-4-5.4a2.4 2.4 0 0 1 4-2.1 2.4 2.4 0 0 1 4 2.1c0 2.9-4 5.4-4 5.4z"/></svg>';
+const ICON_PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l4-1 9-9-3-3-9 9z"/><path d="M14.5 6.5l3 3"/></svg>';
+const ICON_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5l8.5 15h-17z"/><path d="M12 10v4M12 16.6v.1"/></svg>';
+const ICON_SEED = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6"/><path d="M12 14c0-3.3 2.7-6 6-6 0 3.3-2.7 6-6 6z"/><path d="M12 16c-3.3 0-6-2.7-6-6 3.3 0 6 2.7 6 6z"/></svg>';
+const ICON_LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="9" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
+const ICON_CHART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5h15"/><path d="M7.5 16.5V11M12 16.5V6.5M16.5 16.5v-3.5"/></svg>';
+const ICON_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 5.5L20 7"/></svg>';
+const ICON_MIRROR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="9.5" rx="5.5" ry="6"/><path d="M12 15.5v5M9.5 20.5h5"/></svg>';
+const ICON_BAN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5l11 11"/></svg>';
+const ICON_STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5l2.2 5.1 5.3.5-4 3.6 1.2 5.3-4.7-2.8-4.7 2.8 1.2-5.3-4-3.6 5.3-.5z"/></svg>';
+const ICON_PERSON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.5a7.2 7.2 0 0 1 14.4 0"/></svg>';
+const ICON_HOURGLASS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5h10M7 19.5h10"/><path d="M7.5 4.5c0 4 4.5 4.6 4.5 7.5s-4.5 3.5-4.5 7.5"/><path d="M16.5 4.5c0 4-4.5 4.6-4.5 7.5s4.5 3.5 4.5 7.5"/></svg>';
+/* 行内小图标的统一包装:跟着字色走、和文字基线对齐。 */
+function ico(svg, cls){ return `<span class="ic ${cls||""}">${svg}</span>`; }
+/* 静态 HTML 里的图标位。写死在 HTML 里的按钮拿不到上面那些常量,
+   所以留一个 data-ic 占位,模块起来时一次性填上。 */
+const IC_MAP = { spark:ICON_SPARK, robot:ICON_ROBOT, chat:ICON_CHAT, heart:ICON_HEART,
+                 check:ICON_CHECK, star:ICON_STAR, person:ICON_PERSON };
+document.querySelectorAll("[data-ic]").forEach(el=>{
+  const v = IC_MAP[el.dataset.ic]; if(v) el.innerHTML = v;
+});
+
 const $ = s => document.querySelector(s);
 const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");
@@ -2518,7 +2574,7 @@ function startListeners(){
       prefetchLovers();
     },
     err=>{
-      $("#feedList").innerHTML = `<div class="empty"><div class="big">⚠️</div>${esc(fbError(err))}</div>`;
+      $("#feedList").innerHTML = `<div class="empty"><div class="big">${ICON_WARN}</div>${esc(fbError(err))}</div>`;
       console.error(err);
     }
   ));
@@ -4032,7 +4088,7 @@ async function likeUser(uid, name, note){
       renderFeed();
       if(!matchNotified.has(uid)){ matchNotified.add(uid); showMatchModal(name, uid); }
     }else{
-      toast(`已向 ${name} 发送心动 ♥`);
+      toast(`已向 ${name} 发送心动`);
     }
   }catch(e){ myLikes.delete(uid); renderFeed(); toast("操作失败: "+fbError(e)); console.error(e); }
 }
@@ -4354,7 +4410,7 @@ function profileLine(u){
 
 async function runAiMatch(){
   if(!allUsers.length){ toast("广场还没有人"); return; }
-  if(!aiReady()){ toast("先在私信里点「🤖」配置一下 AI"); return; }
+  if(!aiReady()){ toast("先在私信里点 AI 那个按钮配置一下"); return; }
   const btn = $("#aiMatchBtn");
   btn.disabled = true; btn.textContent = "AI 分析中…";
   try{
@@ -4394,7 +4450,7 @@ function syncMatchBtn(){
   const btn = $("#aiMatchBtn"), note = $("#aiMatchNote");
   if(!btn || !note) return;
   const s = aiScores();
-  btn.textContent = s ? "✨ 重新匹配" : "✨ 用 AI 匹配";
+  btn.innerHTML = ico(ICON_SPARK) + (s ? "重新匹配" : "用 AI 匹配");
   note.textContent = s
     ? `AI 已给 ${Object.keys(s).length} 人打分,6 小时内有效`
     : "当前是本地规则分,点左边让 AI 逐个分析";
@@ -5315,7 +5371,7 @@ function flowClientHtml(c){
   }).filter(Boolean);
   let body = "";
   if(st === "matched"){
-    body = `<div class="hint" style="line-height:1.9">🎉 已标记为配对成功。祝顺利!<br>
+    body = `<div class="hint" style="line-height:1.9">已标记为配对成功。祝顺利!<br>
       想再来一轮的话,点下面「重新开始」。</div>
       <button class="btn btn-ghost btn-pill" style="width:100%;margin-top:12px" data-flow="restart">重新开始</button>`;
   }else if(recs.length){
@@ -5363,7 +5419,7 @@ function bindFlowClient(host){
         await setDoc(doc(db,"concierge",me.uid),
           {status: to==="matched"?"matched":"retry", picked:(myConcierge&&myConcierge.picked)||""},
           {merge:true});
-        toast(to==="matched" ? "已标记配对成功 🎉" : "已告诉红娘,等下一轮");
+        toast(to==="matched" ? "已标记配对成功" : "已告诉红娘,等下一轮");
       }
     }catch(e){ toast("操作失败: "+fbError(e)); console.error(e); }
   }));
@@ -5535,7 +5591,6 @@ function openRecPicker(req){
 const LOVER_KEY = "cl_lover";
 // 线性 SVG,不用 emoji —— BRAND.md 的负向清单第四条
 const TWIN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><rect x="6" y="3" width="12" height="14" rx="6"/><path d="M12 17v4M9.5 21h5"/></svg>';
-const LOVE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M12 20s-7-4.3-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.8C19 15.7 12 20 12 20z"/></svg>';
 
 const ATT = { secure:"安全型", anxious:"焦虑型", avoidant:"回避型", fearful:"矛盾型" };
 const FISH = {
@@ -5901,9 +5956,9 @@ function runQuizChain(){
 
 function openWelcomeQuizzes(){
   if(!quizzesLeft()) return;
-  const row = (done, ico, t, s) => `
+  const row = (done, glyph, t, s) => `
     <div class="lv-row" style="cursor:default;background:${done?"var(--mint-soft)":"var(--rose-soft)"}">
-      <div class="lv-ico">${done ? "✓" : ico}</div>
+      <div class="lv-ico">${done ? ICON_CHECK : glyph}</div>
       <div style="flex:1;min-width:0">
         <div class="lv-t">${esc(t)}</div>
         <div class="lv-s">${esc(s)}</div>
@@ -5914,12 +5969,12 @@ function openWelcomeQuizzes(){
   <div class="modal-mask">
     <div class="modal wide" onclick="event.stopPropagation()">
       <div style="text-align:center;margin-bottom:14px">
-        <div class="twin-ava" style="margin:0 auto 12px;width:60px;height:60px;font-size:30px">🎉</div>
+        <div class="twin-ava" style="margin:0 auto 12px;width:60px;height:60px">${ICON_STAR}</div>
         <div class="twin-name">欢迎加入 CodeLove</div>
         <div class="twin-sub">还有两个小测验,做完匹配会准很多</div>
       </div>
-      ${row(hasTwin(), "🪞", "AI 分身", "10 题,约 1 分钟 · 决定 AI 替你说话的性格")}
-      ${row(hasLover(), "💞", "恋人画像", "15 题,约 2 分钟 · 决定 AI 优先给你推谁")}
+      ${row(hasTwin(), ICON_MIRROR, "AI 分身", "10 题,约 1 分钟 · 决定 AI 替你说话的性格")}
+      ${row(hasLover(), ICON_PAIR, "恋人画像", "15 题,约 2 分钟 · 决定 AI 优先给你推谁")}
       <div class="modal-actions" style="margin-top:16px">
         <button class="btn btn-ghost" id="wcLater">以后再说</button>
         <button class="btn btn-coral" id="wcStart">开始</button>
@@ -6305,12 +6360,12 @@ function openMatchReport(u){
           <div class="mr-meta">${esc([u.age&&u.age+"岁",u.role,u.city].filter(Boolean).join(" · "))}</div></div>
         <div class="mr-score"><b>${score}%</b><span>${ai?"AI 契合":"契合"}</span></div>
       </div>
-      ${ai?`<div class="mr-src">✨ AI 给出的理由</div><div class="mr-why">${esc(ai)}</div>`:""}
+      ${ai?`<div class="mr-src">${ico(ICON_SPARK)}AI 给出的理由</div><div class="mr-why">${esc(ai)}</div>`:""}
       <div class="mr-src">按维度拆开(本地规则分合计 ${rule}%${ai?",AI 分是另外单独判断的":""})</div>
       ${rows}
       <div id="mrDeep">${cached?deepHtml(cached):""}</div>
       <div class="modal-actions" style="margin-top:16px">
-        ${cached?"":`<button class="btn btn-ghost" id="mrGen">✨ 生成详细分析</button>`}
+        ${cached?"":`<button class="btn btn-ghost" id="mrGen">${ico(ICON_SPARK)}生成详细分析</button>`}
         <button class="btn btn-coral" onclick="this.closest('.modal-mask').remove()">知道了</button>
       </div>
     </div>
@@ -6334,7 +6389,7 @@ function openMatchReport(u){
       gen.remove();
     }catch(e){
       toast("分析失败:"+e.message); console.error(e);
-      gen.disabled = false; gen.textContent = "✨ 生成详细分析";
+      gen.disabled = false; gen.innerHTML = ico(ICON_SPARK) + "生成详细分析";
     }
   });
 }
@@ -6357,7 +6412,7 @@ function selfCardHtml(u){
       ${avatarHtml(u)}
       <div style="flex:1">
         <div class="uname">${esc(dot([u.name, u.age]))}
-          <span class="badge b-indigo">👤 这是你</span></div>
+          <span class="badge b-indigo">${ico(ICON_PERSON)}这是你</span></div>
         <div class="umeta">${esc(dot([u.role, u.level, u.org, u.city])) || "未公开更多信息"}</div>
         ${peerClock(u)}
       </div>
@@ -6365,7 +6420,7 @@ function selfCardHtml(u){
     <div class="ucard-body">
       ${u.bio?`<div class="ubio">"${esc(u.bio)}"</div>`:""}
       ${u.stack&&u.stack.length?`<div class="stack">${u.stack.map(t=>`<span class="tok">${esc(t)}</span>`).join("")}</div>`:""}
-      <div class="self-note">别人在广场看到的就是这张卡片。资料已保存到线上 ✅<br>
+      <div class="self-note">别人在广场看到的就是这张卡片。资料已保存到线上。<br>
         想改的话去「我的」页面,改完这里会实时更新。</div>
     </div>
   </div>`;
@@ -6382,7 +6437,7 @@ function renderFeed(){
   renderDaily();
   const self = selfCardHtml(myCard);
   if(!allUsers.length){
-    $("#feedList").innerHTML = self + `<div class="empty"><div class="big">🌱</div>
+    $("#feedList").innerHTML = self + `<div class="empty"><div class="big">${ICON_SEED}</div>
       目前只有你一个人。<br>广场只展示<b>别人</b>的资料,所以不会重复显示你自己。<br>
       把网址分享给朋友,TA 注册完你这里会立刻出现 TA。</div>`;
     return;
@@ -6409,23 +6464,23 @@ function renderFeed(){
           <div class="uname">${esc(dot([u.name, u.age]))}
             ${u.edu?`<span class="badge b-green">${esc(u.edu)}</span>`:""}
             ${u.school?`<span class="badge b-indigo">${esc(u.school)}</span>`:""}
-            ${isNew(u)?`<span class="badge b-amber">🌱 新加入</span>`:""}</div>
+            ${isNew(u)?`<span class="badge b-amber">${ico(ICON_SEED)}新加入</span>`:""}</div>
           <div class="umeta">${esc([u.role, u.level, u.org, u.city].filter(Boolean).join(" · "))}</div>
         </div>
-        <div class="compat${compatReason(u)?" by-ai":""}" data-report="${esc(u.uid)}" title="点开看这个分数是怎么来的"><b>${compat(u)}%</b><span>${compatReason(u)?"✨ AI":"契合"}</span></div>
+        <div class="compat${compatReason(u)?" by-ai":""}" data-report="${esc(u.uid)}" title="点开看这个分数是怎么来的"><b>${compat(u)}%</b><span>${compatReason(u)?ico(ICON_SPARK)+"AI":"契合"}</span></div>
       </div>
       <div class="ucard-body">
-        ${compatReason(u)?`<div class="ai-why">✨ ${esc(compatReason(u))}</div>`:""}
+        ${compatReason(u)?`<div class="ai-why">${ico(ICON_SPARK)}${esc(compatReason(u))}</div>`:""}
         ${u.bio?`<div class="ubio">"${esc(u.bio)}"</div>`:""}
         ${u.stack&&u.stack.length?`<div class="stack">${u.stack.map(t=>`<span class="tok">${esc(t)}</span>`).join("")}</div>`:""}
         <div class="ucard-actions">
           <button class="btn btn-ghost btn-pill" data-wall="${esc(u.uid)}" data-nm="${esc(u.name)}"
-            data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">✎ 留言</button>
+            data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">${ico(ICON_PENCIL)}留言</button>
           ${isMatch
-            ? `<button class="btn liked-flag" disabled>💘 已匹配</button>`
+            ? `<button class="btn liked-flag" disabled>${ico(ICON_HEART_ON)}已匹配</button>`
             : liked
-              ? `<button class="btn liked-flag" data-unlike="${esc(u.uid)}">♥ 已心动 (点击取消)</button>`
-              : `<button class="btn btn-coral" data-like="${esc(u.uid)}" data-name="${esc(u.name)}">♥ 心动</button>`}
+              ? `<button class="btn liked-flag" data-unlike="${esc(u.uid)}">${ico(ICON_HEART_ON)}已心动 (点击取消)</button>`
+              : `<button class="btn btn-coral" data-like="${esc(u.uid)}" data-name="${esc(u.name)}">${ico(ICON_HEART)}心动</button>`}
         </div>
       </div>
     </div>`;
@@ -6469,7 +6524,7 @@ function openChat(uid, name, photo, gender, sub){
   curChatPeer = {uid, name, photo, gender};
   $("#chatName").textContent = name;
   const subEl = $("#view-chat").querySelector(".chat-head .sub");
-  if(subEl) subEl.textContent = sub || "💘 已匹配";
+  if(subEl) subEl.innerHTML = sub ? esc(sub) : ico(ICON_HEART_ON) + "已匹配";
   $("#chatAva").innerHTML = avatarHtml({photo, gender});
   $("#chatMsgs").innerHTML = waiting("在读你们的私信", "只有你们两个人看得到");
   $("#chatInput").value = "";
@@ -6497,7 +6552,7 @@ function openChat(uid, name, photo, gender, sub){
       maybeAutoReply(msgs);
     },
     err=>{
-      $("#chatMsgs").innerHTML = `<div class="empty"><div class="big">⚠️</div>${esc(fbError(err))}</div>`;
+      $("#chatMsgs").innerHTML = `<div class="empty"><div class="big">${ICON_WARN}</div>${esc(fbError(err))}</div>`;
       console.error(err);
     }
   );
@@ -6509,8 +6564,8 @@ function renderChat(msgs){
   box.innerHTML = msgs.length
     ? msgs.map(m=>`<div class="msg ${m.from===me.uid?"mine":"theirs"}">
          <div class="bubble${isBigEmoji(m.text)?" big":""}">${esc(m.text)}</div>
-         <div class="mtime">${fmtTime(m.createdAt)}${m.ai?`<span class="ai-tag">🤖 AI 代回复</span>`:""}</div></div>`).join("")
-    : `<div class="empty" style="padding:44px 20px"><div class="big">💬</div>
+         <div class="mtime">${fmtTime(m.createdAt)}${m.ai?`<span class="ai-tag">${ico(ICON_ROBOT)}AI 代回复</span>`:""}</div></div>`).join("")
+    : `<div class="empty" style="padding:44px 20px"><div class="big">${ICON_CHAT}</div>
          还没有消息<br>你们已经互相心动了,打个招呼吧</div>`;
   // 只有本来就贴着底部时才自动滚,免得对方发消息把你正在看的历史顶走
   if(atBottom || msgs.length<=1) box.scrollTop = box.scrollHeight;
@@ -6888,7 +6943,7 @@ function syncAiStrip(){
   const auto = !!curChatPeer && autoOn(curChatPeer.uid);
   const mode = $("#aiChipMode");
   mode.classList.toggle("on", auto);
-  mode.textContent = auto ? "🤖 代回复中" : "✨ 建议";
+  mode.innerHTML = auto ? ico(ICON_ROBOT) + "代回复中" : ico(ICON_SPARK) + "建议";
 }
 
 function toggleAiPanel(force){
@@ -7040,8 +7095,8 @@ function quotaNote(){
   const q = readJson(uidKey("cl_ai_quota"), null);
   const sameDay = q && new Date(q.at).toDateString() === new Date().toDateString();
   return sameDay
-    ? `📊 本站免费额度今天还剩 <b>${q.left}</b> 次。<br>`
-    : "📊 正在用本站免费额度,用过一次后这里会显示剩余次数。<br>";
+    ? `${ico(ICON_CHART)}本站免费额度今天还剩 <b>${q.left}</b> 次。<br>`
+    : ico(ICON_CHART) + "正在用本站免费额度,用过一次后这里会显示剩余次数。<br>";
 }
 
 function renderAiForm(box, inChat){
@@ -7054,10 +7109,10 @@ function renderAiForm(box, inChat){
   box.innerHTML = `
     ${inChat ? `<div class="field"><label>这个会话的模式</label>
       <div class="ai-seg f-modeseg">
-        <button type="button" data-m="suggest"${!auto?' class="on"':""}>✨ 只给建议</button>
-        <button type="button" data-m="auto"${auto?' class="on"':""}>🤖 自动代回复</button>
+        <button type="button" data-m="suggest"${!auto?' class="on"':""}>${ico(ICON_SPARK)}只给建议</button>
+        <button type="button" data-m="auto"${auto?' class="on"':""}>${ico(ICON_ROBOT)}自动代回复</button>
       </div>
-      <div class="hint">代回复只在你开着本页时生效,发出去的消息会带「🤖 AI 代回复」标注</div></div>` : ""}
+      <div class="hint">代回复只在你开着本页时生效,发出去的消息会带「AI 代回复」标注</div></div>` : ""}
     <div class="field"><label>服务商</label>
       <div class="ai-seg f-provseg">${Object.entries(AI_PROVIDERS).map(([k,v])=>seg(k,v)).join("")}</div></div>
     <div class="field"><label>API Key</label>
@@ -7086,7 +7141,7 @@ function renderAiForm(box, inChat){
       <div class="hint">最多装 ${AI_SKILL_MAX} 个 —— 装满八个等于什么都没装。
         <b>技能只改怎么说,不改说什么</b>:它不会替你编经历,也不会替你定时间地点。</div></div>
     ${inChat ? `<div class="field"><label>分享</label>
-      <button class="btn btn-ghost" style="width:100%" type="button" id="lvShare">💞 把我的恋人画像发给 TA</button>
+      <button class="btn btn-ghost" style="width:100%" type="button" id="lvShare">${ico(ICON_PAIR)}把我的恋人画像发给 TA</button>
       <div class="hint">作为一条普通消息发出去,不受可见性设置影响</div></div>` : ""}
     <div class="field"><label>补充设定(可选)</label>
       <textarea class="f-persona" maxlength="500" placeholder="例如:别问对方工作,聊到爬山可以多说两句">${esc(c.persona||"")}</textarea>
@@ -7095,7 +7150,7 @@ function renderAiForm(box, inChat){
       <button class="btn btn-ghost f-test">测试连接</button>
       <button class="btn btn-ghost f-clear">清除</button>
     </div>
-    <div class="ai-note">${quotaNote()}🔐 改动即时生效,不用点保存。API Key 只存在这台设备上,不会上传服务器。</div>`;
+    <div class="ai-note">${quotaNote()}${ico(ICON_LOCK)}改动即时生效,不用点保存。API Key 只存在这台设备上,不会上传服务器。</div>`;
 
   const q = s => box.querySelector(s);
   const save = ()=>{
@@ -7275,14 +7330,14 @@ async function renderNotes(host, notes, opts){
       </div>
       <div class="note-body">${esc(n.text)}</div>
       <div class="note-foot">
-        <button class="reply-btn" data-rep="${esc(n.id)}">💬 回复</button>
+        <button class="reply-btn" data-rep="${esc(n.id)}">${ico(ICON_CHAT)}回复</button>
         ${canDel?`<button class="note-del" data-del="${esc(n.id)}">删除</button>`
                 :`<button class="note-del" data-report="${esc(n.id)}"
                     data-rt="${esc(n.from)}" data-rn="${esc(u.name||"")}">举报</button>`}
       </div>
       <div class="replies hidden" data-repbox="${esc(n.id)}"></div>
     </div>`;
-  }).join("") : `<div class="empty"><div class="big">✦</div>${esc(opts.emptyText)}</div>`;
+  }).join("") : `<div class="empty"><div class="big">${ICON_STAR}</div>${esc(opts.emptyText)}</div>`;
 
   host.querySelectorAll("[data-del]").forEach(b=>
     b.addEventListener("click", ()=>opts.onDelete(b.dataset.del)));
@@ -7390,7 +7445,7 @@ function subscribeBoard(){
         }
       });
     },
-    err=>{ $("#boardList").innerHTML = `<div class="empty"><div class="big">⚠️</div>${esc(fbError(err))}</div>`; }
+    err=>{ $("#boardList").innerHTML = `<div class="empty"><div class="big">${ICON_WARN}</div>${esc(fbError(err))}</div>`; }
   );
 }
 async function postBoard(){
@@ -7401,7 +7456,7 @@ async function postBoard(){
   inp.value=""; updateBoardCount();
   try{
     await addDoc(collection(db,"posts"), {from:me.uid, text, createdAt:serverTimestamp()});
-    toast("已发布 ✦");
+    toast("已发布");
   }catch(e){ inp.value=text; updateBoardCount(); toast("发布失败: "+fbError(e)); console.error(e); }
   btn.disabled=false;
 }
@@ -7438,7 +7493,7 @@ function openWall(uid, name, photo, gender){
         }
       });
     },
-    err=>{ $("#wallList").innerHTML = `<div class="empty"><div class="big">⚠️</div>${esc(fbError(err))}</div>`; }
+    err=>{ $("#wallList").innerHTML = `<div class="empty"><div class="big">${ICON_WARN}</div>${esc(fbError(err))}</div>`; }
   );
 }
 async function sendWall(){
@@ -7473,7 +7528,7 @@ function confirmModal({title, body, okText, danger, onOk}){
   $("#modalHost").innerHTML = `
   <div class="modal-mask">
     <div class="modal">
-      <div class="hearts">${danger?"🚫":"✦"}</div>
+      <div class="hearts">${danger?ICON_BAN:ICON_STAR}</div>
       <h2>${esc(title)}</h2>
       <p>${body}</p>
       <div class="modal-actions">
@@ -7550,7 +7605,7 @@ function renderMmApply(){
   if(st === "pending" || st === "approved"){
     host.innerHTML = `
       <div class="mm-row" style="margin-bottom:12px">
-        <div class="mm-ava">${st==="approved"?"✅":"⏳"}</div>
+        <div class="mm-ava">${st==="approved"?ICON_CHECK:ICON_HOURGLASS}</div>
         <div><div class="mm-name">${st==="approved"?"已通过":"已提交,等待开通"}</div>
           <div class="mm-sub">${st==="approved"?"你现在可以看到红娘工作台了":"管理员开通后,红娘工作台会自动出现"}</div></div>
       </div>
@@ -7618,13 +7673,13 @@ function renderConcierge(){
       </div>
       ${myConcierge.note?`<div class="ubio" style="margin:14px 0 0">${esc(myConcierge.note)}</div>`:""}
       ${flowClientHtml(myConcierge)}
-      ${m.uid?`<button class="btn btn-coral" style="width:100%;margin-top:14px" id="mmChat">💬 和 ${esc(m.name)} 对话</button>`
+      ${m.uid?`<button class="btn btn-coral" style="width:100%;margin-top:14px" id="mmChat">${ico(ICON_CHAT)}和 ${esc(m.name)} 对话</button>`
              :`<div class="hint" style="margin-top:12px">这位红娘的账号还没配置,暂时只能等她通过邮箱联系你</div>`}
       <button class="btn btn-ghost" style="width:100%;margin-top:10px" id="mmCancel">取消申请</button>`;
     host.querySelector("#mmCancel").addEventListener("click", cancelConcierge);
     bindFlowClient(host);
     const cb = host.querySelector("#mmChat");
-    if(cb) cb.addEventListener("click", ()=>openChat(m.uid, m.name, "", "女", "✦ 红娘服务"));
+    if(cb) cb.addEventListener("click", ()=>openChat(m.uid, m.name, "", "女", "红娘服务"));
     return;
   }
   host.innerHTML = `
@@ -7661,7 +7716,7 @@ async function callConcierge(mm, note){
     await setDoc(doc(db,"concierge",me.uid), {
       uid:me.uid, matchmaker:mm, note:note||"", status:"pending", createdAt:serverTimestamp()
     });
-    toast("已呼叫红娘 ✦");
+    toast("已呼叫红娘");
   }catch(e){ toast("呼叫失败: "+fbError(e)); console.error(e); if(btn) btn.disabled=false; }
 }
 async function cancelConcierge(){
@@ -7680,13 +7735,6 @@ let unsubDesk = null;
    下面是卡片列。同一件事,一眼看清每摊各有多少。
 
    SLA 也做了:提交超过 24 小时还没受理的标红,顶部还会汇总一条。      */
-const ICON_CHAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3.5V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg>';
-const ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3.5V8h4.5M8.5 12.5h7M8.5 16h4"/></svg>';
-// 两个人连上了。画一条链子而不是用爱心 emoji —— 负向清单里明写着 emoji 不当功能图标
-const ICON_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9.5 14.5l5-5"/><path d="M13 7.5l1.6-1.6a3.6 3.6 0 0 1 5.1 5.1L18 12.6"/><path d="M11 16.5l-1.6 1.6a3.6 3.6 0 0 1-5.1-5.1L6 11.4"/></svg>';
-const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>';
-const ICON_SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.9 5.1L19 11l-5.1 1.9L12 18l-1.9-5.1L5 11l5.1-1.9z"/></svg>';
-const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
 
 let deskData = { list: [], profs: {}, mails: {}, known: false };
 let mmStage = -1;                   // 看板上选中的那一摊,-1 = 全部
@@ -7775,12 +7823,12 @@ function renderDesk(){
     b.addEventListener("click", ()=>openClientFile(b.dataset.mmfile)));
   host.querySelectorAll("[data-mmchat]").forEach(b=>
         b.addEventListener("click", ()=>openChat(b.dataset.mmchat, b.dataset.nm,
-          b.dataset.ph, b.dataset.gd, "✦ 红娘服务")));
+          b.dataset.ph, b.dataset.gd, "红娘服务")));
   host.querySelectorAll("[data-mail]").forEach(b=>
         b.addEventListener("click", ()=>{
           if(b.dataset.shown) return;
           b.dataset.shown = "1";
-          b.innerHTML = `📧 ${esc(b.dataset.mail)}`;
+          b.innerHTML = ico(ICON_MAIL) + esc(b.dataset.mail);
           navigator.clipboard?.writeText(b.dataset.mail).then(()=>toast("邮箱已复制")).catch(()=>{});
         }));
   host.querySelectorAll("[data-acc]").forEach(b=>
@@ -8071,7 +8119,7 @@ function subscribeMmApplyDesk(){
           <div class="uid-box" data-copy="${esc(r.uid)}" title="点击复制"><code>${esc(r.uid)}</code><span class="uid-copy">复制</span></div>
           <div class="note-foot">
             <button class="reply-btn" data-appr="${esc(r.uid)}" data-to="${ok?"pending":"approved"}">
-              ${ok?"↩ 标记未处理":"✓ 标记已通过"}</button>
+              ${ok?"标记未处理":ico(ICON_CHECK)+"标记已通过"}</button>
           </div>
         </div>`;
       }).join("") : `<div class="empty" style="padding:26px">还没有人申请</div>`;
@@ -8160,15 +8208,15 @@ async function renderMatches(){
     <div class="match-card">
       <span class="ava-tap" data-twin="${esc(u.uid)}" title="看看 TA 的 AI 分身">${avatarHtml(u)}</span>
       <div class="info">
-        <div class="uname">${esc(u.name)} <span class="badge b-amber">💘 双向心动</span></div>
+        <div class="uname">${esc(u.name)} <span class="badge b-amber">${ico(ICON_HEART_ON)}双向心动</span></div>
         <div class="umeta">${esc(dot([u.role, u.level, u.org, u.city])) || "未公开更多信息"}</div>
       </div>
       <button class="btn-chat" data-chat="${esc(u.uid)}" data-nm="${esc(u.name)}"
-        data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">💬 发消息</button>
+        data-ph="${esc(u.photo||"")}" data-gd="${esc(u.gender||"")}">${ico(ICON_CHAT)}发消息</button>
       <button class="btn-chat" data-date="${esc(u.uid)}">约在哪</button>
       <button class="btn-chat" data-gift="${esc(u.uid)}">送点什么</button>
     </div>`).join("")
-    : `<div class="empty"><div class="big">✨</div>还没有匹配<br>去广场多发几个心动吧</div>`;
+    : `<div class="empty"><div class="big">${ICON_SPARK}</div>还没有匹配<br>去广场多发几个心动吧</div>`;
 
   $("#page-matches").querySelectorAll("[data-twin]").forEach(b=>
     b.addEventListener("click", ()=>{
