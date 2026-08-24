@@ -54,7 +54,18 @@
   :root{
     color-scheme:light dark;
     --bg:#FDF3E7; --bg-2:#FBE8D4; --surface:#FFFFFF; --surface-2:#FDF0E0;
-    --ink:#4A3728; --ink-soft:#9A8574; --ink-faint:#BCAA98;
+    /* 三级墨色都要过 WCAG AA 的 4.5:1 (REQ-045)。
+       原来的 --ink-soft #9A8574 在薄荷块上只有 3.04,--ink-faint #BCAA98
+       更是只有 1.9 —— 那不是「弱化」,那是很多人根本读不清。
+
+       代价要说清楚:**过了 AA 就没有「很淡的字」这回事**。三级之间只能
+       靠深浅拉开一点点,不能再靠「淡到几乎看不见」来表达次要。
+       层级改用字号和位置去表达,那本来也是更好的做法。 */
+    --ink:#4A3728; --ink-soft:#6B5A4C; --ink-faint:#7A665A;
+    /* 粉色当**文字**用时要单独一支:--rose 是块面色,拿它写字在淡粉块上
+       只有 1.94。焦点环只要 3:1(它是图形不是文字),但必须一眼看得见,
+       所以比正文粉更艳而不是更深。 */
+    --rose-ink:#975570; --focus:#D14D86;
     --outline:#4A3728;              /* 贴纸描边 */
     --line:#EBDAC4; --line-soft:#F6EBDA;
     --accent:#F0A05A; --accent-ink:#4A3728; --accent-soft:#FDEBD8;
@@ -85,8 +96,11 @@
   @media (prefers-color-scheme:dark){
     :root{
       --bg:#241B15; --bg-2:#2E231A; --surface:#2E2219; --surface-2:#382A1F;
-      --ink:#F6E8D8; --ink-soft:#B7A28C; --ink-faint:#8A7561;
-      --outline:#6B5340;
+      --ink:#F6E8D8; --ink-soft:#B7A28C; --ink-faint:#A39383;
+      /* 深色下 #6B5340 的描边对底色只有 2.36 —— 贴纸风的整个骨架就是这圈
+         描边,看不清等于风格没了,而且它承担着「这是一个可点的东西」。 */
+      --outline:#877364;
+      --rose-ink:#EE8FA5; --focus:#F08CB4;
       --line:#3F3025; --line-soft:#332619;
       --accent:#F0A05A; --accent-ink:#2A1F16; --accent-soft:#3A2A1C;
       --rose:#EE8FA5; --rose-soft:#3A2229;
@@ -132,7 +146,7 @@
   /* ---------- 键盘焦点要看得见 (REQ-045) ----------
      原来只有浏览器默认的那圈蓝框,而 :focus 在很多控件上被 outline:none 抹掉了。
      用键盘的人不该靠猜。 */
-  :focus-visible{outline:2.5px solid var(--rose);outline-offset:2px;border-radius:var(--r-xs)}
+  :focus-visible{outline:2.5px solid var(--focus);outline-offset:2px;border-radius:var(--r-xs)}
   .btn:focus-visible,.btn-pill:focus-visible,.lp-btn:focus-visible,.lp-cta:focus-visible{
     outline-offset:3px;border-radius:var(--pill)}
 
@@ -325,7 +339,7 @@
   .mm-age{font-size:11.5px;color:var(--ink-faint);flex:0 0 auto}
   .mm-note{margin-top:9px;font-size:13.5px;line-height:1.85;color:var(--ink);
     background:var(--surface-2);border-radius:var(--r-xs);padding:9px 11px}
-  .mm-late{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--rose)}
+  .mm-late{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--rose-ink)}
   .mm-late svg{width:13px;height:13px}
   .mm-picked{margin-top:8px;font-size:12.5px;color:var(--ink-soft)}
   .mm-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
@@ -465,7 +479,7 @@
 
   .wt-what{font-family:var(--cute);font-size:14.5px;color:var(--ink)}
   .wt-why{font-family:var(--sans);font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.7}
-  .wt-slow{font-family:var(--sans);font-size:12px;color:var(--rose);margin-top:var(--s3);
+  .wt-slow{font-family:var(--sans);font-size:12px;color:var(--rose-ink);margin-top:var(--s3);
     line-height:1.7;padding:0 var(--s5)}
 
   /* ---------- toast ---------- */
@@ -873,7 +887,7 @@
   .clk{display:inline-block;font-family:var(--sans);font-size:11px;color:var(--ink-soft);
     background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--pill);
     padding:0 8px;margin-top:3px}
-  .clk.night{color:var(--rose);background:var(--rose-soft);border-color:var(--rose)}
+  .clk.night{color:var(--rose-ink);background:var(--rose-soft);border-color:var(--rose-ink)}
 
   /* ---------- 约会三段式 (REQ-036) ---------- */
   .dt-hint{font-family:var(--sans);font-size:12px;line-height:1.85;color:var(--ink-soft);
@@ -891,7 +905,7 @@
   .dt-fx + .dt-fx{margin-top:4px}
   .dt-k{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);flex:0 0 32px}
   .dt-soon{display:flex;align-items:center;gap:7px;margin-top:var(--s3);
-    font-family:var(--sans);font-size:12.5px;line-height:1.8;color:var(--rose);
+    font-family:var(--sans);font-size:12.5px;line-height:1.8;color:var(--rose-ink);
     background:var(--rose-soft);border-radius:var(--r-xs);padding:var(--s2) var(--s3)}
   .dt-soon svg{width:15px;height:15px;flex:0 0 auto}
   .dt-cancel{background:var(--surface-2);border:1.5px dashed var(--outline);
@@ -984,7 +998,7 @@
   .pl-never ul{list-style:none;margin:var(--s2) 0 0;padding:0}
   .pl-never li{font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);line-height:1.9;
     padding-left:16px;position:relative}
-  .pl-never li::before{content:"×";position:absolute;left:2px;color:var(--rose)}
+  .pl-never li::before{content:"×";position:absolute;left:2px;color:var(--rose-ink)}
   .pl-never-s{font-family:var(--sans);font-size:12px;color:var(--ink-faint);
     margin-top:var(--s3);line-height:1.8}
 
