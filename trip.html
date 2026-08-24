@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行程 · CodeLove</title>
+<link rel="icon" href="assets/icon/favicon.svg" type="image/svg+xml">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#FDF3E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#241B15" media="(prefers-color-scheme: dark)">
+<style>
+  /* 这一页是给**不是本站用户**的人看的 —— 紧急联系人多半没听说过 CodeLove。
+     所以不引字体、不引任何东西:它要在最差的网络下也能一秒打开。 */
+  :root{
+    --bg:#FDF3E7; --surface:#FFFFFF; --ink:#4A3728; --ink-soft:#9A8574;
+    --outline:#4A3728; --line:#EBDAC4; --accent:#F0A05A; --rose:#EE8FA5;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#241B15; --surface:#2E2219; --ink:#F6E8D8; --ink-soft:#B7A28C;
+           --outline:#6B5340; --line:#3F3025; }
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);min-height:100vh;line-height:1.75;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",
+      "Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{width:100%;max-width:420px;background:var(--surface);border:2px solid var(--outline);
+    border-radius:20px;padding:28px 24px;box-shadow:0 3px 0 rgba(74,55,40,.13)}
+  h1{font-size:19px;font-weight:600;margin-bottom:6px}
+  .sub{font-size:13px;color:var(--ink-soft);margin-bottom:22px}
+  .row{border-top:1.5px solid var(--line);padding:14px 0}
+  .k{font-size:12px;color:var(--ink-soft)}
+  .v{font-size:16px;margin-top:2px;word-break:break-word}
+  .note{font-size:12px;color:var(--ink-soft);margin-top:20px;line-height:1.85;
+    border-top:1.5px solid var(--line);padding-top:14px}
+  .err{font-size:15px;line-height:1.9}
+</style>
+</head>
+<body>
+<div class="card" id="box"><div class="sub">读取中…</div></div>
+<script>
+// Worker 地址和主站保持一致。这一页不做任何登录 ——
+// 紧急联系人不是本站用户,要求登录等于这个功能不存在。
+var API = "https://codelove-ai.codelove-bwgzk.workers.dev/trip";
+var esc = function(s){ return String(s == null ? "" : s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); };
+var box = document.getElementById("box");
+var id = new URLSearchParams(location.search).get("id") || "";
+
+if(!id){
+  box.innerHTML = '<h1>链接不完整</h1><div class="err">这个网址里没有行程编号。' +
+    '</div><div class="note">跟分享给你链接的人要一次完整的链接。</div>';
+}else{
+fetch(API + "?id=" + encodeURIComponent(id))
+  .catch(function(){ throw new Error("连不上服务器。检查一下网络,或者稍后再打开这个链接。"); })
+  .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, j:j }; }); })
+  .then(function(res){
+    if(!res.ok) throw new Error(res.j && res.j.error || "读不到这个行程");
+    var t = res.j;
+    box.innerHTML =
+      '<h1>' + esc(t.from || "TA") + ' 分享了一次见面的行程</h1>' +
+      '<div class="sub">这是一条只读记录,24 小时后自动失效。</div>' +
+      '<div class="row"><div class="k">时间</div><div class="v">' + esc(t.when) + '</div></div>' +
+      '<div class="row"><div class="k">地点</div><div class="v">' + esc(t.where) + '</div></div>' +
+      (t.peer ? '<div class="row"><div class="k">和谁</div><div class="v">' + esc(t.peer) + '</div></div>' : "") +
+      '<div class="note">这里只有时间、地点和对方的昵称 —— 没有对方的联系方式、' +
+      '照片或任何其他资料。分享行程是为了万一联系不上时有人知道去哪找,' +
+      '不是为了把对方的信息交出去。</div>';
+  })
+  .catch(function(e){
+    box.innerHTML = '<h1>打不开</h1><div class="err">' + esc(e.message) +
+      '</div><div class="note">行程链接 24 小时后自动失效。' +
+      '如果你正在找人,直接联系分享给你链接的那个人。</div>';
+  });
+}
+</script>
+</body>
+</html>

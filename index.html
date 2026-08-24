@@ -769,6 +769,33 @@
     background:var(--surface-2);border-radius:var(--r-xs);
     padding:var(--s2) var(--s3);margin:-4px 0 var(--s3)}
 
+  /* ---------- 约会三段式 (REQ-036) ---------- */
+  .dt-hint{font-family:var(--sans);font-size:12px;line-height:1.85;color:var(--ink-soft);
+    margin-top:var(--s2)}
+  .dt-slot{display:block;width:100%;text-align:left;font-family:var(--cute);font-size:14px;
+    color:var(--ink);cursor:pointer;background:var(--surface);
+    border:1.5px solid var(--outline);border-radius:var(--r-sm);
+    padding:var(--s3) var(--s4);margin-top:var(--s2);
+    transition:background var(--dur) var(--ease)}
+  .dt-slot:hover{background:var(--butter-soft)}
+  .dt-fixed{background:var(--mint-soft);border:1.5px solid var(--outline);
+    border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin-top:var(--s3)}
+  .dt-fx{font-family:var(--cute);font-size:14.5px;color:var(--ink);
+    display:flex;gap:var(--s3);align-items:baseline}
+  .dt-fx + .dt-fx{margin-top:4px}
+  .dt-k{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);flex:0 0 32px}
+  .dt-soon{display:flex;align-items:center;gap:7px;margin-top:var(--s3);
+    font-family:var(--sans);font-size:12.5px;line-height:1.8;color:var(--rose);
+    background:var(--rose-soft);border-radius:var(--r-xs);padding:var(--s2) var(--s3)}
+  .dt-soon svg{width:15px;height:15px;flex:0 0 auto}
+  .dt-cancel{background:var(--surface-2);border:1.5px dashed var(--outline);
+    border-radius:var(--r-sm);padding:var(--s3) var(--s4);margin-top:var(--s3);
+    font-family:var(--cute);font-size:14px;color:var(--ink)}
+  .dt-why{font-family:var(--sans);font-size:13px;color:var(--ink-soft);
+    margin-top:4px;line-height:1.8}
+  .dt-fb{display:flex;gap:var(--s2);margin-top:var(--s3);flex-wrap:wrap}
+  .dt-share{margin-top:var(--s3)}
+
   /* ---------- 真实地点 (REQ-034) ---------- */
   .vn-box{display:flex;flex-direction:column;gap:6px;margin-top:var(--s3)}
   .vn{background:var(--surface-2);border-radius:var(--r-xs);padding:var(--s2) var(--s3)}
@@ -3029,11 +3056,12 @@ function renderDatePlan(d, peer, ref){
       </div>`;
     }).join("")}
     <div class="dt-state">${
-      same ? `你们都选了「${esc((opts.find(o=>o.id===mineV)||{}).label||"")}」—— 定了。`
+      same ? `你们都选了「${esc((opts.find(o=>o.id===mineV)||{}).label||"")}」—— 地方定了。`
       : both ? `两个人选的不一样。这里不替你们决定 —— 去私信里说一句,谁更想去哪。`
       : mineV ? `你投完了,在等 ${esc(peer.name||"TA")}。`
       : theirsV ? `${esc(peer.name||"TA")} 已经投了,轮到你。`
       : "两个人都还没投。"}</div>
+    ${stageHtml(d, peer, same ? (opts.find(o=>o.id===mineV)||{}).label : "")}
     ${city ? "" : `<div class="dt-city">你们填的城市不一样,所以这里只给场景、不给具体地点 ——
       推一个对方去不了的地方没有意义。先在私信里说清楚在谁那边见。</div>`}
     <div class="dt-acts">
@@ -3047,12 +3075,186 @@ function renderDatePlan(d, peer, ref){
       await updateDoc(ref, { votes: { ...votes, [me.uid]: el.dataset.opt }, updatedAt: serverTimestamp() });
     }catch(e){ toast("投不上:" + fbError(e)); console.error(e); }
   }));
+  bindStage(d, peer, ref);
   $("#dtAgain").addEventListener("click", ()=>newPlan(peer, ref, opts));
   $("#dtDrop").addEventListener("click", async ()=>{
     if(!confirm("撤掉之后两边都看不到这个计划了。继续?")) return;
     try{ await delDoc(ref); toast("已撤掉"); }
     catch(e){ toast("撤不掉:" + fbError(e)); }
   });
+}
+
+/* ================= 三段式 (REQ-036) =================
+
+   约会前 → 约会中定下来 → 见完面各自反馈。三段拆开是有理由的:
+   「要不要见一面」是整个产品里最难迈的一步,一次问完(什么时候、在哪、
+   见不见)压力太大,拆成三个小决定,每一步都能停下来。
+
+   **不做日历同步。** 要授权、要合规,成本高收益低 —— 文档写的就是简单的三选一。
+
+   **提醒只做站内的。** 静态站点没有推送通道(要 Service Worker + VAPID +
+   推送服务,那是 PWA 那条线的事)。所以这里做的是:约会在 24 小时内时,
+   面板顶上出现一条提醒。界面上不承诺「我们会提前提醒你」,因为做不到。
+
+   见完面的反馈**对方绝对读不到**,规则里卡死。代价也说清楚:文档说
+   「双方都选还想再见就提示可以继续」——那一步做不了,要比对两边的答案
+   就得有个谁都能读两边的角色,而客户端谁都不该是那个角色。等服务端。 */
+const DATE_SLOTS_HINT = "写成对方一眼能看懂的样子,比如「周六 下午 2 点」";
+const FEEDBACK_OPTS = [
+  ["again", "还想再见"],
+  ["maybe", "再想想"],
+  ["no",    "不合适"],
+];
+
+function stageHtml(d, peer, placeLabel){
+  const st = d.status || "planning";
+  const slots = d.slots || [];
+  const name = esc(peer.name || "TA");
+
+  if(st === "cancelled"){
+    const mine = d.cancelBy === me.uid;
+    return `<div class="dt-cancel">
+      <b>${mine ? "你取消了这次见面" : `${name} 取消了这次见面`}</b>
+      ${d.cancelWhy ? `<div class="dt-why">${esc(d.cancelWhy)}</div>` : ""}
+      <div class="dt-hint">想再约的话,点「换一批」重开一组提议。</div></div>`;
+  }
+
+  if(st === "confirmed"){
+    const soon = dateSoon(d.pick);
+    return `
+      ${soon ? `<div class="dt-soon">${ICON_CLOCK}<span>就在 24 小时内了。
+        出门前跟人说一声你去哪 —— 下面那个链接就是干这个的。</span></div>` : ""}
+      <div class="dt-fixed">
+        <div class="dt-fx"><span class="dt-k">时间</span>${esc(d.pick||"")}</div>
+        <div class="dt-fx"><span class="dt-k">地点</span>${esc(d.place||placeLabel||"")}</div>
+      </div>
+      <div class="dt-acts">
+        <button class="mm-btn go" id="dtShare">分享行程给家人朋友</button>
+        <button class="mm-btn" id="dtCancel">临时取消</button>
+      </div>
+      <div id="dtShareOut"></div>
+      <div class="rp-k" style="margin-top:16px">见完面之后</div>
+      <div class="dt-hint">下面这一栏<b>只有你自己看得到</b> —— ${name} 读不到,
+        规则里卡死的。能被对方看到的反馈就只会是客套话。</div>
+      <div class="dt-fb" id="dtFb">${FEEDBACK_OPTS.map(([k,l])=>
+        `<button type="button" class="mm-btn" data-fb="${k}">${esc(l)}</button>`).join("")}</div>
+      <div class="dt-hint" id="dtFbState"></div>`;
+  }
+
+  // planning:先定时间
+  if(!slots.length){
+    return `
+      <div class="rp-k" style="margin-top:16px">再定个时间</div>
+      <div class="dt-hint">给三个时间段,${name} 挑一个。${DATE_SLOTS_HINT}。</div>
+      ${[0,1,2].map(i=>`<div class="field" style="margin-top:8px">
+        <input id="dtS${i}" maxlength="40" placeholder="${i===0?"周六 下午 2 点":"再给一个"}"></div>`).join("")}
+      <button class="btn btn-coral btn-pill" style="width:100%;margin-top:10px" id="dtSlots">发给 ${name}</button>`;
+  }
+  return `
+    <div class="rp-k" style="margin-top:16px">挑一个时间</div>
+    <div class="dt-hint">哪个都不行的话,在私信里另提一个,这里也可以重填。</div>
+    ${slots.map((sl,i)=>`<button type="button" class="dt-slot" data-slot="${i}">${esc(sl)}</button>`).join("")}
+    <button class="btn btn-ghost btn-pill" style="width:100%;margin-top:8px" id="dtReslot">重填时间</button>`;
+}
+
+/* 约会是不是就在 24 小时内。时间是人手写的字符串,解析不了就当「不确定」——
+   宁可不提醒,也不要在一个错的时间提醒人。 */
+function dateSoon(pick){
+  const t = Date.parse(String(pick||"").replace(/[年月]/g,"-").replace(/日/,""));
+  if(!Number.isFinite(t)) return false;
+  const dt = t - Date.now();
+  return dt > 0 && dt < 24*3600*1000;
+}
+
+function bindStage(d, peer, ref){
+  const st = d.status || "planning";
+  const save = async patch => {
+    try{ await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() }); }
+    catch(e){ toast("没存上:" + fbError(e)); console.error(e); }
+  };
+
+  const slotsBtn = $("#dtSlots");
+  if(slotsBtn) slotsBtn.addEventListener("click", ()=>{
+    const vals = [0,1,2].map(i=>$("#dtS"+i).value.trim()).filter(Boolean);
+    if(!vals.length){ toast("至少给一个时间"); return; }
+    save({ slots: vals, status: "planning" });
+  });
+  const reslot = $("#dtReslot");
+  if(reslot) reslot.addEventListener("click", ()=>save({ slots: [] }));
+
+  document.querySelectorAll("[data-slot]").forEach(b=>b.addEventListener("click", ()=>{
+    const sl = (d.slots||[])[+b.dataset.slot]; if(!sl) return;
+    const opts = d.opts || [], votes = d.votes || {};
+    const mineV = votes[me.uid];
+    const place = (opts.find(o=>o.id === mineV)||{}).label || "";
+    save({ pick: sl, place, status: "confirmed" });
+  }));
+
+  const cancel = $("#dtCancel");
+  if(cancel) cancel.addEventListener("click", ()=>{
+    // 取消要给理由。不强制真诚,但强制有 —— 一句「有事」也比无声消失强。
+    const why = prompt("取消要说一句为什么(对方看得到):");
+    if(why === null) return;
+    if(!why.trim()){ toast("写一句吧,哪怕是「临时有事」"); return; }
+    save({ status:"cancelled", cancelBy: me.uid, cancelWhy: why.trim().slice(0,200) });
+  });
+
+  const share = $("#dtShare");
+  if(share) share.addEventListener("click", ()=>shareTrip(d, peer));
+
+  if(st === "confirmed") loadFeedback(peer, ref);
+}
+
+/* 一键把行程发给紧急联系人 (REQ-036 的安全功能)。
+   **只带时间、地点、对方昵称** —— 紧急联系人需要知道的是你几点在哪,
+   不是对方是谁。链接由 Worker 存进 KV,24 小时后 KV 自己删掉,
+   是真的过期,不是前端假装过期。 */
+async function shareTrip(d, peer){
+  const out = $("#dtShareOut");
+  out.innerHTML = waiting("在生成一次性链接", "24 小时后自动失效");
+  try{
+    const r = await callProxy("/trip", {
+      when: d.pick || "", where: d.place || "",
+      peer: peer.name || "", from: (myProfile && myProfile.name) || ""
+    });
+    const url = location.origin + location.pathname.replace(/[^/]*$/, "") + "trip.html?id=" + r.id;
+    out.innerHTML = `
+      <div class="dt-share">
+        <div class="dt-hint">把这个链接发给家人或朋友。里面只有时间、地点和
+          ${esc(peer.name||"TA")} 的昵称 —— 没有联系方式、没有照片、没有别的资料。
+          <b>24 小时后自动失效</b>。</div>
+        <div class="uid-box" data-copy="${esc(url)}" title="点击复制">
+          <code>${esc(url)}</code><span class="uid-copy">复制</span></div>
+      </div>`;
+    out.querySelectorAll("[data-copy]").forEach(el=>el.addEventListener("click", ()=>{
+      navigator.clipboard.writeText(el.dataset.copy).then(()=>toast("链接已复制"));
+    }));
+  }catch(e){
+    out.innerHTML = `<div class="dt-hint">生成不了:${esc(e.message||"")}</div>`;
+  }
+}
+
+/* 见完面的反馈。写进 dates/{pair}/feedback/{我},**对方读不到**。 */
+async function loadFeedback(peer, ref){
+  const fbRef = doc(db, ref.path + "/feedback/" + me.uid);
+  let cur = null;
+  try{ const sn = await getDoc(fbRef); cur = sn.exists() ? sn.data() : null; }catch(e){}
+  const state = $("#dtFbState");
+  const paint = ()=>{
+    document.querySelectorAll("[data-fb]").forEach(b=>
+      b.classList.toggle("go", cur && cur.answer === b.dataset.fb));
+    if(state) state.innerHTML = cur
+      ? `已记下:<b>${esc((FEEDBACK_OPTS.find(x=>x[0]===cur.answer)||[])[1]||"")}</b>。
+         ${esc(peer.name||"TA")} 看不到这个,也不会收到任何通知。`
+      : `见完面再来点一下。${esc(peer.name||"TA")} 永远看不到你点的是哪个。`;
+  };
+  paint();
+  document.querySelectorAll("[data-fb]").forEach(b=>b.addEventListener("click", async ()=>{
+    try{
+      await setDoc(fbRef, { uid: me.uid, answer: b.dataset.fb, note: "", at: serverTimestamp() });
+      cur = { answer: b.dataset.fb }; paint(); toast("记下了,只有你看得到");
+    }catch(e){ toast("没存上:" + fbError(e)); }
+  }));
 }
 
 async function newPlan(peer, ref, prev){
